@@ -37,9 +37,8 @@ f_pkl = os.path.join(ics_dir, 'ics_data.pkl')
 with open(f_pkl, 'wb') as f:
     pickle.dump(ics_data, f)
 
+ic.calc_prop('vb')
 
-fig, (ax1, ax2, ax3) = plt.subplots(1, 3)
 
-ic.plot(ax1, 'salinity')
-ic.plot(ax2, 'temperature')
-ic.plot(ax3, 'vb')
+fig, (ax1, ax2) = ic.plot_state_variable({'color': 'r'})
+plt.show()

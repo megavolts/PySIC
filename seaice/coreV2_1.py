@@ -7,7 +7,11 @@ Fairbanks.
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
 import logging
+from seaice.properties import si_prop_list
+from seaice.properties import si_prop_unit
+from seaice.properties import si_state_variable
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -33,15 +37,14 @@ missvalue = float('NaN')
 # logging.warning('And this, too')
 # ic_path = '/mnt/data_lvm/seaice/core/BRW/2010_11/BRW_CS-20110122A.xlsx'
 unit = {'salinity': '[PSU]', 'temperature': '[°C]', 'vb': '[%]', 'brine volume fraction': '[%]'}
-properties = {'vb': 'brine_volumefraction', 'brine volume fraction': 'brine_volumefraction'}
 
 
 class Profile:
-    def __init__(self, x, y, profile_name, label, comment=None, note=None, length=None):
+    def __init__(self, x, y, profile_label, variable, comment=None, note=None, length=None):
         self.x = x
         self.y = y
-        self.profile_name = profile_name
-        self.label = label
+        self.profile_label = profile_label
+        self.variable = variable
         self.note = note
         if length is None:
             self.length = x[-1] - x[0]
@@ -57,7 +60,7 @@ class Profile:
 
 
 class Core:
-    def __init__(self, name, date, location, ice_thickness, snow_thickness, comment = None):
+    def __init__(self, name, date, location, ice_thickness, snow_thickness, comment=None):
         self.name = name
         self.date = date
         self.location = location
@@ -69,12 +72,12 @@ class Core:
         if comment is not None:
             self.add_comment(comment)
 
+    def add_profile(self, x, y, profile_label, variable, comment=None, note=None, length=None):
+        self.profiles[variable] = Profile(x, y, profile_label, variable, comment, note, length)
+
     def add_corenames(self, corename):
         if corename not in self.corenames:
             self.corenames.append(corename)
-
-    def add_profile(self, x, y, profile_name, label, comment=None, note=None, length=None):
-        self.profiles[label] = Profile(x, y, profile_name, label, comment, note, length)
 
     def add_comment(self, comment):
         if self.comment is None:
@@ -82,74 +85,92 @@ class Core:
         else:
             self.comment.append(comment)
 
-    def calc_prop(self, label_properties):
+    def calc_prop(self, prop):
         """
-        :param label_properties:
+        :param prop:
         :return:
         """
         # check properties variables
-        if label_properties not in properties:
-            logging.warning('property %s not defined in the ice core property modle' % label_properties)
-        elif 'salinity' not in self.profiles.keys():
+        if prop not in si_prop_list.keys():
+            logging.warning('property %s not defined in the ice core property module' % prop)
+            return None
+        elif 'salinity' not in self.profiles:
             logging.warning('ice core %s is missing salinity profile for further calculation' % self.name)
-        elif 'temperature' not in self.profiles.keys():
+            return None
+        elif 'temperature' not in self.profiles:
             logging.warning('ice core %s is missing temperature profile for further calculation' % self.name)
+            return None
         else:
             import seaice.properties
-            label = properties[label_properties]
-            function = getattr(seaice.properties, label)
+            variable = si_prop_list[prop]
+            function = getattr(seaice.properties, variable.replace(" ", "_"))
             profilet = self.profiles['temperature']
             profiles = self.profiles['salinity']
             # y axis where data are present for both profile
             y = np.sort(np.unique(np.concatenate((profilet.y, profiles.y))))
             y = y[np.where(y <= max(max(profilet.y), max(profiles.y)))]
             y = y[np.where(y >= max(min(profilet.y), min(profiles.y)))]
-            ymid = y[0:-1] + np.diff(y) / 2
+            y_mid = y[0:-1] + np.diff(y) / 2
 
-            xt = np.interp(ymid, profilet.y, profilet.x)
-            xs = np.interp(ymid, profiles.y[:-1] + np.diff(profiles.y) / 2, profiles.x)
+            xt = np.interp(y_mid, profilet.y, profilet.x)
+            xs = np.interp(y_mid, profiles.y[:-1] + np.diff(profiles.y) / 2, profiles.x)
             x = function(xt, xs)
 
             # comment = None*np.zeros(len(y))
             # length = max(y)-min(y)
-            note = 'computed from ' + self.profiles['temperature'].profile_name + ' temperature profile and ' + self.profiles['salinity'].profile_name + ' salinity profile'
-            profile_name = self.name
-            self.add_profile[label] = Profile(x, y, profile_name, label_properties, note=note)
+            note = 'computed from ' + self.profiles['temperature'].profile_label+ ' temperature profile and ' + \
+                   self.profiles['salinity'].profile_label + ' salinity profile'
+            profile_label = self.name
+            self.add_profile(x, y, profile_label, variable, note=note)
+            self.add_comment('computed %s' % variable)
 
-    def plot(self, ax, label_properties=None, param_dict=None):
-        if label_properties in self.profiles.keys():
-            profile = self.profiles[label_properties]
-            y = profile.y
-            x = profile.x
-            self.calc_prop('vb')
+
+    def plot(self, ax, prop, param_dict=None):
+        if prop in si_state_variable.keys():
+            profile_label = si_state_variable[prop.lower()]
+        elif prop in si_prop_list.keys():
+            profile_label = si_prop_list[prop.lower()]
+            if profile_label not in self.profiles.keys():
+                logging.warning('computing %s' % prop)
+                self.calc_prop(prop)
+        else:
+            logging.warning('no data available to plot')
+            return None
+        profile = self.profiles[profile_label]
+
+        y = profile.y
+        x = profile.x
+        if profile.y.__len__() > profile.x.__len__():
+            x = np.concatenate((x, np.atleast_1d(x[-1])))
             if param_dict is None:
                 out = ax.step(x, y)
-                ax.set_xlabel(label_properties + ' ' + unit[label_properties])
-                ax.set_ylim(max(ax.get_ylim()), 0)
             else:
                 out = ax.step(x, y, **param_dict)
-            return out
-        elif label_properties not in self.profiles.keys():
-            logging.warning('No profile name %s in core %s' % (label_properties, self.name))
         else:
-            profile = self.profiles[label_properties]
-            y = profile.y
-            x = profile.x
-            if profile.y.__len__() > profile.x.__len__():
-                x = np.concatenate((x, np.atleast_1d(x[-1])))
-                if param_dict is None:
-                    out = ax.step(x, y)
-                else:
-                    out = ax.step(x, y, **param_dict)
+            if param_dict is None:
+                out = ax.plot(x, y)
             else:
-                if param_dict is None:
-                    out = ax.plot(x, y)
-                else:
-                    out = ax.plot(x, y, **param_dict)
+                out = ax.plot(x, y, **param_dict)
 
-            ax.set_xlabel(label_properties + ' ' + unit[label_properties])
-            ax.set_ylim(max(ax.get_ylim()), 0)
-            return out
+        ax.set_xlabel(profile_label + ' ' + si_prop_unit[profile_label])
+        ax.set_ylim(max(ax.get_ylim()), 0)
+        return out
+
+    def plot_state_variable(self, param_dict=None):
+        fig, (ax1, ax2) = plt.subplots(1, 2)
+        if 'salinity' in self.profiles.keys():
+            self.plot(ax1, 'salinity', param_dict)
+            ax1.set_ylabel('depth [m]')
+        else:
+            logging.warning('salinity profile missing for %s' % self.name)
+
+        if 'temperature' in self.profiles.keys():
+            ax2 = self.plot(ax2, 'temperature', param_dict)
+        else:
+            logging.warning('temperature profile missing for %s' % self.name)
+        return fig, (ax1, ax2)
+
+
 
 
 class CoreSet:
