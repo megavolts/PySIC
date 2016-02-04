@@ -1,11 +1,10 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-icecoredata.py: ice core data is a toolbox to import ice core data file from xlsx spreadsheet. Xlsx spreadsheet should be
-formatted according to the template provided by the Sea Ice Group of the Geophysical Institute of University of Alaska,
-Fairbanks.
+icecoredata.py: ice core data is a toolbox to import ice core data file from xlsx spreadsheet. Xlsx spreadsheet should
+be formatted according to the template provided by the Sea Ice Group of the Geophysical Institute of University of
+Alaska, Fairbanks.
 """
-
 import numpy as np
 import matplotlib.pyplot as plt
 import logging
@@ -41,6 +40,9 @@ nan_value = float('nan')
 
 
 class Profile:
+    """
+    Profile
+    """
     def __init__(self, x, y, profile_label, variable, comment=None, note=None, length=None):
         self.x = x
         self.y = y
@@ -54,13 +56,29 @@ class Profile:
         self.comment = comment
 
     def plot(self, fig_num=None):
+        """
+        :param fig_num:
+        :return:
+        """
         if fig_num is not None:
             plt.figure(fig_num)
         plt.plot(self.x, self.y[0:len(self.x)])
 
 
 class Core:
+    """
+    Core
+    """
     def __init__(self, name, date, location, ice_thickness, snow_thickness, comment=None):
+        """
+        :param name:
+        :param date:
+        :param location:
+        :param ice_thickness:
+        :param snow_thickness:
+        :param comment:
+        :return:
+        """
         self.name = name
         self.date = date
         self.location = location
@@ -73,13 +91,26 @@ class Core:
             self.add_comment(comment)
 
     def add_profile(self, profile, variable):
+        """
+        :param profile:
+        :param variable:
+        :return:
+        """
         self.profiles[variable] = profile
 
     def add_corenames(self, corename):
+        """
+        :param corename:
+        :return:
+        """
         if corename not in self.corenames:
             self.corenames.append(corename)
 
     def add_comment(self, comment):
+        """
+        :param comment:
+        :return:
+        """
         if self.comment is None:
             self.comment = [comment]
         else:
@@ -124,6 +155,12 @@ class Core:
             self.add_comment('computed %s' % variable)
 
     def plot(self, ax, prop, param_dict=None):
+        """
+        :param ax:
+        :param prop:
+        :param param_dict:
+        :return:
+        """
         if prop in si_state_variable.keys():
             profile_label = si_state_variable[prop.lower()]
         elif prop in si_prop_list.keys():
@@ -155,6 +192,10 @@ class Core:
         return out
 
     def plot_state_variable(self, param_dict=None):
+        """
+        :param param_dict:
+        :return:
+        """
         fig, (ax1, ax2) = plt.subplots(1, 2)
         if 'salinity' in self.profiles.keys():
             self.plot(ax1, 'salinity', param_dict)
@@ -170,16 +211,26 @@ class Core:
 
 
 class CoreSet:
+    """
+    CoreSet() is a vairable
+    """
     def __init__(self, set_name, core):
         self.name = set_name
         self.core_data = {core.name: core}
         self.core = [core.name]
 
     def add_core(self, core):
+        """
+        :param core:
+        :return:
+        """
         self.core_data[core.name] = core
         self.core.append(core.name)
 
     def ice_thickness(self):
+        """
+        :return:
+        """
         hi = []
         for key in self.core_data.keys():
             if self.core_data[key].ice_thickness is not None:
@@ -190,6 +241,9 @@ class CoreSet:
             return hi, np.nanmean(hi), np.nanmax(hi)
 
     def core_length(self):
+        """
+        :return:
+        """
         lc = []
         for key in self.core_data.keys():
             core = self.core_data[key]
@@ -203,6 +257,10 @@ class CoreSet:
         return lc, np.nanmean(lc), np.nanmax(lc)
 
     def mean_temperature(self, section_thickness=0.05):
+        """
+        :param section_thickness:
+        :return:
+        """
         t = None
         if self.ice_thickness() is None:
             hi = self.core_length()[1]
@@ -227,8 +285,10 @@ class CoreSet:
 
 
 def import_core(ic_path, missing_value=float('nan')):
-    import openpyxl
-    import datetime
+    """
+    :param ic_path:
+    :param missing_value:
+    """
 
     wb = openpyxl.load_workbook(filename=ic_path, use_iterators=True)  # load the xlsx spreadsheet
     ws_name = wb.get_sheet_names()
@@ -284,7 +344,8 @@ def import_core(ic_path, missing_value=float('nan')):
 
     ii_row = 23
     ii_col = 3
-    while ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)] is not None and ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value is not None:
+    while ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)] is not None and \
+                    ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value is not None:
         imported_core.add_corenames(ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value)
         ii_col += 1
 
@@ -306,6 +367,10 @@ def import_core(ic_path, missing_value=float('nan')):
 
 
 def make_section(core, section_thickness=0.05):
+    """
+    :param core:
+    :param section_thickness:
+    """
     core = core
     for a in dir(core):
         if isinstance(core.__getattribute__(a), Profile) and core.__getattribute__(a) is not None:
@@ -314,7 +379,6 @@ def make_section(core, section_thickness=0.05):
                 length = profile.length
             else:
                 length = core.ice_thickness
-            # TODO: start point should be the closet to section_thickness/2
             y_mid_section = np.arange(section_thickness / 2, length, section_thickness)
             delta_y = (length + len(y_mid_section) * section_thickness) / 2
             if delta_y < length:
@@ -334,6 +398,11 @@ def make_section(core, section_thickness=0.05):
 
 
 def get_filepath(data_dir, data_ext, subdir='no'):
+    """
+    :param data_dir:
+    :param data_ext:
+    :param subdir:
+    """
     import os
     filepath = []
     if subdir == 'yes':
@@ -354,13 +423,25 @@ def get_filepath(data_dir, data_ext, subdir='no'):
 
 
 def generate_source(data_dir, data_ext):
+    """
+    :param data_dir:
+    :param data_ext:
+    """
     ic_path_list = get_filepath(data_dir, data_ext)
     with open(data_dir + '/ic_list.txt', 'w') as f:
         for ii in range(0, len(ic_path_list)):
             f.write(ic_path_list[ii] + "\n")
 
 
-def read_variable(wb, sheet_name='T_ice', col_x='B', col_y='A', col_c=8, row_start=6):
+def read_variable(wb, sheet_name, col_x, col_y, col_c, row_start):
+    """
+    :param wb:
+    :param sheet_name:
+    :param col_x:
+    :param col_y:
+    :param col_c:
+    :param row_start:
+    """
     ice_core_spreadsheet = {'T_ice': 'temperature', 'S_ice': 'salinity'}
 
     if sheet_name in wb.sheetnames:
@@ -469,6 +550,11 @@ def import_src(txt_filepath, section_thickness=None, missing_value=float('nan'),
 
 
 def import_list(ics_list, missing_value=float('nan'), log_level='warning'):
+    """
+    :param ics_list:
+    :param missing_value:
+    :param log_level:
+    """
     print('Ice core data importation in progress ...')
 
     logging.basicConfig(filename=LOG_FILENAME, level=LOG_LEVELS[log_level])
@@ -486,6 +572,12 @@ def import_list(ics_list, missing_value=float('nan'), log_level='warning'):
 
 
 def import_prop(ic_path, prop='Salinity', missing_value=float('nan')):
+    """
+    :param ic_path:
+    :param prop:
+    :param missing_value:
+    :return:
+    """
     wb = openpyxl.load_workbook(filename=ic_path, use_iterators=True)  # load the xlsx spreadsheet
     ws_name = wb.get_sheet_names()
     ws_summary = wb.get_sheet_by_name('summary')  # load the data from the summary sheet
@@ -540,7 +632,8 @@ def import_prop(ic_path, prop='Salinity', missing_value=float('nan')):
 
     ii_row = 23
     ii_col = 3
-    while ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)] is not None and ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value is not None:
+    while ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)] is not None and \
+                    ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value is not None:
         imported_core.add_corenames(ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value)
         ii_col += 1
 
@@ -549,7 +642,7 @@ def import_prop(ic_path, prop='Salinity', missing_value=float('nan')):
                   'd18O': 'S_ice',
                   'dO2': 'S_ice',
                   'sediment': 'sediment',
-                  'Chla': 'algal_pigment', 'Phae': 'algal_pigment' }
+                  'Chla': 'algal_pigment', 'Phae': 'algal_pigment'}
     prop_col = {'salinity': ['D', 'AB', 8, 6],
                 'temperature': ['B', 'A', 8, 6],
                 'd180': [6, 'AB', 8, 6],
@@ -568,9 +661,11 @@ def import_prop(ic_path, prop='Salinity', missing_value=float('nan')):
             col_y_temp = prop_col[ii_prop.lower()][1]
             col_c_temp = prop_col[ii_prop.lower()][2]
             row_start_temp = prop_col[ii_prop.lower()][3]
-            profile = read_variable(wb, sheet_name=prop_sheet[ii_prop.lower()], col_x=col_x_temp, col_y=col_y_temp, col_c=col_c_temp, row_start=row_start_temp)
+            profile = read_variable(wb, sheet_name=prop_sheet[ii_prop.lower()], col_x=col_x_temp, col_y=col_y_temp,
+                                    col_c=col_c_temp, row_start=row_start_temp)
             imported_core.add_profile(profile, ii_prop.lower())
             logging.info('\t%s profile imported' % ii_prop.lower())
         else:
             logging.info('\t%s profile missing' % ii_prop.lower())
-    return imported_core
+    if isinstance(imported_core, Profile):
+        return imported_core
