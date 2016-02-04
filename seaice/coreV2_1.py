@@ -9,6 +9,8 @@ Fairbanks.
 import numpy as np
 import matplotlib.pyplot as plt
 import logging
+import openpyxl
+import datetime
 from seaice.properties import si_prop_list
 from seaice.properties import si_prop_unit
 from seaice.properties import si_state_variable
@@ -35,6 +37,7 @@ LOG_LEVELS = {'debug': logging.DEBUG,
 # logging.warning('And this, too')
 # ic_path = '/mnt/data_lvm/seaice/core/BRW/2010_11/BRW_CS-20110122A.xlsx'
 unit = {'salinity': '[PSU]', 'temperature': '[°C]', 'vb': '[%]', 'brine volume fraction': '[%]'}
+nan_value = float('nan')
 
 
 class Profile:
@@ -69,8 +72,8 @@ class Core:
         if comment is not None:
             self.add_comment(comment)
 
-    def add_profile(self, x, y, profile_label, variable, comment=None, note=None, length=None):
-        self.profiles[variable] = Profile(x, y, profile_label, variable, comment, note, length)
+    def add_profile(self, profile, variable):
+        self.profiles[variable] = profile
 
     def add_corenames(self, corename):
         if corename not in self.corenames:
@@ -107,6 +110,7 @@ class Core:
             y = y[np.where(y <= max(max(profilet.y), max(profiles.y)))]
             y = y[np.where(y >= max(min(profilet.y), min(profiles.y)))]
             y_mid = y[0:-1] + np.diff(y) / 2
+            length = max(y) - min(y)
 
             xt = np.interp(y_mid, profilet.y, profilet.x)
             xs = np.interp(y_mid, profiles.y[:-1] + np.diff(profiles.y) / 2, profiles.x)
@@ -115,7 +119,8 @@ class Core:
             note = 'computed from ' + self.profiles['temperature'].profile_label + ' temperature profile and ' + \
                    self.profiles['salinity'].profile_label + ' salinity profile'
             profile_label = self.name
-            self.add_profile(x, y, profile_label, variable, note=note)
+            prop_profile = Profile(x, y, profile_label, variable, comment=None, note=note, length=length)
+            self.add_profile(prop_profile, variable)
             self.add_comment('computed %s' % variable)
 
     def plot(self, ax, prop, param_dict=None):
@@ -285,118 +290,18 @@ def import_core(ic_path, missing_value=float('nan')):
 
     # SALINITY S
     if 'S_ice' in ws_name:
-        # logging.info('\t salinity profile present')
-        ws = wb.get_sheet_by_name('S_ice')  # load data from the salinity sheet
-
-        # profile name
-        profile_name = ws['C1'].value
-
-        # note
-        note = ws['C3'].value
-
-        # vertical coordinate
-        bin_flag = 1
-        jj = 6
-        ybin_sup = []
-        ybin_low = []
-        ybin_mid = []
-        while bin_flag > 0:
-            try:
-                y1 = ws.cell(column=1, row=jj).value
-                y2 = ws.cell(column=2, row=jj).value
-            except IndexError:
-                break
-            if y1 is not None and y2 is not None:
-                ybin_sup.append(y1)
-                ybin_low.append(y2)
-                ybin_mid.append((y1 + y2) / 2)
-            elif ws.cell(column=2, row=jj).value is not None:
-                ybin_sup.append(None)
-                ybin_low.append(None)
-                ybin_mid.append(ws.cell(colum=2, row=jj).value)
-                bin_flag = 2
-            else:
-                break
-            jj += 1
-
-        if bin_flag is 2:
-            for ii_bin in np.arange(0, len(ybin_mid)):
-                half_bin_length = (ybin_mid[ii_bin + 1] - ybin_mid[ii_bin]) / 2
-                ybin_sup[ii_bin] = ybin_mid[ii_bin] - half_bin_length
-                ybin_low[ii_bin] = ybin_mid[ii_bin] + half_bin_length
-
-        # salinity
-        ybin = np.append(ybin_sup, ybin_low[-1])
-        s = missing_value * np.empty(len(ybin) - 1)
-        for jj in range(6, 6 + len(s)):
-            s_y = ws.cell(column=4, row=jj).value
-            if isinstance(s_y, (float, int)):
-                s[jj - 6] = s_y
-
-        # comment
-        comment = [None] * len(ybin)
-        for jj in range(6, 6 + len(comment) - 1):
-            comment[jj - 6] = ws.cell(column=8, row=jj).value
-        comment[-1] = [ws['C3'].value]
-
-        # length
-        length = ws['C2'].value
-        if length is None:
-            length = ybin[-1] - ybin[0]
-        elif ybin[-1] - ybin[0] < length:
-            length = ybin[-1] - ybin[0]
-        # save profile
-        imported_core.add_profile(s, ybin, profile_name, 'salinity', comment, note, length)
+        profile = read_variable(wb, sheet_name='S_ice', col_x='D', col_y='AB', col_c=8, row_start=6)
+        imported_core.add_profile(profile, 'salinity')
+        logging.info('\tsalinity profile imported')
     else:
         logging.info('\tsalinity profile missing')
 
-    # TEMPERATURE T
     if 'T_ice' in ws_name:
-        logging.info('\ttemperature profile present')
-        ws = wb.get_sheet_by_name('T_ice')  # load data from the salinity sheet
-
-        # profile name
-        profile_name = ws['C1'].value
-
-        # note
-        note = ws['C3'].value
-
-        # vertical coordinate
-        bin_flag = 1
-        jj = 6
-        ybin = []
-        while bin_flag > 0:
-            try:
-                y1 = ws.cell(column=1, row=jj).value
-            except IndexError:
-                break
-            if y1 is not None:
-                ybin.append(y1)
-            else:
-                break
-            jj += 1
-
-        # temperature
-        t = missing_value * np.empty(len(ybin))
-        for jj in range(6, 6 + len(t)):
-            t_y = ws.cell(column=2, row=jj).value
-            if isinstance(t_y, (float, int)):
-                t[jj - 6] = t_y
-
-        # comment
-        c = [None] * len(ybin)
-        for jj in range(6, 6 + len(c) - 1):
-            c[jj - 6] = ws.cell(column=8, row=jj).value
-        c.append(ws['C3'].value)
-
-        # length
-        length = ws['C2'].value
-        if length is None:
-            length = max(ybin)
-        # save profile
-        imported_core.add_profile(t, ybin, profile_name, 'temperature', c, note, length)
+        profile = read_variable(wb, sheet_name='T_ice', col_x='D', col_y='A', col_c=8, row_start=6)
+        imported_core.add_profile(profile, 'temperature')
+        logging.info('\ttemperature profile imported')
     else:
-        logging.info('\tsalinity profile missing')
+        logging.info('\ttemperature profile missing')
     return imported_core
 
 
@@ -455,262 +360,86 @@ def generate_source(data_dir, data_ext):
             f.write(ic_path_list[ii] + "\n")
 
 
-def import_prop(ic_path, missing_value=float('nan')):
-    """
-    import_prop import specific ice core
-    :param ic_path:
-    :param missing_value:
-    :return:
-    """
+def read_variable(wb, sheet_name='T_ice', col_x='B', col_y='A', col_c=8, row_start=6):
+    ice_core_spreadsheet = {'T_ice': 'temperature', 'S_ice': 'salinity'}
 
-    import openpyxl
-    import datetime
+    if sheet_name in wb.sheetnames:
+        logging.info('%s sheet present, importing profile for %s' % (sheet_name, ice_core_spreadsheet[sheet_name]))
 
-    wb = openpyxl.load_workbook(filename=ic_path, use_iterators=True)  # load the xlsx spreadsheet
-    ws_name = wb.get_sheet_names()
+        if not isinstance(col_y, list) and len(col_y) < 2:
+            col_y = [col_y]
+        col_y_temp = [float('nan')] * len(col_y)
+        for ii_col in range(0, len(col_y)):
+            if isinstance(col_y[ii_col], str):
+                col_y_temp[ii_col] = openpyxl.utils.column_index_from_string(col_y[ii_col])
+        col_y = col_y_temp
+        del col_y_temp
+        if isinstance(col_x, str):
+            col_x = openpyxl.utils.column_index_from_string(col_x)
+        if isinstance(col_c, str):
+            col_c = openpyxl.utils.column_index_from_string(col_c)
 
-    ws_summary = wb.get_sheet_by_name('summary')  # load the data from the summary sheet
+        ws = wb.get_sheet_by_name(sheet_name)
+        profile_name = ws['C1'].value
+        note = ws['C3'].value
 
-    # name
-    temp_cell = ws_summary['C21']
-    ic_name = temp_cell.value
-    print(ic_name)
-
-    logging.basicConfig(filename=LOG_FILENAME, level=LOG_LEVELS['warning'])
-    logging.info('Processing ' + ic_name + '...')
-
-    # date
-    temp_cell = ws_summary['C2']
-    if isinstance(temp_cell.value, (float, int)):
-        ic_date = datetime.datetime(1899, 12, 30) + datetime.timedelta(temp_cell.value)
-    else:
-        ic_date = temp_cell.value
-
-    # location
-    temp_cell = ws_summary['C5']
-    ic_loc = temp_cell.value
-
-    # snow thickness
-    temp_cell = ws_summary['C9']
-    if temp_cell is None or temp_cell.value in ['n/m', 'n/a']:
-        ic_snow_depth = missing_value
-    else:
-        ic_snow_depth = temp_cell.value
-
-    # ice thickness
-    temp_cell = ws_summary['C11']
-    if temp_cell is None or temp_cell.value in ['n/m', 'n/a']:
-        ic_ice_thickness = missing_value
-    else:
-        ic_ice_thickness = temp_cell.value
-
-    imported_core = Core(ic_name, ic_date, ic_loc, ic_ice_thickness, ic_snow_depth)
-
-    # surface temperature
-    temp_cell = ws_summary['C15']
-    if temp_cell is not None or temp_cell.value not in ['n/m', 'n/a']:
-        imported_core.t_air = temp_cell.value
-    temp_cell = ws_summary['C16']
-    if temp_cell is not None or temp_cell.value not in ['n/m', 'n/a']:
-        imported_core.t_snow = temp_cell.value
-    temp_cell = ws_summary['C17']
-    if temp_cell is not None or temp_cell.value not in ['n/m', 'n/a']:
-        imported_core.t_ice0 = temp_cell.value
-    temp_cell = ws_summary['C18']
-    if temp_cell is not None or temp_cell.value not in ['n/m', 'n/a']:
-        imported_core.t_water = temp_cell.value
-
-    ii_row = 23
-    ii_col = 3
-    while ws_summary.cell(column=ii_col, row=ii_row) is not None and ws_summary.cell(column=ii_col, row=ii_row).value is not None:
-        imported_core.add_corenames(ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value)
-        ii_col += 1
-
-    # comment
-    imported_core.comment = ws_summary['A33'].value
-
-    # salinity spreadsheet
-    if 'S_ice' in ws_name:
-        ws_s = wb.get_sheet_by_name('S_ice')
-        flag = 1
-        jj = 6
-        while flag == 1:
-            try:
-                x1 = ws_s.cell(column=1, row=jj).value
-                x2 = ws_s.cell(column=2, row=jj).value
-            except IndexError:
+        # import y
+        row_jj = row_start
+        y_bin_mid = []
+        y_bin = []
+        col_flag = 0
+        if len(col_y) == 1:
+            while row_jj > 0:
                 try:
-                    x3 = ws_s.cell(column=3, row=jj).value
+                    y1 = ws.cell(column=col_y[0], row=row_jj).value
                 except IndexError:
                     break
+                if y1 is not None:
+                    y_bin_mid.append(y1)
                 else:
-                    if isinstance(x3, (float, int)):
-                        x_mid = x3
-            else:
-                if isinstance(x1, (float, int)):
-                    x_mid = (x1 + x2) / 2
-            if jj == 6 and flag:
-                x = x_mid
-            else:
-                x = x.append(x_mid)
-            jj += 1
-
-        # core length
-        if x2 is not None:
-            imported_core.s_length = x2
-        else:
-            if ws_s['C2'] is not None:
-                imported_core.s_length = ws_s['C2'].value
-        # s
-        s = np.nan * np.empty(len(x))
-        for jj in range(6, 6 + len(x)):
-            ws_s_s = ws_s.cell(column=4, row=jj).value
-            if isinstance(ws_s_s, (float, int)):
-                s[jj - 6] = ws_s_s
-            jj += 1  # core length
-        if ~np.isnan(s).all():
-            imported_core.s = 'X'
-
-        # d18O
-        s = np.nan * np.empty(len(x))
-        for jj in range(6, 6 + len(x)):
-            ws_s_s = ws_s.cell(column=6, row=jj).value
-            if isinstance(ws_s_s, (float, int)):
-                s[jj - 6] = ws_s_s
-            jj += 1  # core length
-        if ~np.isnan(s).all():
-            imported_core.d180 = 'X'
-        # dO2
-        s = np.nan * np.empty(len(x))
-        for jj in range(6, 6 + len(x)):
-            ws_s_s = ws_s.cell(column=7, row=jj).value
-            if isinstance(ws_s_s, (float, int)):
-                s[jj - 6] = ws_s_s
-            jj += 1  # core length
-        if ~np.isnan(s).all():
-            imported_core.dO2 = 'X'
-
-    # Temperature
-    if 'T_ice' in ws_name:
-        ws_t = wb.get_sheet_by_name('T_ice')  # load data from the temperature sheet
-        flag = 1
-        jj = 6
-
-        # y coordinate
-        while flag == 1:
-            try:
-                ytemp = ws_t.cell(column=1, row=jj).value
-            # TODO: check if need AttributeError
-            except AttributeError and IndexError:
-                flag = 0
-            else:
-                if jj == 6:
-                    y = np.array(ytemp)
-                else:
-                    y = np.append(y, ytemp)
-                jj += 1
-
-        # remove trailing None Cell
-        temp = []
-        for ii in y[::-1]:
-            if ii is not None:
-                temp.append(ii)
-        y = np.array(temp[::-1])
-        del temp
-
-        t = np.nan * np.empty(len(y))
-        for jj in range(6, 6 + len(y)):
-            ws_s_t = ws_t.cell(column=2, row=jj).value
-            if isinstance(ws_s_t, (float, int)):
-                t[jj - 6] = ws_s_t
-            jj += 1  # core length
-        if ~np.isnan(t).all():
-            imported_core.t = 'X'
-
-        # core length
-        temp_cell = ws_t['C2'].value
-        if isinstance(temp_cell, (float, int)):
-            imported_core.t_length = temp_cell
-
-    # sediment
-    if 'sediment' in ws_name:
-        ws_s = wb.get_sheet_by_name('sediment')  # load data from the temperature sheet
-        flag = 1
-        jj = 6
-        while flag == 1:
-            try:
-                x1 = ws_s.cell(column=1, row=jj).value
-                x2 = ws_s.cell(column=2, row=jj).value
-            except IndexError:
+                    break
+                row_jj += 1
+            y_bin = y_bin_mid
+        elif len(col_y) == 2:
+            col_flag = 1
+            bin_flag = 1
+            y_bin_sup = []
+            y_bin_low = []
+            while bin_flag > 0:
                 try:
-                    x3 = ws_s.cell(column=3, row=jj).value
+                    y1 = ws.cell(column=col_y[0], row=row_jj).value
+                    y2 = ws.cell(column=col_y[1], row=row_jj).value
                 except IndexError:
                     break
+                if y1 is not None and y2 is not None:
+                    y_bin_sup.append(y1)
+                    y_bin_low.append(y2)
+                    y_bin_mid.append((y1 + y2) / 2)
                 else:
-                    if isinstance(x3, (float, int)):
-                        x_mid = x3
-            else:
-                if isinstance(x1, (float, int)):
-                    x_mid = (x1 + x2) / 2
-            if jj == 6 and flag:
-                x = np.array(x_mid)
-            else:
-                x = np.append(x, x_mid)
-            jj += 1
-
-        s = np.nan * np.empty(len(x))
-        for jj in range(6, 6 + len(x)):
-            ws_s_s = ws_s.cell(column=6, row=jj).value
-            if isinstance(ws_s_s, (float, int)):
-                s[jj - 6] = ws_s_s
-            jj += 1  # core length
-        if ~np.isnan(s).all():
-            imported_core.sediment = 'X'
-
-    # algae
-    if 'algal_pigment' in ws_name:
-        ws_s = wb.get_sheet_by_name('algal_pigment')  # load data from the temperature sheet
-        flag = 1
-        jj = 6
-        while flag == 1:
-            try:
-                x1 = ws_s.cell(column=1, row=jj).value
-                x2 = ws_s.cell(column=2, row=jj).value
-            except IndexError:
-                try:
-                    x3 = ws_s.cell(column=3, row=jj).value
-                except IndexError:
                     break
-                else:
-                    if isinstance(x3, (float, int)):
-                        x_mid = x3
-            else:
-                if isinstance(x1, (float, int)):
-                    x_mid = (x1 + x2) / 2
-            if jj == 6 and flag:
-                x = np.array(x_mid)
-            else:
-                x = np.append(x, x_mid)
-            jj += 1
+                row_jj += 1
+            y_bin = np.concatenate((y_bin_sup, [y_bin_low[-1]]))
 
-        s = np.nan * np.empty(len(x))
-        for jj in range(6, 6 + len(x)):
-            ws_s_s = ws_s.cell(column=5, row=jj).value
-            if isinstance(ws_s_s, (float, int)):
-                s[jj - 6] = ws_s_s
-            jj += 1  # core length
-        if ~np.isnan(s).all():
-            imported_core.Chla = 'X'
+        # length
+        length = ws['C2'].value
+        y_bin_length = max(y_bin) - min(y_bin)
+        if length is None or y_bin_length < length:
+            length = max(y_bin) - min(y_bin)
 
-        s = np.nan * np.empty(len(x))
-        for jj in range(6, 6 + len(x)):
-            ws_s_s = ws_s.cell(column=6, row=jj).value
-            if isinstance(ws_s_s, (float, int)):
-                s[jj - 6] = ws_s_s
-            jj += 1  # core length
-        if ~np.isnan(s).all():
-            imported_core.Phaeo = 'X'
-    return imported_core
+        # read variable:
+        x = [nan_value] * (len(y_bin) - col_flag)
+        comment = [None] * (len(y_bin) - col_flag)
+        for row_jj in range(row_start, row_start + len(x)):
+            x_jj = ws.cell(column=col_x, row=row_jj).value
+            print(row_jj)
+            print(x_jj)
+            if isinstance(x_jj, (float, int)):
+                x[row_jj - row_start] = x_jj
+            comment[row_jj - 6] = ws.cell(column=col_c, row=row_jj).value
+        comment.append(ws['C3'].value)
+        return Profile(x, y_bin, profile_name, ice_core_spreadsheet[sheet_name], comment, note, length)
+    else:
+        logging.info('profile %s missing' % ice_core_spreadsheet[sheet_name])
 
 
 def import_src(txt_filepath, section_thickness=None, missing_value=float('nan'), log_level='warning'):
@@ -754,3 +483,94 @@ def import_list(ics_list, missing_value=float('nan'), log_level='warning'):
     print('done')
 
     return ic_dict
+
+
+def import_prop(ic_path, prop='Salinity', missing_value=float('nan')):
+    wb = openpyxl.load_workbook(filename=ic_path, use_iterators=True)  # load the xlsx spreadsheet
+    ws_name = wb.get_sheet_names()
+    ws_summary = wb.get_sheet_by_name('summary')  # load the data from the summary sheet
+
+    # extract basic information about the ice core
+    # name
+    ic_name = ws_summary['C21'].value
+    print(ic_name)
+
+    # logging.basicConfig(filename=LOG_FILENAME, level=LOG_LEVELS[log_level])
+    # logging.info('Processing ' + ic_name + '...')
+
+    # date
+    temp_cell = ws_summary['C2']
+    if isinstance(temp_cell.value, (float, int)):
+        ic_date = datetime.datetime(1899, 12, 30) + datetime.timedelta(temp_cell.value)
+    else:
+        ic_date = temp_cell.value
+
+    # location
+    ic_loc = ws_summary['C5'].value
+
+    # snow thickness
+    temp_cell = ws_summary['C9']
+    if temp_cell is None or temp_cell.value in ['n/m', 'n/a', 'unknow']:
+        ic_snow_depth = missing_value
+    else:
+        ic_snow_depth = temp_cell.value
+
+    # ice thickness
+    temp_cell = ws_summary['C11']
+    if temp_cell is None or temp_cell.value in ['n/m', 'n/a', 'unknow']:
+        ic_ice_thickness = missing_value
+    else:
+        ic_ice_thickness = temp_cell.value
+
+    imported_core = Core(ic_name, ic_date, ic_loc, ic_ice_thickness, ic_snow_depth)
+
+    # surface temperature
+    temp_cell = ws_summary['C15']
+    if temp_cell is not None or temp_cell.value not in ['n/m', 'n/a', 'unknow']:
+        imported_core.t_air = temp_cell.value
+    temp_cell = ws_summary['C16']
+    if temp_cell is not None or temp_cell.value not in ['n/m', 'n/a', 'unknow']:
+        imported_core.t_snow = temp_cell.value
+    temp_cell = ws_summary['C17']
+    if temp_cell is not None or temp_cell.value not in ['n/m', 'n/a', 'unknow']:
+        imported_core.t_ice0 = temp_cell.value
+    temp_cell = ws_summary['C18']
+    if temp_cell is not None or temp_cell.value not in ['n/m', 'n/a', 'unknown']:
+        imported_core.t_water = temp_cell.value
+
+    ii_row = 23
+    ii_col = 3
+    while ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)] is not None and ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value is not None:
+        imported_core.add_corenames(ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value)
+        ii_col += 1
+
+    prop_sheet = {'salinity': 'S_ice',
+                  'temperature': 'T_ice',
+                  'd18O': 'S_ice',
+                  'dO2': 'S_ice',
+                  'sediment': 'sediment',
+                  'Chla': 'algal_pigment', 'Phae': 'algal_pigment' }
+    prop_col = {'salinity': ['D', 'AB', 8, 6],
+                'temperature': ['B', 'A', 8, 6],
+                'd180': [6, 'AB', 8, 6],
+                'dO2': [7, 'AB', 8, 6],
+                'sediment': [6, 'AB', 8, 6],
+                'Chla': [5, 'AB', 8, 6],
+                'Phae': [6, 'AB', 8, 6]}
+
+    # import properties:
+    if isinstance(prop, str):
+        prop = [prop]
+    for ii_prop in prop:
+        print(ii_prop)
+        if prop_sheet[ii_prop.lower()] in ws_name:
+            col_x_temp = prop_col[ii_prop.lower()][0]
+            col_y_temp = prop_col[ii_prop.lower()][1]
+            col_c_temp = prop_col[ii_prop.lower()][2]
+            row_start_temp = prop_col[ii_prop.lower()][3]
+            profile = read_variable(wb, sheet_name=prop_sheet[ii_prop.lower()], col_x=col_x_temp, col_y=col_y_temp, col_c=col_c_temp, row_start=row_start_temp)
+            imported_core.add_profile(profile, ii_prop.lower())
+            logging.info('\t%s profile imported' % ii_prop.lower())
+        else:
+            logging.info('\t%s profile missing' % ii_prop.lower())
+    return imported_core

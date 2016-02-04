@@ -25,11 +25,11 @@ ics_subdir = 'ice_cores'
 
 # Ice core data
 ics_dir = os.path.join(data_dir, ics_subdir)
-ics_list = seaice.coreV2_1.getfilepath(ics_dir, '.xlsx')
+ics_list = seaice.coreV2_1.get_filepath(ics_dir, '.xlsx')
 
 ics_data = {}
 for ic_path in ics_list:
-    ic = seaice.coreV2_1.importcore(ic_path)
+    ic = seaice.coreV2_1.import_core(ic_path)
     ics_data[ic.name] = ic
 
 
@@ -38,7 +38,6 @@ with open(f_pkl, 'wb') as f:
     pickle.dump(ics_data, f)
 
 ic.calc_prop('vb')
-
 
 fig, (ax1, ax2) = ic.plot_state_variable({'color': 'r'})
 plt.show()
