@@ -525,7 +525,7 @@ def read_variable(wb, sheet_name, col_x, col_y, col_c, row_start):
 
 def import_src(txt_filepath, section_thickness=None, missing_value=float('nan'), log_level='warning'):
     """
-    importsrc import all ice core data which path are given in a source text file
+    import_src import all ice core data which path are given in a source text file
     :param txt_filepath:
     :param section_thickness:
     :param missing_value:
@@ -571,13 +571,30 @@ def import_list(ics_list, missing_value=float('nan'), log_level='warning'):
     return ic_dict
 
 
-def import_prop(ic_path, prop='Salinity', missing_value=float('nan')):
+def import_variable(ic_path, variable='Salinity', missing_value=float('nan')):
     """
     :param ic_path:
-    :param prop:
+    :param variable: string or array of string
+        prop contain variable to import from a spreadsheet wb
     :param missing_value:
     :return:
     """
+
+    variable_sheet_name = {'salinity': 'S_ice', 's': 'S_ice',
+                           'temperature': 'T_ice', 't': 'T_ice',
+                           'd18O': 'S_ice',
+                           'dO2': 'S_ice',
+                           'sediment': 'sediment', 'sed': 'sediment',
+                           'Chla': 'algal_pigment', 'chlorophyl a': 'algal_pigment',
+                           'Phae': 'algal_pigment'}
+    variable_coordinate = {'salinity': ['D', 'AB', 8, 6], 's': ['D', 'AB', 8, 6],
+                           'temperature': ['B', 'A', 8, 6],
+                           'd180': [6, 'AB', 8, 6],
+                           'sediment': [6, 'AB', 8, 6], 'sed':[6, 'AB', 8, 6],
+                           'dO2': [7, 'AB', 8, 6],
+                           'Chla': [5, 'AB', 8, 6], 'chlorophyl a': [5, 'AB', 8, 6],
+                           'Phae': [6, 'AB', 8, 6]}
+
     wb = openpyxl.load_workbook(filename=ic_path, use_iterators=True)  # load the xlsx spreadsheet
     ws_name = wb.get_sheet_names()
     ws_summary = wb.get_sheet_by_name('summary')  # load the data from the summary sheet
@@ -637,35 +654,21 @@ def import_prop(ic_path, prop='Salinity', missing_value=float('nan')):
         imported_core.add_corenames(ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value)
         ii_col += 1
 
-    prop_sheet = {'salinity': 'S_ice',
-                  'temperature': 'T_ice',
-                  'd18O': 'S_ice',
-                  'dO2': 'S_ice',
-                  'sediment': 'sediment',
-                  'Chla': 'algal_pigment', 'Phae': 'algal_pigment'}
-    prop_col = {'salinity': ['D', 'AB', 8, 6],
-                'temperature': ['B', 'A', 8, 6],
-                'd180': [6, 'AB', 8, 6],
-                'dO2': [7, 'AB', 8, 6],
-                'sediment': [6, 'AB', 8, 6],
-                'Chla': [5, 'AB', 8, 6],
-                'Phae': [6, 'AB', 8, 6]}
-
     # import properties:
-    if isinstance(prop, str):
-        prop = [prop]
-    for ii_prop in prop:
-        print(ii_prop)
-        if prop_sheet[ii_prop.lower()] in ws_name:
-            col_x_temp = prop_col[ii_prop.lower()][0]
-            col_y_temp = prop_col[ii_prop.lower()][1]
-            col_c_temp = prop_col[ii_prop.lower()][2]
-            row_start_temp = prop_col[ii_prop.lower()][3]
-            profile = read_variable(wb, sheet_name=prop_sheet[ii_prop.lower()], col_x=col_x_temp, col_y=col_y_temp,
+    if isinstance(variable, str):
+        variable = [variable]
+    for ii_variable in variable:
+        print(ii_variable)
+        if variable_sheet_name[ii_variable.lower()] in ws_name:
+            col_x_temp = variable_coordinate[ii_variable.lower()][0]
+            col_y_temp = variable_coordinate[ii_variable.lower()][1]
+            col_c_temp = variable_coordinate[ii_variable.lower()][2]
+            row_start_temp = variable_coordinate[ii_variable.lower()][3]
+            profile = read_variable(wb, sheet_name=variable_sheet_name[ii_variable.lower()], col_x=col_x_temp, col_y=col_y_temp,
                                     col_c=col_c_temp, row_start=row_start_temp)
-            imported_core.add_profile(profile, ii_prop.lower())
-            logging.info('\t%s profile imported' % ii_prop.lower())
+            imported_core.add_profile(profile, ii_variable.lower())
+            logging.info('\t%s profile imported' % ii_variable.lower())
         else:
-            logging.info('\t%s profile missing' % ii_prop.lower())
-    if isinstance(imported_core, Profile):
+            logging.info('\t%s profile missing' % ii_variable.lower())
+    if isinstance(imported_core, Core):
         return imported_core
