@@ -15,7 +15,7 @@ __date__ = "2014/11/25"
 
 import numpy as np
 import datetime
-
+import logging
 import seaice.icdtools
 
 # ----------------------------------------------------------------------------------------------------------------------#
@@ -215,6 +215,7 @@ def read(MBS_path, lcomment='n'):
             dataout[ii].append(float(data[ii][iiT]))
     return np.array(dataout)
 
+
 def ice_profile(mbs_data_yr, t_mbs_index, ice_thickness, section_thickness=0.05, lcomment='n'):
     import math
 
@@ -255,6 +256,7 @@ def ice_profile(mbs_data_yr, t_mbs_index, ice_thickness, section_thickness=0.05,
 
     return y_mbs, Tmbs_avg
 
+
 def daily_max(mbs_data, year, ii_col):
     day_start = datetime.datetime(year, int(mbs_data[year][0, 1]), int(mbs_data[year][0, 2]))
     day_end = datetime.datetime(year, int(mbs_data[year][-1, 1]), int(mbs_data[year][-1, 2]))
@@ -279,6 +281,43 @@ def daily_max(mbs_data, year, ii_col):
     hi_max_day = day_start + datetime.timedelta(np.float(hi_max_index))
     return hi_max_day, hi_max
 
+
+def freezup_date_of_year(freezup_dates_data, year=None, source='si'):
+    '''
+    :param freezup_dates_data:
+    :param year:
+        if year is none, look for freezup year for the entire array
+    :param source:
+    :return:
+    '''
+    # if year is none, return freezup year for every year
+    if year is None:
+        year = np.array(freezup_dates_data[:, 0])
+        year = year[~np.isnan(year)]
+    src = ['si', 'cg', 'jl']
+
+    # select source
+    if source not in src:
+        logging.warning('source not defined')
+        return 0
+
+    freezup_dates = {}
+    for ii_year in year:
+        ii_year = int(ii_year)
+        date = freezup_dates_data[np.where(freezup_dates_data[:,0] == ii_year)[0], src.index(source)+1][0]
+
+        if np.isnan(date):
+            src_temp = list(src)
+            src_temp.remove(source)
+            ii_src = 0
+            while np.isnan(date) and ii_src < len(src_temp):
+                date = freezup_dates_data[np.where(freezup_dates_data[:,0] == ii_year)[0], src.index(src_temp[ii_src])+1][0]
+                ii_src += 1
+        if np.isnan(date):
+            logging.warning('freezup date is not defined for year %s', ii_year)
+        else:
+            freezup_dates[ii_year-1] = (datetime.datetime(ii_year-1, 1, 1) + datetime.timedelta(int(date)-1)).toordinal()
+    return freezup_dates
 
 def unique(seq):
     seen = set()
