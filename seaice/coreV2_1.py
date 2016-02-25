@@ -98,6 +98,9 @@ class Core:
         """
         self.profiles[variable] = profile
 
+    def del_profile(self, profile, variable):
+        self.profiles.pop(profile)
+
     def add_corenames(self, corename):
         """
         :param corename:
@@ -368,7 +371,7 @@ def import_core(ic_path, missing_value=float('nan'), comment='off'):
         logging.info('\tsalinity profile missing')
 
     if 'T_ice' in ws_name:
-        profile = read_variable(wb, sheet_name='T_ice', col_x='D', col_y='A', col_c=8, row_start=6)
+        profile = read_variable(wb, sheet_name='T_ice', col_x='B', col_y='A', col_c=8, row_start=6)
         imported_core.add_profile(profile, 'temperature')
         logging.info('\ttemperature profile imported')
     else:
