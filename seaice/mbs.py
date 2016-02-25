@@ -316,7 +316,7 @@ def freezup_date_of_year(freezup_dates_data, year=None, source='si'):
         if np.isnan(date):
             logging.warning('freezup date is not defined for year %s', ii_year)
         else:
-            freezup_dates[ii_year-1] = (datetime.datetime(ii_year-1, 1, 1) + datetime.timedelta(int(date)-1)).toordinal()
+            freezup_dates[ii_year] = (datetime.datetime(ii_year, 1, 1) + datetime.timedelta(int(date)-1)).toordinal()
     return freezup_dates
 
 def unique(seq):
