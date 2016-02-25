@@ -380,11 +380,11 @@ def DegreeDayModel(data, T_col, freezup_day, end_day, Tfreeze=0, Tunit='C'):
     n_FDD = 0
     n_TDD = 0
     if Tunit == 'K':
-        T_offset = -273
-    elif Tunit == 'C':
         T_offset = 0
+    elif Tunit == 'C':
+        T_offset = -273
     elif Tunit == 'F':
-        print("You're kidding, just use standardize unit!")
+        print("You're kidding, just use scientific unit!")
 
     while current_day <= end_day:
         day_index = index_from_day(data, current_day)
