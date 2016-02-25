@@ -284,11 +284,20 @@ class CoreSet:
             return None
 
 
-def import_core(ic_path, missing_value=float('nan')):
+def import_core(ic_path, missing_value=float('nan'), comment='off'):
     """
     :param ic_path:
     :param missing_value:
+    :param comment: on/off, 0/1, y[n
+        toggle comment display
     """
+    # check comment
+    if comment in ['on', 1, 'yes', 'y']:
+        comment = 1
+    elif comment not in ['off', 1, 'no', 'n']:
+        comment = 0
+    else:
+        logging.warning('comment parameters not defined')
 
     wb = openpyxl.load_workbook(filename=ic_path, use_iterators=True)  # load the xlsx spreadsheet
     ws_name = wb.get_sheet_names()
@@ -297,7 +306,8 @@ def import_core(ic_path, missing_value=float('nan')):
     # extract basic information about the ice core
     # name
     ic_name = ws_summary['C21'].value
-    print(ic_name)
+    if comment:
+        print(ic_name)
 
     # logging.basicConfig(filename=LOG_FILENAME, level=LOG_LEVELS[log_level])
     # logging.info('Processing ' + ic_name + '...')
@@ -512,8 +522,6 @@ def read_variable(wb, sheet_name, col_x, col_y, col_c, row_start):
         comment = [None] * (len(y_bin) - col_flag)
         for row_jj in range(row_start, row_start + len(x)):
             x_jj = ws.cell(column=col_x, row=row_jj).value
-            print(row_jj)
-            print(x_jj)
             if isinstance(x_jj, (float, int)):
                 x[row_jj - row_start] = x_jj
             comment[row_jj - 6] = ws.cell(column=col_c, row=row_jj).value
@@ -523,13 +531,14 @@ def read_variable(wb, sheet_name, col_x, col_y, col_c, row_start):
         logging.info('profile %s missing' % ice_core_spreadsheet[sheet_name])
 
 
-def import_src(txt_filepath, section_thickness=None, missing_value=float('nan'), log_level='warning'):
+def import_src(txt_filepath, section_thickness=None, missing_value=float('nan'), log_level='warning', comment='off'):
     """
     import_src import all ice core data which path are given in a source text file
     :param txt_filepath:
     :param section_thickness:
     :param missing_value:
     :param log_level:
+    :param comment:
     :return:
     """
     print('Ice core data importation in progress ...')
@@ -540,7 +549,7 @@ def import_src(txt_filepath, section_thickness=None, missing_value=float('nan'),
     ic_dict = {}
     for ii in range(0, len(filepath)):
         if not filepath[ii].startswith('#'):
-            ic_data = import_core(filepath[ii], missing_value)
+            ic_data = import_core(filepath[ii], missing_value, comment=comment)
             if section_thickness is not None:
                 ic_data = make_section(ic_data, section_thickness)
             ic_dict[ic_data.name] = ic_data
@@ -549,11 +558,12 @@ def import_src(txt_filepath, section_thickness=None, missing_value=float('nan'),
     return ic_dict
 
 
-def import_list(ics_list, missing_value=float('nan'), log_level='warning'):
+def import_list(ics_list, missing_value=float('nan'), log_level='warning', comment='n'):
     """
     :param ics_list:
     :param missing_value:
     :param log_level:
+    :param comment:
     """
     print('Ice core data importation in progress ...')
 
@@ -561,8 +571,9 @@ def import_list(ics_list, missing_value=float('nan'), log_level='warning'):
 
     ic_dict = {}
     for ii in range(0, len(ics_list)):
-        print(ics_list[ii])
-        ic_data = import_core(ics_list[ii], missing_value)
+        if comment:
+            print(ics_list[ii])
+        ic_data = import_core(ics_list[ii], missing_value, comment=comment)
         ic_dict[ic_data.name] = ic_data
 
     logging.info('Ice core importation complete')
