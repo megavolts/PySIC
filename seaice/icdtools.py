@@ -54,6 +54,30 @@ def unique(seq):
     return [x for x in seq if not (x in seen or seen_add(x))]
 
 
+def index_from_day(data, start_day, end_day='False', lcomment='n'):
+    import datetime as dt
+
+    if end_day == 'False':
+        end_day = start_day
+    day = start_day
+    index = np.array([])
+
+    while day <= end_day:
+        index_year = np.where(data[:, 0] == day.year)[0]
+        index_month = np.where(data[index_year, 1] == day.month)[0]
+        index_day = np.where(data[index_year[index_month], 2] == day.day)[0]
+
+        if index.size == 0:
+            index = index_year[index_month[index_day]]
+        else:
+            index = np.concatenate((index, index_year[index_month[index_day]]))
+        day += dt.timedelta(1)
+
+    if lcomment == 'y':
+        if len(index[0]) == 0:
+            print('no data present in the dataset')
+
+    return index
 
 
 def is_empty(any_structure):
