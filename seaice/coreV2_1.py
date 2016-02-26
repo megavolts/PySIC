@@ -262,7 +262,9 @@ class CoreSet:
                     lc.append(temp)
         return lc, np.nanmean(lc), np.nanmax(lc)
 
-    def mean_temperature(self, section_thickness=0.05):
+    def statistic(self, variable):
+
+
         """
         :param section_thickness:
         :return:
