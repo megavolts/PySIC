@@ -216,8 +216,16 @@ def read(MBS_path, lcomment='n'):
     return np.array(dataout)
 
 
-def ice_profile(mbs_data_yr, t_mbs_index, ice_thickness, section_thickness=0.05, lcomment='n'):
-    import math
+def ice_temperature_profile(mbs_data, start_day, end_day='False', ice_thickness=float('nan'), section_thickness=0.05, comment='n'):
+    '''
+    :rtype: np.ndarray: blabal
+    :param mbs_data: dict
+    :param time:
+    :param ice_thickness:
+    :param section_thickness:
+    :param comment:
+    :return:
+    '''
 
     mbs_ice_surface = {}
     mbs_ice_surface[2006] = 8
@@ -230,32 +238,39 @@ def ice_profile(mbs_data_yr, t_mbs_index, ice_thickness, section_thickness=0.05,
     mbs_ice_surface[2013] = 8
     mbs_ice_surface[2014] = 8
 
-    year = mbs_data_yr[t_mbs_index[0]][0]
-    Tmbs_avg = np.nanmean(mbs_data_yr[t_mbs_index], axis=0)
-    Tmbs_avg = Tmbs_avg[15 + mbs_ice_surface[int(year)] - 1:]
+    year = start_day.year
+    if end_day == 'False':
+        end_day = start_day
 
-    hI = np.nanmax(mbs_data_yr[t_mbs_index, 5])
-    # TODO: detect automatically the bottom of the ice if their is no ice thickness data
-    if math.isnan(hI):
-        hI = ice_thickness
-    xTmbs = np.arange(0, hI, 0.1)
+    index = np.array([], dtype=int)
+    while start_day <= end_day:
+        index_month = np.where(mbs_data[year][:, 1] == start_day.month)[0]
+        index_day = np.where(mbs_data[year][index_month, 2] == start_day.day)[0]
+        index = np.append(index, index_month[index_day])
+        start_day += datetime.timedelta(1)
 
-    if xTmbs[-1] < hI:
-        ThI = np.interp(hI, np.append(xTmbs, xTmbs[-1] + 0.1), Tmbs_avg[0:len(xTmbs)+1])
-        Tavg = np.append(Tmbs_avg[0:len(xTmbs)], ThI)
-        xTmbs = np.append(xTmbs, hI)
+    if index.size == 0:
+        logging.warning('no data present in the dataset')
+        return np.array(np.nan), np.array(np.nan)
+
+    T_mbs = np.nanmean(mbs_data[year][index], axis=0)[15 + mbs_ice_surface[year] - 1:]
+
+    h_max_mbs = np.nanmax(mbs_data[year][index, 5])
+    if np.isnan(h_max_mbs) and np.isnan(ice_thickness):
+        h_max_mbs = ice_thickness
+    elif np.isnan(h_max_mbs):
+        h_max_mbs = 0.1*(15 + mbs_ice_surface[int(year)] - 1)
+        logging.warning('ice thickness not defined, ')
+    y_mbs = np.arange(0, h_max_mbs, 0.1)
+
+    if y_mbs[-1] < h_max_mbs:
+        T_h_mbs = np.interp(h_max_mbs, np.append(y_mbs, [y_mbs[-1] + 0.1]), T_mbs[0:len(y_mbs)+1])
+        T_mbs = np.append(T_mbs[0:len(y_mbs)], T_h_mbs)
+        y_mbs = np.append(y_mbs, h_max_mbs)
     else:
-        Tavg = Tmbs_avg[0:len(xTmbs)]
+        T_mbs = T_mbs[0:len(y_mbs)]
 
-    # scaling to ice core length
-    xTmbs_scaled = xTmbs*(ice_thickness / hI)
-    y_mbs = np.arange(section_thickness/2, ice_thickness, section_thickness)
-    if (ice_thickness+len(y_mbs)*section_thickness)/2 < ice_thickness:
-        y_mbs = np.append(y_mbs, (ice_thickness+len(y_mbs)*section_thickness)/2)
-    Tmbs_avg = np.interp(y_mbs, xTmbs_scaled[~np.isnan(Tavg)], Tavg[~np.isnan(Tavg)])
-
-    return y_mbs, Tmbs_avg
-
+    return T_mbs, y_mbs
 
 def daily_max(mbs_data, year, ii_col):
     day_start = datetime.datetime(year, int(mbs_data[year][0, 1]), int(mbs_data[year][0, 2]))
@@ -318,8 +333,3 @@ def freezup_date_of_year(freezup_dates_data, year=None, source='si'):
         else:
             freezup_dates[ii_year] = (datetime.datetime(ii_year, 1, 1) + datetime.timedelta(int(date)-1)).toordinal()
     return freezup_dates
-
-def unique(seq):
-    seen = set()
-    seen_add = seen.add
-    return [x for x in seq if not (x in seen or seen_add(x))]

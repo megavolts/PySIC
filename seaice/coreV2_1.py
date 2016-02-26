@@ -218,6 +218,9 @@ class CoreSet:
     CoreSet() is a vairable
     """
     def __init__(self, set_name, core):
+        """
+        :rtype: CoreSet
+        """
         self.name = set_name
         self.core_data = {core.name: core}
         self.core = [core.name]
