@@ -251,7 +251,7 @@ def ice_temperature_profile(mbs_data, start_day, end_day='False', ice_thickness=
 
     if index.size == 0:
         logging.warning('no data present in the dataset')
-        return np.array(np.nan), np.array(np.nan)
+        return None
 
     T_mbs = np.nanmean(mbs_data[year][index], axis=0)[15 + mbs_ice_surface[year] - 1:]
 
