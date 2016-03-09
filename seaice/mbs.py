@@ -250,27 +250,29 @@ def ice_temperature_profile(mbs_data, start_day, end_day='False', ice_thickness=
         start_day += datetime.timedelta(1)
 
     if index.size == 0:
-        logging.warning('no data present in the dataset')
+        logging.warning('no data present for this date in the dataset')
         return None
 
-    T_mbs = np.nanmean(mbs_data[year][index], axis=0)[15 + mbs_ice_surface[year] - 1:]
-
-    h_max_mbs = np.nanmax(mbs_data[year][index, 5])
-    if np.isnan(h_max_mbs) and np.isnan(ice_thickness):
-        h_max_mbs = ice_thickness
-    elif np.isnan(h_max_mbs):
-        h_max_mbs = 0.1*(15 + mbs_ice_surface[int(year)] - 1)
-        logging.warning('ice thickness not defined, ')
-    y_mbs = np.arange(0, h_max_mbs, 0.1)
-
-    if y_mbs[-1] < h_max_mbs:
-        T_h_mbs = np.interp(h_max_mbs, np.append(y_mbs, [y_mbs[-1] + 0.1]), T_mbs[0:len(y_mbs)+1])
-        T_mbs = np.append(T_mbs[0:len(y_mbs)], T_h_mbs)
-        y_mbs = np.append(y_mbs, h_max_mbs)
     else:
-        T_mbs = T_mbs[0:len(y_mbs)]
+        print('test')
+        T_mbs = np.nanmean(mbs_data[year][index], axis=0)[15 + mbs_ice_surface[year] - 1:]
 
-    return T_mbs, y_mbs
+        h_max_mbs = np.nanmax(mbs_data[year][index, 5])
+        if np.isnan(h_max_mbs) and np.isnan(ice_thickness):
+            h_max_mbs = ice_thickness
+        elif np.isnan(h_max_mbs):
+            h_max_mbs = 0.1*(15 + mbs_ice_surface[int(year)] - 1)
+            logging.warning('ice thickness not defined, ')
+        y_mbs = np.arange(0, h_max_mbs, 0.1)
+
+        if y_mbs[-1] < h_max_mbs:
+            T_h_mbs = np.interp(h_max_mbs, np.append(y_mbs, [y_mbs[-1] + 0.1]), T_mbs[0:len(y_mbs)+1])
+            T_mbs = np.append(T_mbs[0:len(y_mbs)], T_h_mbs)
+            y_mbs = np.append(y_mbs, h_max_mbs)
+        else:
+            T_mbs = T_mbs[0:len(y_mbs)]
+
+        return [T_mbs, y_mbs]
 
 def daily_max(mbs_data, year, ii_col):
     day_start = datetime.datetime(year, int(mbs_data[year][0, 1]), int(mbs_data[year][0, 2]))

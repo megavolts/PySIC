@@ -194,12 +194,19 @@ class Core:
         ax.set_ylim(max(ax.get_ylim()), 0)
         return out
 
-    def plot_state_variable(self, param_dict=None):
+    def plot_state_variable(self, flag_figure_number=None, param_dict=None):
         """
         :param param_dict:
         :return:
         """
-        fig, (ax1, ax2) = plt.subplots(1, 2)
+        if flag_figure_number is None:
+            fig, (ax1, ax2) = plt.subplots(1, 2)
+        else:
+            print(flag_figure_number)
+            fig = plt.figure(flag_figure_number)
+            ax1 = fig.add_subplot(1, 2, 1)
+            ax2 = fig.add_subplot(1, 2, 2)
+
         if 'salinity' in self.profiles.keys():
             self.plot(ax1, 'salinity', param_dict)
             ax1.set_ylabel('depth [m]')
@@ -263,8 +270,6 @@ class CoreSet:
         return lc, np.nanmean(lc), np.nanmax(lc)
 
     def statistic(self, variable):
-
-
         """
         :param section_thickness:
         :return:
