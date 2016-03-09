@@ -98,8 +98,8 @@ class Core:
         """
         self.profiles[variable] = profile
 
-    def del_profile(self, profile, variable):
-        self.profiles.pop(profile)
+    def del_profile(self, variable):
+        self.profiles.pop(variable)
 
     def add_corenames(self, corename):
         """
@@ -222,15 +222,26 @@ class Core:
 
 class CoreSet:
     """
-    CoreSet() is a vairable
+    CoreSet() is a class
     """
-    def __init__(self, set_name, core):
+    def __init__(self, set_name, core, comment=None):
         """
         :rtype: CoreSet
         """
         self.name = set_name
         self.core_data = {core.name: core}
         self.core = [core.name]
+        self.comment = None
+        self.variables = []
+        self.add_variable(core)
+
+    def add_variable(self, core):
+        for ii_variable in core.profiles.keys():
+            if ii_variable not in self.variables:
+                self.variables.append(ii_variable)
+
+    def add_comment(self, comment):
+        self.comment.append(comment)
 
     def add_core(self, core):
         """
@@ -239,6 +250,7 @@ class CoreSet:
         """
         self.core_data[core.name] = core
         self.core.append(core.name)
+        self.add_variable(core)
 
     def ice_thickness(self):
         """
@@ -269,32 +281,301 @@ class CoreSet:
                     lc.append(temp)
         return lc, np.nanmean(lc), np.nanmax(lc)
 
-    def statistic(self, variable):
+    # statistic
+    def mean(self, var=None):
+        '''
+        :param variable:
+        :return:
+        '''
+        variable = {}
+        ics_data = merge_bin(self)
+        for ii_core in ics_data.core:
+            ic_data = ics_data.core_data[ii_core]
+            if var is None:
+                for ii_variable in ics_data.variables:
+                    if ii_variable in ic_data.profiles.keys():
+                        if ii_variable not in variable.keys():
+                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+                        else:
+                            logging.warning('vertical resolution is not the same between the cores')
+            else:
+                if not isinstance(var, list):
+                    var = [var]
+                for ii_variable in var:
+                    if ii_variable in ic_data.profiles.keys():
+                        if ii_variable not in variable.keys():
+                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+                        else:
+                            logging.warning('vertical resolution is not the same between the cores')
+
+            for ii_variable in variable.keys():
+                y = variable[ii_variable][1]
+                x = np.nanmean(np.atleast_2d(variable[ii_variable][0]), axis=0)
+                count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
+
+                profile = Profile(x, y, ic_data.name, 'mean', comment='statistic mean computed from merged bin ice cores', note=count, length=None)
+                if ii_variable in ic_data.profiles.keys():
+                    ic_data.del_profile(ii_variable)
+                ic_data.add_profile(profile, ii_variable)
+        return ic_data
+
+    def std(self, var=None):
+        '''
+        :param variable:
+        :return:
+        '''
+        variable = {}
+        ics_data = merge_bin(self)
+        for ii_core in ics_data.core:
+            ic_data = ics_data.core_data[ii_core]
+            if var is None:
+                for ii_variable in ics_data.variables:
+                    if ii_variable in ic_data.profiles.keys():
+                        if ii_variable not in variable.keys():
+                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+                        else:
+                            logging.warning('vertical resolution is not the same between the cores')
+            else:
+                if not isinstance(var, list):
+                    var = [var]
+                for ii_variable in var:
+                    if ii_variable in ic_data.profiles.keys():
+                        if ii_variable not in variable.keys():
+                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+                        else:
+                            logging.warning('vertical resolution is not the same between the cores')
+
+            for ii_variable in variable.keys():
+                y = variable[ii_variable][1]
+                x = np.nanstd(np.atleast_2d(variable[ii_variable][0]), axis=0)
+                count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
+
+                profile = Profile(x, y, ic_data.name, 'mean', comment='statistic mean computed from merged bin ice cores', note=count, length=None)
+                if ii_variable in ic_data.profiles.keys():
+                    ic_data.del_profile(ii_variable)
+                ic_data.add_profile(profile, ii_variable)
+        return ic_data
+
+    def min(self, var=None):
+        '''
+        :param variable:
+        :return:
+        '''
+        variable = {}
+        ics_data = merge_bin(self)
+        for ii_core in ics_data.core:
+            ic_data = ics_data.core_data[ii_core]
+            if var is None:
+                for ii_variable in ics_data.variables:
+                    if ii_variable in ic_data.profiles.keys():
+                        if ii_variable not in variable.keys():
+                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+                        else:
+                            logging.warning('vertical resolution is not the same between the cores')
+            else:
+                if not isinstance(var, list):
+                    var = [var]
+                for ii_variable in var:
+                    if ii_variable in ic_data.profiles.keys():
+                        if ii_variable not in variable.keys():
+                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+                        else:
+                            logging.warning('vertical resolution is not the same between the cores')
+
+            for ii_variable in variable.keys():
+                y = variable[ii_variable][1]
+                x = np.nanmin(np.atleast_2d(variable[ii_variable][0]), axis=0)
+                count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
+
+                profile = Profile(x, y, ic_data.name, 'mean', comment='statistic mean computed from merged bin ice cores', note=count, length=None)
+                if ii_variable in ic_data.profiles.keys():
+                    ic_data.del_profile(ii_variable)
+                ic_data.add_profile(profile, ii_variable)
+        return ic_data
+
+    def max(self, var=None):
+        '''
+        :param variable:
+        :return:
+        '''
+        variable = {}
+        ics_data = merge_bin(self)
+        for ii_core in ics_data.core:
+            ic_data = ics_data.core_data[ii_core]
+            if var is None:
+                for ii_variable in ics_data.variables:
+                    if ii_variable in ic_data.profiles.keys():
+                        if ii_variable not in variable.keys():
+                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+                        else:
+                            logging.warning('vertical resolution is not the same between the cores')
+            else:
+                if not isinstance(var, list):
+                    var = [var]
+                for ii_variable in var:
+                    if ii_variable in ic_data.profiles.keys():
+                        if ii_variable not in variable.keys():
+                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+                        else:
+                            logging.warning('vertical resolution is not the same between the cores')
+
+            for ii_variable in variable.keys():
+                y = variable[ii_variable][1]
+                x = np.nanmax(np.atleast_2d(variable[ii_variable][0]), axis=0)
+                count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
+
+                profile = Profile(x, y, ic_data.name, 'mean', comment='statistic mean computed from merged bin ice cores', note=count, length=None)
+                if ii_variable in ic_data.profiles.keys():
+                    ic_data.del_profile(ii_variable)
+                ic_data.add_profile(profile, ii_variable)
+        return ic_data
+
+    def count(self, var=None):
+        '''
+        :param variable:
+        :return:
+        '''
+        variable = {}
+        ics_data = merge_bin(self)
+        for ii_core in ics_data.core:
+            ic_data = ics_data.core_data[ii_core]
+            if var is None:
+                for ii_variable in ics_data.variables:
+                    if ii_variable in ic_data.profiles.keys():
+                        if ii_variable not in variable.keys():
+                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+                        else:
+                            logging.warning('vertical resolution is not the same between the cores')
+            else:
+                if not isinstance(var, list):
+                    var = [var]
+                for ii_variable in var:
+                    if ii_variable in ic_data.profiles.keys():
+                        if ii_variable not in variable.keys():
+                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+                        else:
+                            logging.warning('vertical resolution is not the same between the cores')
+
+            for ii_variable in variable.keys():
+                y = variable[ii_variable][1]
+                x = np.nancount(np.atleast_2d(variable[ii_variable][0]), axis=0)
+
+                profile = Profile(x, y, ic_data.name, 'mean', comment='statistic mean computed from merged bin ice cores', note=None, length=None)
+                if ii_variable in ic_data.profiles.keys():
+                    ic_data.del_profile(ii_variable)
+                ic_data.add_profile(profile, ii_variable)
+        return ic_data
+
+    def statistic(self, var=None):
+        '''
+        :param variable:
+        :return:
+        '''
+        ics_merge_bin_set = merge_bin(self)
+        variable = {}
+        for ii_core in ics_merge_bin_set.core:
+            ic_data = ics_merge_bin_set.core_data[ii_core]
+            if var is None:
+                for ii_variable in ics_merge_bin_set.variables:
+                    if ii_variable in ic_data.profiles.keys():
+                        if ii_variable not in variable.keys():
+                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+                        else:
+                            logging.warning('vertical resolution is not the same between the cores')
+            else:
+                if not isinstance(var, list):
+                    var = [var]
+                for ii_variable in var:
+                    if ii_variable in ic_data.profiles.keys():
+                        if ii_variable not in variable.keys():
+                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+                        else:
+                            logging.warning('vertical resolution is not the same between the cores')
+
+        for ii_variable in variable.keys():
+            y = variable[ii_variable][1]
+            x_mean = np.nanmean(np.atleast_2d(variable[ii_variable][0]), axis=0)
+            x_std = np.nanstd(np.atleast_2d(variable[ii_variable][0]), axis=0)
+            x_min = np.nanmin(np.atleast_2d(variable[ii_variable][0]), axis=0)
+            x_max = np.nanmax(np.atleast_2d(variable[ii_variable][0]), axis=0)
+            count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
+            x = [x_mean, x_std, x_min, x_max, count]
+
+            profile = Profile(x, y, ic_data.name, ii_variable+'-stat', comment='statistic envelop computed from merged bin ice cores', note=None, length=None)
+
+            if ii_variable in ic_data.profiles.keys():
+                ic_data.del_profile(ii_variable)
+            ic_data.add_profile(profile, ii_variable)
+        return ic_data
+
+    def plot_variable_stat(self, ax, var, param_dict=None):
         """
-        :param section_thickness:
+        :param ax:
+        :param prop:
+        :param param_dict:
         :return:
         """
-        t = None
-        if self.ice_thickness() is None:
-            hi = self.core_length()[1]
-        else:
-            hi = self.ice_thickness()[1]
 
-        y = np.arange(section_thickness / 2, hi, section_thickness)
-        if (hi + len(y) * section_thickness) / 2 < hi:
-            y = np.append(y, (hi + len(y) * section_thickness) / 2)
-        for key in self.core_data.keys():
-            if self.core_data[key].__getattribute__('temperature') is not None:
-                t_core = self.core_data[key].__getattribute__('temperature').x
-                y_core = self.core_data[key].__getattribute__('temperature').y
-                if t is None:
-                    t = np.interp(y, y_core[~np.isnan(t_core)], t_core[~np.isnan(t_core)])
-                else:
-                    t = np.append(t, np.interp(y, y_core[~np.isnan(t_core)], t_core[~np.isnan(t_core)]))
-        if t is not None:
-            return np.mean(np.atleast_2d(t), axis=0), y
-        else:
+        if var not in self.variables:
+            logging.warning('variable %s not a statistical variable' % variable)
             return None
+
+        ic_stat = self.statistic()
+
+        y = ic_stat.profiles[var].y
+        x = ic_stat.profiles[var].x
+
+        if len(y) == len(x[0]):
+            out = ax.plot(x[0], y, color='k', label='Mean')
+            ax.plot(x[2], y, color='b', label='Min')
+            ax.plot(x[3], y, color='r', label='Max')
+            ax.fill_betweenx(y, x[0] - x[1], x[0] + x[1], facecolor='black', alpha=0.3, label=str(u"\c2b1") + "std dev")
+            ax.set_ylim(max(ax.get_ylim()), 0)
+            ax.set_xlabel(var + ' ' + si_prop_unit[var])
+        else:
+            out = ax.step(np.append(x[0], x[0][-1]), y, color='k', label='Mean')
+            ax.step(np.append(x[2], x[2][-1]), y, color='b', label='Min')
+            ax.step(np.append(x[3], x[3][-1]), y, color='r', label='Max')
+
+            x_fill_l = [x[0][0]-x[1][0]]
+            x_fill_h = [x[0][0]+x[1][0]]
+            y_fill = y[0]
+            for ii in range(1, len(x[0])):
+                x_fill_l = np.append(x_fill_l, x[0][ii-1]-x[1][ii-1])
+                x_fill_l = np.append(x_fill_l, x[0][ii]-x[1][ii])
+                x_fill_h = np.append(x_fill_h, x[0][ii-1]+x[1][ii-1])
+                x_fill_h = np.append(x_fill_h, x[0][ii]+x[1][ii])
+                y_fill = np.append(y_fill, y[ii])
+                y_fill = np.append(y_fill, y[ii])
+
+            ax.fill_betweenx(y_fill, x_fill_l, x_fill_h, facecolor='black', alpha=0.3, label=str(u"\c2b1") + "std dev")
+            ax.set_ylim(max(ax.get_ylim()), 0)
+            ax.set_xlabel(var + ' ' + si_prop_unit[var])
+        return out
 
 
 def import_core(ic_path, missing_value=float('nan'), comment='off'):
@@ -387,6 +668,60 @@ def import_core(ic_path, missing_value=float('nan'), comment='off'):
     else:
         logging.info('\ttemperature profile missing')
     return imported_core
+
+
+def merge_bin(ics_set):
+    variable = {}
+    for ii_core in ics_set.core:
+        ic_data = ics_set.core_data[ii_core]
+        for ii_variable in ic_data.profiles.keys():
+            y = ic_data.profiles[ii_variable].y
+            if ii_variable not in variable.keys():
+                variable[ii_variable] = np.array(y)
+            else:
+                variable[ii_variable] = np.unique(np.append(y, variable[ii_variable]))
+            variable[ii_variable] = variable[ii_variable][~np.isnan(variable[ii_variable])]
+
+    flag = 0
+    for ii_core in ics_set.core:
+        ic_data = ics_set.core_data[ii_core]
+        print(ii_core)
+        for ii_variable in ics_set.variables:
+            if ii_variable in ic_data.profiles.keys():
+                print(ii_variable)
+                x = np.array(ic_data.profiles[ii_variable].x)
+                y = np.array(ic_data.profiles[ii_variable].y)
+                if len(x)==len(y):
+                    print('same length')
+                    y_bin = variable[ii_variable]
+                    x_bin = np.interp(y_bin, y[~np.isnan(y)], x[~np.isnan(y)])
+                else:
+                    print('asymetrical length')
+                    ii_bin = 1 # cycle from 0 to len(y)
+                    ii = 0  # cycle from 0 to len(x_bin)
+                    x_bin = np.nan*np.ones(len(variable[ii_variable])-1)
+                    y_bin = variable[ii_variable]
+                    while ii < len(x_bin):
+                        if y_bin[ii] < y[ii_bin]:
+                            x_bin[ii] = x[ii_bin-1]
+                            ii += 1
+                        elif y_bin[ii] == max(y):
+                            break
+                        else:
+                            ii_bin += 1
+
+                profile = Profile(x_bin, y_bin, ic_data.name, ii_variable, comment='merged bin from core set', note=None, length=None)
+
+                ic_data.del_profile(ii_variable)
+                ic_data.add_profile(profile, ii_variable)
+
+            if flag is 0:
+                ics_merged_bin_set = CoreSet(ics_set.name+'-merged_bin', ic_data)
+                flag = 1
+            else:
+                ics_merged_bin_set.add_core(ic_data)
+
+    return ics_merged_bin_set
 
 
 def make_section(core, section_thickness=0.05):
