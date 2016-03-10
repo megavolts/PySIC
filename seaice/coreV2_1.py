@@ -382,7 +382,7 @@ class CoreSet:
         flag = 0
         for ii_core in self.core:
             ic_data = self.core_data[ii_core]
-            ic = Core(ic_data.name, ic_data.location, ic_data.ice_thickness, ic_data.snow_thickness, ic_data.add_comment('merged bin'))
+            ic = Core(ic_data.name, ic_data.date, ic_data.location, ic_data.ice_thickness, ic_data.snow_thickness, ic_data.add_comment('merged bin'))
 
             for ii_variable in self.variables:
                 if ii_variable in ic_data.profiles.keys():
