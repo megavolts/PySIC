@@ -4,6 +4,10 @@
 icecoredata.py: ice core data is a toolbox to import ice core data file from xlsx spreadsheet. Xlsx spreadsheet should
 be formatted according to the template provided by the Sea Ice Group of the Geophysical Institute of University of
 Alaska, Fairbanks.
+
+parameter definition:
+
+
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -35,7 +39,6 @@ LOG_LEVELS = {'debug': logging.DEBUG,
 # logging.info('So should this')
 # logging.warning('And this, too')
 # ic_path = '/mnt/data_lvm/seaice/core/BRW/2010_11/BRW_CS-20110122A.xlsx'
-unit = {'salinity': '[PSU]', 'temperature': '[°C]', 'vb': '[%]', 'brine volume fraction': '[%]'}
 nan_value = float('nan')
 
 
@@ -53,17 +56,87 @@ class Profile:
             self.length = x[-1] - x[0]
         else:
             self.length = length
-        self.comment = comment
+        self.comment = None
+        if comment is None:
+            self.add_comment(comment)
+        self.note = None
+        if note is None:
+            self.add_note(note)
 
-    def plot(self, fig_num=None):
+    def add_comment(self, comment):
+        """
+        :param comment:
+        :return:
+        """
+        if self.comment is None:
+            self.comment = [comment]
+        else:
+            self.comment.append(comment)
+
+    def add_note(self, note):
+        """
+        :param comment:
+        :return:
+        """
+        if self.note is None:
+            self.note = [note]
+        else:
+            self.note.append(note)
+
+    def plot(self, fig_num=None, ax=None, param_dict=None, title=None, legend=None):
         """
         :param fig_num:
         :return:
         """
         if fig_num is not None:
             plt.figure(fig_num)
-        plt.plot(self.x, self.y[0:len(self.x)])
-
+        else:
+            plt.figure()
+        if ax is not None:
+            if len(self.x) == len(self.y):
+                if param_dict is None:
+                    out = ax.plot(self.x, self.y)
+                else:
+                    out = ax.plot(self.x, self.y, **param_dict)
+            else:
+                if param_dict is None:
+                    out = ax.step(np.append(self.x, self.x[-1]), self.y)
+                else:
+                    out = ax.step(np.append(self.x, self.x[-1]), self.y, **param_dict)
+            ax.set_xlabel(self.variable)
+            ax.set_ylim(max(ax.get_ylim(), 0))
+            if title is 'y':
+                ax.title(self.profile_label)
+            if legend is '1':
+                plt.legend()
+            elif legend is not None:
+                plt.legend(legend)
+        else:
+            if len(self.x) == len(self.y):
+                if param_dict is None:
+                    out = plt.plot(self.x, self.y)
+                    plt.xlabel(self.variable)
+                    plt.ylim(max(plt.ylim()), 0)
+                else:
+                    out = plt.plot(self.x, self.y, **param_dict)
+                    plt.xlabel(self.variable)
+                    plt.ylim(max(plt.ylim()), 0)
+            else:
+                if param_dict is None:
+                    out = plt.step(np.append(self.x, self.x[-1]), self.y)
+                    plt.xlabel(self.variable)
+                    plt.ylim(max(plt.ylim()), 0)
+                else:
+                    out = plt.step(np.append(self.x, self.x[-1]), self.y, **param_dict)
+                    plt.xlabel(self.variable)
+                    plt.ylim(max(plt.ylim()), 0)
+            if title is 'y':
+                plt.title(self.profile_label)
+            if legend is '1':
+                plt.legend()
+            elif legend is not None:
+                plt.legend(legend)
+        return out
 
 class Core:
     """
@@ -234,6 +307,8 @@ class CoreSet:
         self.comment = None
         self.variables = []
         self.add_variable(core)
+        if comment is not None:
+            self.add_comment(comment)
 
     def add_variable(self, core):
         for ii_variable in core.profiles.keys():
@@ -241,7 +316,14 @@ class CoreSet:
                 self.variables.append(ii_variable)
 
     def add_comment(self, comment):
-        self.comment.append(comment)
+        """
+        :param comment:
+        :return:
+        """
+        if self.comment is None:
+            self.comment = [comment]
+        else:
+            self.comment.append(comment)
 
     def add_core(self, core):
         """
@@ -281,14 +363,68 @@ class CoreSet:
                     lc.append(temp)
         return lc, np.nanmean(lc), np.nanmax(lc)
 
+    def merge_bin(self):
+        """
+            :param self: CoreSet
+            :return:
+        """
+        variable = {}
+        for ii_core in self.core:
+            ic_data = self.core_data[ii_core]
+            for ii_variable in ic_data.profiles.keys():
+                y = ic_data.profiles[ii_variable].y
+                if ii_variable not in variable.keys():
+                    variable[ii_variable] = np.array(y)
+                else:
+                    variable[ii_variable] = np.unique(np.append(y, variable[ii_variable]))
+                variable[ii_variable] = variable[ii_variable][~np.isnan(variable[ii_variable])]
+
+        flag = 0
+        for ii_core in self.core:
+            ic_data = self.core_data[ii_core]
+            ic = Core(ic_data.name, ic_data.location, ic_data.ice_thickness, ic_data.snow_thickness, ic_data.add_comment('merged bin'))
+
+            for ii_variable in self.variables:
+                if ii_variable in ic_data.profiles.keys():
+                    x = np.array(ic_data.profiles[ii_variable].x)
+                    y = np.array(ic_data.profiles[ii_variable].y)
+                    if len(x) == len(y):
+                        y_bin = variable[ii_variable]
+                        x_bin = np.interp(y_bin, y[~np.isnan(y)], x[~np.isnan(y)])
+                    else:
+                        ii_bin = 1  # cycle from 0 to len(y)
+                        ii = 0  # cycle from 0 to len(x_bin)
+                        x_bin = np.nan*np.ones(len(variable[ii_variable])-1)
+                        y_bin = variable[ii_variable]
+                        while ii < len(x_bin):
+                            if y_bin[ii] < y[ii_bin]:
+                                x_bin[ii] = x[ii_bin-1]
+                                ii += 1
+                            elif y_bin[ii] == max(y):
+                                break
+                            else:
+                                ii_bin += 1
+
+                    profile = Profile(x_bin, y_bin, ic_data.name, ii_variable, comment='merged bin from core set',
+                                      note=None, length=None)
+                    ic.add_profile(profile, ii_variable)
+
+            if flag == 0:
+                ics_merged_bin_set = CoreSet(self.name+'-merged_bin', ic)
+                flag = 1
+            else:
+                ics_merged_bin_set.add_core(ic)
+            ics_merged_bin_set.add_comment('merge bin cores')
+        return ics_merged_bin_set
+
     # statistic
     def mean(self, var=None):
-        '''
-        :param variable:
+        """
+        :param var:
         :return:
-        '''
+        """
         variable = {}
-        ics_data = merge_bin(self)
+        ics_data = self.merge_bin()
         for ii_core in ics_data.core:
             ic_data = ics_data.core_data[ii_core]
             if var is None:
@@ -329,7 +465,7 @@ class CoreSet:
         :return:
         '''
         variable = {}
-        ics_data = merge_bin(self)
+        ics_data = self.merge_bin()
         for ii_core in ics_data.core:
             ic_data = ics_data.core_data[ii_core]
             if var is None:
@@ -370,7 +506,7 @@ class CoreSet:
         :return:
         '''
         variable = {}
-        ics_data = merge_bin(self)
+        ics_data = self.merge_bin()
         for ii_core in ics_data.core:
             ic_data = ics_data.core_data[ii_core]
             if var is None:
@@ -411,7 +547,7 @@ class CoreSet:
         :return:
         '''
         variable = {}
-        ics_data = merge_bin(self)
+        ics_data = self.merge_bin()
         for ii_core in ics_data.core:
             ic_data = ics_data.core_data[ii_core]
             if var is None:
@@ -452,7 +588,7 @@ class CoreSet:
         :return:
         '''
         variable = {}
-        ics_data = merge_bin(self)
+        ics_data = self.merge_bin()
         for ii_core in ics_data.core:
             ic_data = ics_data.core_data[ii_core]
             if var is None:
@@ -491,7 +627,7 @@ class CoreSet:
         :param variable:
         :return:
         '''
-        ics_merge_bin_set = merge_bin(self)
+        ics_merge_bin_set = self.merge_bin()
         variable = {}
         for ii_core in ics_merge_bin_set.core:
             ic_data = ics_merge_bin_set.core_data[ii_core]
@@ -525,7 +661,8 @@ class CoreSet:
             count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
             x = [x_mean, x_std, x_min, x_max, count]
 
-            profile = Profile(x, y, ic_data.name, ii_variable+'-stat', comment='statistic envelop computed from merged bin ice cores', note=None, length=None)
+            profile = Profile(x, y, ic_data.name, ii_variable+'-stat', comment='statistic envelop computed from merged'
+                                                                               'bin ice cores', note=None, length=None)
 
             if ii_variable in ic_data.profiles.keys():
                 ic_data.del_profile(ii_variable)
@@ -541,7 +678,7 @@ class CoreSet:
         """
 
         if var not in self.variables:
-            logging.warning('variable %s not a statistical variable' % variable)
+            logging.warning('variable %s not a statistical variable' % var)
             return None
 
         ic_stat = self.statistic()
@@ -576,6 +713,7 @@ class CoreSet:
             ax.set_ylim(max(ax.get_ylim()), 0)
             ax.set_xlabel(var + ' ' + si_prop_unit[var])
         return out
+
 
 
 def import_core(ic_path, missing_value=float('nan'), comment='off'):
@@ -670,58 +808,6 @@ def import_core(ic_path, missing_value=float('nan'), comment='off'):
     return imported_core
 
 
-def merge_bin(ics_set):
-    variable = {}
-    for ii_core in ics_set.core:
-        ic_data = ics_set.core_data[ii_core]
-        for ii_variable in ic_data.profiles.keys():
-            y = ic_data.profiles[ii_variable].y
-            if ii_variable not in variable.keys():
-                variable[ii_variable] = np.array(y)
-            else:
-                variable[ii_variable] = np.unique(np.append(y, variable[ii_variable]))
-            variable[ii_variable] = variable[ii_variable][~np.isnan(variable[ii_variable])]
-
-    flag = 0
-    for ii_core in ics_set.core:
-        ic_data = ics_set.core_data[ii_core]
-        print(ii_core)
-        for ii_variable in ics_set.variables:
-            if ii_variable in ic_data.profiles.keys():
-                print(ii_variable)
-                x = np.array(ic_data.profiles[ii_variable].x)
-                y = np.array(ic_data.profiles[ii_variable].y)
-                if len(x)==len(y):
-                    print('same length')
-                    y_bin = variable[ii_variable]
-                    x_bin = np.interp(y_bin, y[~np.isnan(y)], x[~np.isnan(y)])
-                else:
-                    print('asymetrical length')
-                    ii_bin = 1 # cycle from 0 to len(y)
-                    ii = 0  # cycle from 0 to len(x_bin)
-                    x_bin = np.nan*np.ones(len(variable[ii_variable])-1)
-                    y_bin = variable[ii_variable]
-                    while ii < len(x_bin):
-                        if y_bin[ii] < y[ii_bin]:
-                            x_bin[ii] = x[ii_bin-1]
-                            ii += 1
-                        elif y_bin[ii] == max(y):
-                            break
-                        else:
-                            ii_bin += 1
-
-                profile = Profile(x_bin, y_bin, ic_data.name, ii_variable, comment='merged bin from core set', note=None, length=None)
-
-                ic_data.del_profile(ii_variable)
-                ic_data.add_profile(profile, ii_variable)
-
-            if flag is 0:
-                ics_merged_bin_set = CoreSet(ics_set.name+'-merged_bin', ic_data)
-                flag = 1
-            else:
-                ics_merged_bin_set.add_core(ic_data)
-
-    return ics_merged_bin_set
 
 
 def make_section(core, section_thickness=0.05):
