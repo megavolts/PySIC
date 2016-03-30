@@ -1,14 +1,12 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-icecoredata.py: ice core data is a toolbox to import ice core data file from xlsx spreadsheet. Xlsx spreadsheet should
+coreV2_1.py: ice core data is a toolbox to import ice core data file from xlsx spreadsheet. Xlsx spreadsheet should
 be formatted according to the template provided by the Sea Ice Group of the Geophysical Institute of University of
 Alaska, Fairbanks.
 
-parameter definition:
-
-
 """
+
 import numpy as np
 import matplotlib.pyplot as plt
 import logging
@@ -75,7 +73,7 @@ class Profile:
 
     def add_note(self, note):
         """
-        :param comment:
+        :param note:
         :return:
         """
         if self.note is None:
@@ -86,6 +84,10 @@ class Profile:
     def plot(self, fig_num=None, ax=None, param_dict=None, title=None, legend=None):
         """
         :param fig_num:
+        :param ax:
+        :param param_dict:
+        :param title:
+        :param legend:
         :return:
         """
         if fig_num is not None:
@@ -137,6 +139,7 @@ class Profile:
             elif legend is not None:
                 plt.legend(legend)
         return out
+
 
 class Core:
     """
@@ -192,13 +195,13 @@ class Core:
         else:
             self.comment.append(comment)
 
-    def calc_prop(self, prop):
+    def calc_prop(self, property):
         """
         :param prop:
         :return:
         """
         # check properties variables
-        if prop not in si_prop_list.keys():
+        if property not in si_prop_list.keys():
             logging.warning('property %s not defined in the ice core property module' % prop)
             return None
         elif 'salinity' not in self.profiles:
@@ -209,7 +212,7 @@ class Core:
             return None
         else:
             import seaice.properties
-            variable = si_prop_list[prop]
+            variable = si_prop_list[property]
             function = getattr(seaice.properties, variable.replace(" ", "_"))
             profilet = self.profiles['temperature']
             profiles = self.profiles['salinity']
@@ -230,20 +233,21 @@ class Core:
             self.add_profile(prop_profile, variable)
             self.add_comment('computed %s' % variable)
 
-    def plot(self, ax, prop, param_dict=None):
+    def plot_variable(self, ax, variable, param_dict=None):
         """
         :param ax:
-        :param prop:
+        :param variable:
+            variable could also be a property. See the general help for more details
         :param param_dict:
         :return:
         """
-        if prop in si_state_variable.keys():
-            profile_label = si_state_variable[prop.lower()]
-        elif prop in si_prop_list.keys():
-            profile_label = si_prop_list[prop.lower()]
+        if variable in si_state_variable.keys():
+            profile_label = si_state_variable[variable.lower()]
+        elif variable in si_prop_list.keys():
+            profile_label = si_prop_list[variable.lower()]
             if profile_label not in self.profiles.keys():
-                logging.warning('computing %s' % prop)
-                self.calc_prop(prop)
+                logging.warning('computing %s' % variable)
+                self.calc_prop(variable)
         else:
             logging.warning('no data available to plot')
             return None
@@ -269,28 +273,35 @@ class Core:
 
     def plot_state_variable(self, flag_figure_number=None, param_dict=None):
         """
+        :param flag_figure_number:
         :param param_dict:
         :return:
         """
         if flag_figure_number is None:
-            fig, (ax1, ax2) = plt.subplots(1, 2)
+            fig = plt.figure()
+            ax1 = fig.add_subplot(1, 2, 1)
+            ax2 = fig.add_subplot(1, 2, 2)
         else:
-            print(flag_figure_number)
             fig = plt.figure(flag_figure_number)
             ax1 = fig.add_subplot(1, 2, 1)
             ax2 = fig.add_subplot(1, 2, 2)
 
         if 'salinity' in self.profiles.keys():
-            self.plot(ax1, 'salinity', param_dict)
+            self.plot_variable(ax1, 'salinity', param_dict)
             ax1.set_ylabel('depth [m]')
         else:
             logging.warning('salinity profile missing for %s' % self.name)
 
         if 'temperature' in self.profiles.keys():
-            ax2 = self.plot(ax2, 'temperature', param_dict)
+            ax2 = self.plot_variable(ax2, 'temperature', param_dict)
         else:
             logging.warning('temperature profile missing for %s' % self.name)
-        return fig, (ax1, ax2)
+
+        ax_fig = [ax1, ax2]
+        return fig, ax_fig
+
+    def get_profile_variable(self):
+        return sorted(self.profiles.keys())
 
 
 class CoreSet:
@@ -460,10 +471,10 @@ class CoreSet:
         return ic_data
 
     def std(self, var=None):
-        '''
-        :param variable:
+        """
+        :param var:
         :return:
-        '''
+        """
         variable = {}
         ics_data = self.merge_bin()
         for ii_core in ics_data.core:
@@ -501,10 +512,10 @@ class CoreSet:
         return ic_data
 
     def min(self, var=None):
-        '''
-        :param variable:
+        """
+        :param var:
         :return:
-        '''
+        """
         variable = {}
         ics_data = self.merge_bin()
         for ii_core in ics_data.core:
@@ -542,10 +553,10 @@ class CoreSet:
         return ic_data
 
     def max(self, var=None):
-        '''
-        :param variable:
+        """
+        :param var:
         :return:
-        '''
+        """
         variable = {}
         ics_data = self.merge_bin()
         for ii_core in ics_data.core:
@@ -583,10 +594,10 @@ class CoreSet:
         return ic_data
 
     def count(self, var=None):
-        '''
-        :param variable:
+        """
+        :param var:
         :return:
-        '''
+        """
         variable = {}
         ics_data = self.merge_bin()
         for ii_core in ics_data.core:
@@ -623,10 +634,10 @@ class CoreSet:
         return ic_data
 
     def statistic(self, var=None):
-        '''
-        :param variable:
+        """
+        :param var:
         :return:
-        '''
+        """
         ics_merge_bin_set = self.merge_bin()
         variable = {}
         for ii_core in ics_merge_bin_set.core:
@@ -669,22 +680,22 @@ class CoreSet:
             ic_data.add_profile(profile, ii_variable)
         return ic_data
 
-    def plot_variable_stat(self, ax, var, param_dict=None):
+    def plot_variable_stat(self, ax, variable, param_dict=None):
         """
         :param ax:
-        :param prop:
+        :param variable:
         :param param_dict:
         :return:
         """
 
-        if var not in self.variables:
-            logging.warning('variable %s not a statistical variable' % var)
+        if variable not in self.variables:
+            logging.warning('variable %s not a statistical variable' % variable)
             return None
 
         ic_stat = self.statistic()
 
-        y = ic_stat.profiles[var].y
-        x = ic_stat.profiles[var].x
+        y = ic_stat.profiles[variable].y
+        x = ic_stat.profiles[variable].x
 
         if len(y) == len(x[0]):
             out = ax.plot(x[0], y, color='k', label='Mean')
@@ -692,7 +703,7 @@ class CoreSet:
             ax.plot(x[3], y, color='r', label='Max')
             ax.fill_betweenx(y, x[0] - x[1], x[0] + x[1], facecolor='black', alpha=0.3, label=str(u"\c2b1") + "std dev")
             ax.set_ylim(max(ax.get_ylim()), 0)
-            ax.set_xlabel(var + ' ' + si_prop_unit[var])
+            ax.set_xlabel(variable + ' ' + si_prop_unit[variable])
         else:
             out = ax.step(np.append(x[0], x[0][-1]), y, color='k', label='Mean')
             ax.step(np.append(x[2], x[2][-1]), y, color='b', label='Min')
@@ -711,7 +722,7 @@ class CoreSet:
 
             ax.fill_betweenx(y_fill, x_fill_l, x_fill_h, facecolor='black', alpha=0.3, label=str(u"\c2b1") + "std dev")
             ax.set_ylim(max(ax.get_ylim()), 0)
-            ax.set_xlabel(var + ' ' + si_prop_unit[var])
+            ax.set_xlabel(variable + ' ' + si_prop_unit[variable])
         return out
 
 

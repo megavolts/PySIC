@@ -254,7 +254,6 @@ def ice_temperature_profile(mbs_data, start_day, end_day='False', ice_thickness=
         return None
 
     else:
-        print('test')
         T_mbs = np.nanmean(mbs_data[year][index], axis=0)[15 + mbs_ice_surface[year] - 1:]
 
         h_max_mbs = np.nanmax(mbs_data[year][index, 5])
