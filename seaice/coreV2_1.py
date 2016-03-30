@@ -547,6 +547,7 @@ class CoreSet:
                 ic_out.add_profile(profile, ii_variable)
         return ic_out
 
+
     def min(self, var=None):
         """
         :param var:
