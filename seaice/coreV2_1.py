@@ -55,10 +55,10 @@ class Profile:
         else:
             self.length = length
         self.comment = None
-        if comment is None:
+        if comment is not None:
             self.add_comment(comment)
         self.note = None
-        if note is None:
+        if note is not None:
             self.add_note(note)
 
     def add_comment(self, comment):
@@ -435,12 +435,20 @@ class CoreSet:
         :return:
         """
         variable = {}
+        snow_thickness = []
+        ice_thickness = []
+        date = []
         ics_data = self.merge_bin()
         for ii_core in ics_data.core:
             ic_data = ics_data.core_data[ii_core]
             if var is None:
                 for ii_variable in ics_data.variables:
                     if ii_variable in ic_data.profiles.keys():
+                        snow_thickness.append(ic_data.snow_thickness)
+                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.date not in date:
+                            date.append(ic_data.date)
+
                         if ii_variable not in variable.keys():
                             variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
                         elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
@@ -452,6 +460,11 @@ class CoreSet:
                     var = [var]
                 for ii_variable in var:
                     if ii_variable in ic_data.profiles.keys():
+                        snow_thickness.append(ic_data.snow_thickness)
+                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.date not in date:
+                            date.append(ic_data.date)
+
                         if ii_variable not in variable.keys():
                             variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
                         elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
@@ -459,16 +472,21 @@ class CoreSet:
                         else:
                             logging.warning('vertical resolution is not the same between the cores')
 
+            str_temp = ''
+            for ii_core in ics_data.core:
+                str_temp += ii_core+', '
+            comment = 'statistic mean computed from ice cores: ' + str_temp[:-2]
+            name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
+            ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp[:-2])
+
             for ii_variable in variable.keys():
                 y = variable[ii_variable][1]
                 x = np.nanmean(np.atleast_2d(variable[ii_variable][0]), axis=0)
                 count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
 
-                profile = Profile(x, y, ic_data.name, 'mean', comment='statistic mean computed from merged bin ice cores', note=count, length=None)
-                if ii_variable in ic_data.profiles.keys():
-                    ic_data.del_profile(ii_variable)
-                ic_data.add_profile(profile, ii_variable)
-        return ic_data
+                profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
+                ic_out.add_profile(profile, ii_variable)
+        return ic_out
 
     def std(self, var=None):
         """
@@ -476,12 +494,20 @@ class CoreSet:
         :return:
         """
         variable = {}
+        snow_thickness = []
+        ice_thickness = []
+        date = []
         ics_data = self.merge_bin()
         for ii_core in ics_data.core:
             ic_data = ics_data.core_data[ii_core]
             if var is None:
                 for ii_variable in ics_data.variables:
                     if ii_variable in ic_data.profiles.keys():
+                        snow_thickness.append(ic_data.snow_thickness)
+                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.date not in date:
+                            date.append(ic_data.date)
+
                         if ii_variable not in variable.keys():
                             variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
                         elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
@@ -493,6 +519,11 @@ class CoreSet:
                     var = [var]
                 for ii_variable in var:
                     if ii_variable in ic_data.profiles.keys():
+                        snow_thickness.append(ic_data.snow_thickness)
+                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.date not in date:
+                            date.append(ic_data.date)
+
                         if ii_variable not in variable.keys():
                             variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
                         elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
@@ -500,16 +531,21 @@ class CoreSet:
                         else:
                             logging.warning('vertical resolution is not the same between the cores')
 
+            str_temp = ''
+            for ii_core in ics_data.core:
+                str_temp += ii_core+', '
+            comment = 'statistic mean computed from ice cores: ' + str_temp[:-2]
+            name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
+            ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp[:-2])
+
             for ii_variable in variable.keys():
                 y = variable[ii_variable][1]
                 x = np.nanstd(np.atleast_2d(variable[ii_variable][0]), axis=0)
                 count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
 
-                profile = Profile(x, y, ic_data.name, 'mean', comment='statistic mean computed from merged bin ice cores', note=count, length=None)
-                if ii_variable in ic_data.profiles.keys():
-                    ic_data.del_profile(ii_variable)
-                ic_data.add_profile(profile, ii_variable)
-        return ic_data
+                profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
+                ic_out.add_profile(profile, ii_variable)
+        return ic_out
 
     def min(self, var=None):
         """
@@ -517,12 +553,20 @@ class CoreSet:
         :return:
         """
         variable = {}
+        snow_thickness = []
+        ice_thickness = []
+        date = []
         ics_data = self.merge_bin()
         for ii_core in ics_data.core:
             ic_data = ics_data.core_data[ii_core]
             if var is None:
                 for ii_variable in ics_data.variables:
                     if ii_variable in ic_data.profiles.keys():
+                        snow_thickness.append(ic_data.snow_thickness)
+                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.date not in date:
+                            date.append(ic_data.date)
+
                         if ii_variable not in variable.keys():
                             variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
                         elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
@@ -534,6 +578,11 @@ class CoreSet:
                     var = [var]
                 for ii_variable in var:
                     if ii_variable in ic_data.profiles.keys():
+                        snow_thickness.append(ic_data.snow_thickness)
+                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.date not in date:
+                            date.append(ic_data.date)
+
                         if ii_variable not in variable.keys():
                             variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
                         elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
@@ -541,16 +590,21 @@ class CoreSet:
                         else:
                             logging.warning('vertical resolution is not the same between the cores')
 
+            str_temp = ''
+            for ii_core in ics_data.core:
+                str_temp += ii_core+', '
+            comment = 'statistic mean computed from ice cores: ' + str_temp[:-2]
+            name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
+            ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp[:-2])
+
             for ii_variable in variable.keys():
                 y = variable[ii_variable][1]
                 x = np.nanmin(np.atleast_2d(variable[ii_variable][0]), axis=0)
                 count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
 
-                profile = Profile(x, y, ic_data.name, 'mean', comment='statistic mean computed from merged bin ice cores', note=count, length=None)
-                if ii_variable in ic_data.profiles.keys():
-                    ic_data.del_profile(ii_variable)
-                ic_data.add_profile(profile, ii_variable)
-        return ic_data
+                profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
+                ic_out.add_profile(profile, ii_variable)
+        return ic_out
 
     def max(self, var=None):
         """
@@ -558,12 +612,20 @@ class CoreSet:
         :return:
         """
         variable = {}
+        snow_thickness = []
+        ice_thickness = []
+        date = []
         ics_data = self.merge_bin()
         for ii_core in ics_data.core:
             ic_data = ics_data.core_data[ii_core]
             if var is None:
                 for ii_variable in ics_data.variables:
                     if ii_variable in ic_data.profiles.keys():
+                        snow_thickness.append(ic_data.snow_thickness)
+                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.date not in date:
+                            date.append(ic_data.date)
+
                         if ii_variable not in variable.keys():
                             variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
                         elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
@@ -575,6 +637,11 @@ class CoreSet:
                     var = [var]
                 for ii_variable in var:
                     if ii_variable in ic_data.profiles.keys():
+                        snow_thickness.append(ic_data.snow_thickness)
+                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.date not in date:
+                            date.append(ic_data.date)
+
                         if ii_variable not in variable.keys():
                             variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
                         elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
@@ -582,16 +649,21 @@ class CoreSet:
                         else:
                             logging.warning('vertical resolution is not the same between the cores')
 
+            str_temp = ''
+            for ii_core in ics_data.core:
+                str_temp += ii_core+', '
+            comment = 'statistic mean computed from ice cores: ' + str_temp[:-2]
+            name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
+            ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp[:-2])
+
             for ii_variable in variable.keys():
                 y = variable[ii_variable][1]
-                x = np.nanmax(np.atleast_2d(variable[ii_variable][0]), axis=0)
+                x = np.namax(np.atleast_2d(variable[ii_variable][0]), axis=0)
                 count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
 
-                profile = Profile(x, y, ic_data.name, 'mean', comment='statistic mean computed from merged bin ice cores', note=count, length=None)
-                if ii_variable in ic_data.profiles.keys():
-                    ic_data.del_profile(ii_variable)
-                ic_data.add_profile(profile, ii_variable)
-        return ic_data
+                profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
+                ic_out.add_profile(profile, ii_variable)
+        return ic_out
 
     def count(self, var=None):
         """
@@ -599,12 +671,20 @@ class CoreSet:
         :return:
         """
         variable = {}
+        snow_thickness = []
+        ice_thickness = []
+        date = []
         ics_data = self.merge_bin()
         for ii_core in ics_data.core:
             ic_data = ics_data.core_data[ii_core]
             if var is None:
                 for ii_variable in ics_data.variables:
                     if ii_variable in ic_data.profiles.keys():
+                        snow_thickness.append(ic_data.snow_thickness)
+                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.date not in date:
+                            date.append(ic_data.date)
+
                         if ii_variable not in variable.keys():
                             variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
                         elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
@@ -616,6 +696,11 @@ class CoreSet:
                     var = [var]
                 for ii_variable in var:
                     if ii_variable in ic_data.profiles.keys():
+                        snow_thickness.append(ic_data.snow_thickness)
+                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.date not in date:
+                            date.append(ic_data.date)
+
                         if ii_variable not in variable.keys():
                             variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
                         elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
@@ -623,15 +708,20 @@ class CoreSet:
                         else:
                             logging.warning('vertical resolution is not the same between the cores')
 
+            str_temp = ''
+            for ii_core in ics_data.core:
+                str_temp += ii_core+', '
+            comment = 'statistic mean computed from ice cores: ' + str_temp[:-2]
+            name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
+            ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp[:-2])
+
             for ii_variable in variable.keys():
                 y = variable[ii_variable][1]
                 x = np.nancount(np.atleast_2d(variable[ii_variable][0]), axis=0)
 
-                profile = Profile(x, y, ic_data.name, 'mean', comment='statistic mean computed from merged bin ice cores', note=None, length=None)
-                if ii_variable in ic_data.profiles.keys():
-                    ic_data.del_profile(ii_variable)
-                ic_data.add_profile(profile, ii_variable)
-        return ic_data
+                profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
+                ic_out.add_profile(profile, ii_variable)
+        return ic_out
 
     def statistic(self, var=None):
         """
@@ -726,7 +816,6 @@ class CoreSet:
         return out
 
 
-
 def import_core(ic_path, missing_value=float('nan'), comment='off'):
     """
     :param ic_path:
@@ -817,8 +906,6 @@ def import_core(ic_path, missing_value=float('nan'), comment='off'):
     else:
         logging.info('\ttemperature profile missing')
     return imported_core
-
-
 
 
 def make_section(core, section_thickness=0.05):
