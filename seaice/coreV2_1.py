@@ -51,7 +51,7 @@ class Profile:
         self.variable = variable
         self.note = note
         if length is None:
-            self.length = x[-1] - x[0]
+            self.length = self.y[-1] - self.y[0]
         else:
             self.length = length
         self.comment = None
@@ -145,7 +145,7 @@ class Core:
     """
     Core
     """
-    def __init__(self, name, date, location, ice_thickness, snow_thickness, comment=None):
+    def __init__(self, name, date, location, ice_thickness, snow_thickness, comment=None, note=None):
         """
         :param name:
         :param date:
@@ -165,6 +165,9 @@ class Core:
         self.comment = None
         if comment is not None:
             self.add_comment(comment)
+        self.note = None
+        if note is not None:
+            self.add_comment(note)
 
     def add_profile(self, profile, variable):
         """
@@ -222,8 +225,8 @@ class Core:
             y_mid = y[0:-1] + np.diff(y) / 2
             length = max(y) - min(y)
 
-            xt = np.interp(y_mid, profilet.y, profilet.x)
-            xs = np.interp(y_mid, profiles.y[:-1] + np.diff(profiles.y) / 2, profiles.x)
+            xt = np.interp(y_mid, profilet.y, profilet.x, left=np.nan, right=np.nan)
+            xs = np.interp(y_mid, profiles.y[:-1] + np.diff(profiles.y) / 2, profiles.x, left=np.nan, right=np.nan)
             x = function(xt, xs)
 
             note = 'computed from ' + self.profiles['temperature'].profile_label + ' temperature profile and ' + \
@@ -280,11 +283,11 @@ class Core:
         if flag_figure_number is None:
             fig = plt.figure()
             ax1 = fig.add_subplot(1, 2, 1)
-            ax2 = fig.add_subplot(1, 2, 2)
+            ax2 = fig.add_subplot(1, 2, 2, sharey=ax1)
         else:
             fig = plt.figure(flag_figure_number)
             ax1 = fig.add_subplot(1, 2, 1)
-            ax2 = fig.add_subplot(1, 2, 2)
+            ax2 = fig.add_subplot(1, 2, 2, sharey=ax1)
 
         if 'salinity' in self.profiles.keys():
             self.plot_variable(ax1, 'salinity', param_dict)
@@ -293,7 +296,7 @@ class Core:
             logging.warning('salinity profile missing for %s' % self.name)
 
         if 'temperature' in self.profiles.keys():
-            ax2 = self.plot_variable(ax2, 'temperature', param_dict)
+            self.plot_variable(ax2, 'temperature', param_dict)
         else:
             logging.warning('temperature profile missing for %s' % self.name)
 
@@ -302,6 +305,9 @@ class Core:
 
     def get_profile_variable(self):
         return sorted(self.profiles.keys())
+
+    def rescale(self, variable=None, section_thickness=0.05):
+        return make_section(self, variable, section_thickness)
 
 
 class CoreSet:
@@ -401,7 +407,7 @@ class CoreSet:
                     y = np.array(ic_data.profiles[ii_variable].y)
                     if len(x) == len(y):
                         y_bin = variable[ii_variable]
-                        x_bin = np.interp(y_bin, y[~np.isnan(y)], x[~np.isnan(y)])
+                        x_bin = np.interp(y_bin, y[~np.isnan(y)], x[~np.isnan(y)], left=np.nan, right=np.nan)
                     else:
                         ii_bin = 1  # cycle from 0 to len(y)
                         ii = 0  # cycle from 0 to len(x_bin)
@@ -434,6 +440,7 @@ class CoreSet:
         :param var:
         :return:
         """
+
         variable = {}
         snow_thickness = []
         ice_thickness = []
@@ -444,8 +451,10 @@ class CoreSet:
             if var is None:
                 for ii_variable in ics_data.variables:
                     if ii_variable in ic_data.profiles.keys():
-                        snow_thickness.append(ic_data.snow_thickness)
-                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.snow_thickness is not None:
+                            snow_thickness.append(ic_data.snow_thickness)
+                        if ic_data.ice_thickness is not None:
+                           ice_thickness.append(ic_data.ice_thickness)
                         if ic_data.date not in date:
                             date.append(ic_data.date)
 
@@ -460,8 +469,10 @@ class CoreSet:
                     var = [var]
                 for ii_variable in var:
                     if ii_variable in ic_data.profiles.keys():
-                        snow_thickness.append(ic_data.snow_thickness)
-                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.snow_thickness is not None:
+                            snow_thickness.append(ic_data.snow_thickness)
+                        if ic_data.ice_thickness is not None:
+                           ice_thickness.append(ic_data.ice_thickness)
                         if ic_data.date not in date:
                             date.append(ic_data.date)
 
@@ -475,9 +486,11 @@ class CoreSet:
             str_temp = ''
             for ii_core in ics_data.core:
                 str_temp += ii_core+', '
-            comment = 'statistic mean computed from ice cores: ' + str_temp[:-2]
+            str_temp = str_temp[:-2]
+            comment = 'statistic mean computed from ice cores: ' + str_temp
             name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
-            ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp[:-2])
+
+            ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp)
 
             for ii_variable in variable.keys():
                 y = variable[ii_variable][1]
@@ -503,8 +516,10 @@ class CoreSet:
             if var is None:
                 for ii_variable in ics_data.variables:
                     if ii_variable in ic_data.profiles.keys():
-                        snow_thickness.append(ic_data.snow_thickness)
-                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.snow_thickness is not None:
+                            snow_thickness.append(ic_data.snow_thickness)
+                        if ic_data.ice_thickness is not None:
+                           ice_thickness.append(ic_data.ice_thickness)
                         if ic_data.date not in date:
                             date.append(ic_data.date)
 
@@ -519,8 +534,10 @@ class CoreSet:
                     var = [var]
                 for ii_variable in var:
                     if ii_variable in ic_data.profiles.keys():
-                        snow_thickness.append(ic_data.snow_thickness)
-                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.snow_thickness is not None:
+                            snow_thickness.append(ic_data.snow_thickness)
+                        if ic_data.ice_thickness is not None:
+                           ice_thickness.append(ic_data.ice_thickness)
                         if ic_data.date not in date:
                             date.append(ic_data.date)
 
@@ -563,8 +580,10 @@ class CoreSet:
             if var is None:
                 for ii_variable in ics_data.variables:
                     if ii_variable in ic_data.profiles.keys():
-                        snow_thickness.append(ic_data.snow_thickness)
-                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.snow_thickness is not None:
+                            snow_thickness.append(ic_data.snow_thickness)
+                        if ic_data.ice_thickness is not None:
+                           ice_thickness.append(ic_data.ice_thickness)
                         if ic_data.date not in date:
                             date.append(ic_data.date)
 
@@ -579,8 +598,10 @@ class CoreSet:
                     var = [var]
                 for ii_variable in var:
                     if ii_variable in ic_data.profiles.keys():
-                        snow_thickness.append(ic_data.snow_thickness)
-                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.snow_thickness is not None:
+                            snow_thickness.append(ic_data.snow_thickness)
+                        if ic_data.ice_thickness is not None:
+                           ice_thickness.append(ic_data.ice_thickness)
                         if ic_data.date not in date:
                             date.append(ic_data.date)
 
@@ -622,8 +643,10 @@ class CoreSet:
             if var is None:
                 for ii_variable in ics_data.variables:
                     if ii_variable in ic_data.profiles.keys():
-                        snow_thickness.append(ic_data.snow_thickness)
-                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.snow_thickness is not None:
+                            snow_thickness.append(ic_data.snow_thickness)
+                        if ic_data.ice_thickness is not None:
+                           ice_thickness.append(ic_data.ice_thickness)
                         if ic_data.date not in date:
                             date.append(ic_data.date)
 
@@ -638,8 +661,10 @@ class CoreSet:
                     var = [var]
                 for ii_variable in var:
                     if ii_variable in ic_data.profiles.keys():
-                        snow_thickness.append(ic_data.snow_thickness)
-                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.snow_thickness is not None:
+                            snow_thickness.append(ic_data.snow_thickness)
+                        if ic_data.ice_thickness is not None:
+                           ice_thickness.append(ic_data.ice_thickness)
                         if ic_data.date not in date:
                             date.append(ic_data.date)
 
@@ -681,8 +706,10 @@ class CoreSet:
             if var is None:
                 for ii_variable in ics_data.variables:
                     if ii_variable in ic_data.profiles.keys():
-                        snow_thickness.append(ic_data.snow_thickness)
-                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.snow_thickness is not None:
+                            snow_thickness.append(ic_data.snow_thickness)
+                        if ic_data.ice_thickness is not None:
+                           ice_thickness.append(ic_data.ice_thickness)
                         if ic_data.date not in date:
                             date.append(ic_data.date)
 
@@ -697,8 +724,10 @@ class CoreSet:
                     var = [var]
                 for ii_variable in var:
                     if ii_variable in ic_data.profiles.keys():
-                        snow_thickness.append(ic_data.snow_thickness)
-                        ice_thickness.append(ic_data.ice_thickness)
+                        if ic_data.snow_thickness is not None:
+                            snow_thickness.append(ic_data.snow_thickness)
+                        if ic_data.ice_thickness is not None:
+                           ice_thickness.append(ic_data.ice_thickness)
                         if ic_data.date not in date:
                             date.append(ic_data.date)
 
@@ -719,6 +748,7 @@ class CoreSet:
             for ii_variable in variable.keys():
                 y = variable[ii_variable][1]
                 x = np.nancount(np.atleast_2d(variable[ii_variable][0]), axis=0)
+                count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
 
                 profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
                 ic_out.add_profile(profile, ii_variable)
@@ -909,34 +939,43 @@ def import_core(ic_path, missing_value=float('nan'), comment='off'):
     return imported_core
 
 
-def make_section(core, section_thickness=0.05):
+def make_section(core, variable=None, section_thickness=0.05):
     """
     :param core:
+    :param variable:
     :param section_thickness:
     """
-    core = core
-    for a in dir(core):
-        if isinstance(core.__getattribute__(a), Profile) and core.__getattribute__(a) is not None:
-            profile = core.__getattribute__(a)
-            if profile.length is not None:
-                length = profile.length
-            else:
-                length = core.ice_thickness
-            y_mid_section = np.arange(section_thickness / 2, length, section_thickness)
-            delta_y = (length + len(y_mid_section) * section_thickness) / 2
-            if delta_y < length:
-                y_mid_section = np.append(y_mid_section, np.atleast_1d(delta_y))
-            x = profile.x
-            y = np.array(profile.y)
+    if variable is None:
+        variable = sorted(core.profiles.keys())
+    if not isinstance(variable, list):
+        variable = [variable]
 
-            if len(y) is len(x) + 1:
-                y = (y[1:] + y[:-1]) / 2
+    for ii_profile in variable:
+        profile = core.profiles[ii_profile]
+        if core.ice_thickness is not None:
+            ice_thickness = core.ice_thickness
+        else:
+            ice_thickness = core.profiles[ii_profile].y[-1]
 
-            x_mid_section = np.interp(y_mid_section, y[~np.isnan(y)], x[~np.isnan(y)])
-            profile.x = x_mid_section
-            profile.y = y_mid_section
-            core.__delattr__(a)
-            core.__setattr__(a, profile)
+        y_mid_section = np.arange(section_thickness / 2, ice_thickness, section_thickness)
+        delta_y = (ice_thickness + len(y_mid_section) * section_thickness) / 2
+
+        if delta_y < ice_thickness:
+            y_mid_section = np.append(y_mid_section, np.atleast_1d(delta_y))
+        x = core.profiles[ii_profile].x
+        y = np.array(core.profiles[ii_profile].y)
+
+        if len(y) is len(x) + 1:
+            y = (y[1:] + y[:-1]) / 2
+
+        x_mid_section = np.interp(y_mid_section, y[~np.isnan(y)], x[~np.isnan(y)], left=np.nan, right=np.nan)
+
+        profile.x = x_mid_section
+        profile.y = y_mid_section
+        profile.add_comment(
+            'artificial section thickness computed with a vertical resolution of ' + str(section_thickness) + 'm')
+        core.del_profile(ii_profile)
+        core.add_profile(profile, ii_profile)
     return core
 
 
