@@ -1,10 +1,10 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-coreV2_1.py: ice core data is a toolbox to import ice core data file from xlsx spreadsheet. Xlsx spreadsheet should
-be formatted according to the template provided by the Sea Ice Group of the Geophysical Institute of University of
-Alaska, Fairbanks.
-
+corePanda.py: ice core data is a toolbox to import ice core data file from xlsx spreadsheet, formatted according to the
+ template developped by the Sea Ice Group of the Geophysical Institute of the University of Alaska, Fairbanks.
+ corePanda.py integrate the module panda into the module core version 2.1 to simplify the operation and decrease
+ computation time. Core profiles are considered as collection of point in depth, time and properties (salinity, temperature or other variable)
 """
 
 import numpy as np
@@ -15,16 +15,16 @@ import datetime
 from seaice.properties import si_prop_list
 from seaice.properties import si_prop_unit
 from seaice.properties import si_state_variable
-import pandas as pd
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
-__version__ = "2.1.0"
+__version__ = "3.0.0"
 __maintainer__ = "Marc Oggier"
 __contact__ = "Marc Oggier"
 __email__ = "marc.oggier@gi.alaska.edu"
 __status__ = "development"
 __date__ = "2014/11/25"
+__comment__ = "corePanda integrate the module Panda to simplifiy the operation "
 __all__ = ['Core', 'CoreSet', 'Profile']
 
 LOG_FILENAME = 'import.log'
@@ -162,15 +162,13 @@ class Core:
         self.corenames = [name]
         self.ice_thickness = ice_thickness
         self.snow_thickness = snow_thickness
+        self.profiles = {}
         self.comment = None
         if comment is not None:
             self.add_comment(comment)
         self.note = None
         if note is not None:
             self.add_comment(note)
-
-        self.data = pd.DataFrame(index)
-
 
     def add_profile(self, profile, variable):
         """
@@ -850,33 +848,20 @@ class CoreSet:
         return out
 
 
-def import_core(ic_path, missing_value=float('nan'), comment='off'):
+def import_core(ic_filepath, missing_value=float('nan')):
     """
-    :param ic_path:
+    :param ic_filepath:
     :param missing_value:
-    :param comment: on/off, 0/1, y[n
-        toggle comment display
     """
-    # check comment
-    if comment in ['on', 1, 'yes', 'y']:
-        comment = 1
-    elif comment not in ['off', 1, 'no', 'n']:
-        comment = 0
-    else:
-        logging.warning('comment parameters not defined')
 
-    wb = openpyxl.load_workbook(filename=ic_path, use_iterators=True)  # load the xlsx spreadsheet
+    wb = openpyxl.load_workbook(filename=ic_filepath, use_iterators=True)  # load the xlsx spreadsheet
     ws_name = wb.get_sheet_names()
     ws_summary = wb.get_sheet_by_name('summary')  # load the data from the summary sheet
 
     # extract basic information about the ice core
     # name
     ic_name = ws_summary['C21'].value
-    if comment:
-        print(ic_name)
-
-    # logging.basicConfig(filename=LOG_FILENAME, level=LOG_LEVELS[log_level])
-    # logging.info('Processing ' + ic_name + '...')
+    print(ic_name)
 
     # date
     temp_cell = ws_summary['C2']
@@ -902,12 +887,17 @@ def import_core(ic_path, missing_value=float('nan'), comment='off'):
     else:
         ic_ice_thickness = temp_cell.value
 
+    index =
+
+    pd.DataFrame()
+
     imported_core = Core(ic_name, ic_date, ic_loc, ic_ice_thickness, ic_snow_depth)
 
     # surface temperature
     temp_cell = ws_summary['C15']
     if temp_cell is not None or temp_cell.value not in ['n/m', 'n/a', 'unknow']:
         imported_core.t_air = temp_cell.value
+
     temp_cell = ws_summary['C16']
     if temp_cell is not None or temp_cell.value not in ['n/m', 'n/a', 'unknow']:
         imported_core.t_snow = temp_cell.value
@@ -1106,29 +1096,25 @@ def read_variable(wb, sheet_name, col_x, col_y, col_c, row_start):
         logging.info('profile %s missing' % ice_core_spreadsheet[sheet_name])
 
 
-def import_src(txt_filepath, section_thickness=None, missing_value=float('nan'), log_level='warning', comment='off'):
+def import_src(ics_filepath, missing_value=float('nan')):
     """
-    import_src import all ice core data which path are given in a source text file
-    :param txt_filepath:
-    :param section_thickness:
+    import_src import ice core data which path is listed in the text file found in ics_filepath. File formatting: 1 ice
+    core by line, entry beginning with # are ignored
+
+    :param ics_filepath:
     :param missing_value:
-    :param log_level:
-    :param comment:
-    :return:
+    :return ic_dict: dictionnaries of ice core ice_core_name:ice_core_data
     """
+
     print('Ice core data importation in progress ...')
-    logging.basicConfig(filename=LOG_FILENAME, level=LOG_LEVELS[log_level])
-    a = open(txt_filepath)
-    filepath = [line.strip() for line in a]
-    filepath = sorted(filepath)
+    a = open(ics_filepath)
+    filepath = sorted([line.strip() for line in a])
     ic_dict = {}
     for ii in range(0, len(filepath)):
         if not filepath[ii].startswith('#'):
-            ic_data = import_core(filepath[ii], missing_value, comment=comment)
-            if section_thickness is not None:
-                ic_data = make_section(ic_data, section_thickness)
+            ic_filepath = filepath[ii]
+            ic_data = import_core(ic_filepath, missing_value)
             ic_dict[ic_data.name] = ic_data
-    logging.info('Ice core importation complete')
     print('done')
     return ic_dict
 
