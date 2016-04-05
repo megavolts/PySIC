@@ -9,6 +9,7 @@ corePanda.py: ice core data is a toolbox to import ice core data file from xlsx 
 
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 import logging
 import openpyxl
 import datetime
@@ -40,108 +41,6 @@ LOG_LEVELS = {'debug': logging.DEBUG,
 # ic_path = '/mnt/data_lvm/seaice/core/BRW/2010_11/BRW_CS-20110122A.xlsx'
 nan_value = float('nan')
 
-
-class Profile:
-    """
-    Profile
-    """
-    def __init__(self, x, y, profile_label, variable, comment=None, note=None, length=None):
-        self.x = x
-        self.y = y
-        self.profile_label = profile_label
-        self.variable = variable
-        self.note = note
-        if length is None:
-            self.length = self.y[-1] - self.y[0]
-        else:
-            self.length = length
-        self.comment = None
-        if comment is not None:
-            self.add_comment(comment)
-        self.note = None
-        if note is not None:
-            self.add_note(note)
-
-    def add_comment(self, comment):
-        """
-        :param comment:
-        :return:
-        """
-        if self.comment is None:
-            self.comment = [comment]
-        else:
-            self.comment.append(comment)
-
-    def add_note(self, note):
-        """
-        :param note:
-        :return:
-        """
-        if self.note is None:
-            self.note = [note]
-        else:
-            self.note.append(note)
-
-    def plot(self, fig_num=None, ax=None, param_dict=None, title=None, legend=None):
-        """
-        :param fig_num:
-        :param ax:
-        :param param_dict:
-        :param title:
-        :param legend:
-        :return:
-        """
-        if fig_num is not None:
-            plt.figure(fig_num)
-        else:
-            plt.figure()
-        if ax is not None:
-            if len(self.x) == len(self.y):
-                if param_dict is None:
-                    out = ax.plot(self.x, self.y)
-                else:
-                    out = ax.plot(self.x, self.y, **param_dict)
-            else:
-                if param_dict is None:
-                    out = ax.step(np.append(self.x, self.x[-1]), self.y)
-                else:
-                    out = ax.step(np.append(self.x, self.x[-1]), self.y, **param_dict)
-            ax.set_xlabel(self.variable)
-            ax.set_ylim(max(ax.get_ylim(), 0))
-            if title is 'y':
-                ax.title(self.profile_label)
-            if legend is '1':
-                plt.legend()
-            elif legend is not None:
-                plt.legend(legend)
-        else:
-            if len(self.x) == len(self.y):
-                if param_dict is None:
-                    out = plt.plot(self.x, self.y)
-                    plt.xlabel(self.variable)
-                    plt.ylim(max(plt.ylim()), 0)
-                else:
-                    out = plt.plot(self.x, self.y, **param_dict)
-                    plt.xlabel(self.variable)
-                    plt.ylim(max(plt.ylim()), 0)
-            else:
-                if param_dict is None:
-                    out = plt.step(np.append(self.x, self.x[-1]), self.y)
-                    plt.xlabel(self.variable)
-                    plt.ylim(max(plt.ylim()), 0)
-                else:
-                    out = plt.step(np.append(self.x, self.x[-1]), self.y, **param_dict)
-                    plt.xlabel(self.variable)
-                    plt.ylim(max(plt.ylim()), 0)
-            if title is 'y':
-                plt.title(self.profile_label)
-            if legend is '1':
-                plt.legend()
-            elif legend is not None:
-                plt.legend(legend)
-        return out
-
-
 class Core:
     """
     Core
@@ -162,7 +61,7 @@ class Core:
         self.corenames = [name]
         self.ice_thickness = ice_thickness
         self.snow_thickness = snow_thickness
-        self.profiles = {}
+        self.profiles = pd.DataFrame()
         self.comment = None
         if comment is not None:
             self.add_comment(comment)
@@ -170,16 +69,16 @@ class Core:
         if note is not None:
             self.add_comment(note)
 
-    def add_profile(self, profile, variable):
+    def add_profile(self, profile):
         """
         :param profile:
         :param variable:
         :return:
         """
-        self.profiles[variable] = profile
+        self.profiles = self.profiles.append(profile)
 
-    def del_profile(self, variable):
-        self.profiles.pop(variable)
+    def del_profile(self, core, variable=None):
+        self.profiles = self.profiles[(self.profiles.core != core) & (self.profiles.variable != variable)]
 
     def add_corenames(self, corename):
         """
@@ -645,7 +544,7 @@ class CoreSet:
                 for ii_variable in ics_data.variables:
                     if ii_variable in ic_data.profiles.keys():
                         if ic_data.snow_thickness is not None:
-                            snow_thickness.append(ic_data.snow_thickness)
+                            snow_thickness.append(ic_dindexata.snow_thickness)
                         if ic_data.ice_thickness is not None:
                            ice_thickness.append(ic_data.ice_thickness)
                         if ic_data.date not in date:
@@ -848,18 +747,28 @@ class CoreSet:
         return out
 
 
-def import_core(ic_filepath, missing_value=float('nan')):
+def import_core(ic_filepath, variables=None, missing_value=float('nan')):
     """
     :param ic_filepath:
     :param missing_value:
     """
 
+    column_dict = {'S_ice': ['D', 'AB', 8, 6], 'T_ice': ['B', 'A', 8, 6]}
+
     wb = openpyxl.load_workbook(filename=ic_filepath, use_iterators=True)  # load the xlsx spreadsheet
     ws_name = wb.get_sheet_names()
     ws_summary = wb.get_sheet_by_name('summary')  # load the data from the summary sheet
 
-    # extract basic information about the ice core
-    # name
+    if variables is 'state variable':
+        variables = ['T_ice', 'S_ice']
+    elif variables is None:
+        variables = []
+        for ii_var in ws_name:
+            if (ii_var not in ['summary', 'abreviation', 'locations', 'lists']) and (not ii_var.split('-')[-1]=='figure'):
+                variables.append(ii_var)
+    elif not isinstance(variables, list):
+        variables = [variables]
+
     ic_name = ws_summary['C21'].value
     print(ic_name)
 
@@ -887,9 +796,6 @@ def import_core(ic_filepath, missing_value=float('nan')):
     else:
         ic_ice_thickness = temp_cell.value
 
-    index =
-
-    pd.DataFrame()
 
     imported_core = Core(ic_name, ic_date, ic_loc, ic_ice_thickness, ic_snow_depth)
 
@@ -915,20 +821,10 @@ def import_core(ic_filepath, missing_value=float('nan')):
         imported_core.add_corenames(ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value)
         ii_col += 1
 
-    # SALINITY S
-    if 'S_ice' in ws_name:
-        profile = read_variable(wb, sheet_name='S_ice', col_x='D', col_y='AB', col_c=8, row_start=6)
-        imported_core.add_profile(profile, 'salinity')
-        logging.info('\tsalinity profile imported')
-    else:
-        logging.info('\tsalinity profile missing')
-
-    if 'T_ice' in ws_name:
-        profile = read_variable(wb, sheet_name='T_ice', col_x='B', col_y='A', col_c=8, row_start=6)
-        imported_core.add_profile(profile, 'temperature')
-        logging.info('\ttemperature profile imported')
-    else:
-        logging.info('\ttemperature profile missing')
+    for variable in variables:
+        if variable in ws_name:
+            profile = read_variable(wb, variable, column_dict[variable])
+            imported_core.add_profile(profile)
     return imported_core
 
 
@@ -1008,7 +904,7 @@ def generate_source(data_dir, data_ext):
             f.write(ic_path_list[ii] + "\n")
 
 
-def read_variable(wb, sheet_name, col_x, col_y, col_c, row_start):
+def read_variable(wb, sheet_name, variable_dict):
     """
     :param wb:
     :param sheet_name:
@@ -1017,10 +913,16 @@ def read_variable(wb, sheet_name, col_x, col_y, col_c, row_start):
     :param col_c:
     :param row_start:
     """
+
+    [col_x, col_y, col_c, row_start] = variable_dict
     ice_core_spreadsheet = {'T_ice': 'temperature', 'S_ice': 'salinity'}
 
+    # create profile data frame
+    columns = ['x', 'y_sup', 'y_low', 'y_mid', 'comment', 'variable', 'core', 'note', 'ice_core_length']
+    profile = pd.DataFrame(columns=columns)
+
     if sheet_name in wb.sheetnames:
-        logging.info('%s sheet present, importing profile for %s' % (sheet_name, ice_core_spreadsheet[sheet_name]))
+        # logging.info('%s sheet present, importing profile for %s' % (sheet_name, ice_core_spreadsheet[sheet_name]))
 
         if not isinstance(col_y, list) and len(col_y) < 2:
             col_y = [col_y]
@@ -1039,62 +941,61 @@ def read_variable(wb, sheet_name, col_x, col_y, col_c, row_start):
         profile_name = ws['C1'].value
         note = ws['C3'].value
 
-        # import y
         row_jj = row_start
-        y_bin_mid = []
-        y_bin = []
-        col_flag = 0
         if len(col_y) == 1:
+            col_flag = 1
+            y_sup = np.nan
+            y_low = np.nan
             while row_jj > 0:
                 try:
-                    y1 = ws.cell(column=col_y[0], row=row_jj).value
+                    y_mid = ws.cell(column=col_y[0], row=row_jj).value
                 except IndexError:
                     break
-                if y1 is not None:
-                    y_bin_mid.append(y1)
+                if y_mid is not None:
+                    x = ws.cell(column=col_x, row=row_jj).value
+                    comment = ws.cell(column=col_c, row=row_jj).value
+                    index = profile_name + str('-%02d' % (row_jj - row_start + 1))
+                    measure = pd.DataFrame(
+                        [[x, y_sup, y_low, y_mid, comment, ice_core_spreadsheet[sheet_name], profile_name, note, np.nan]],
+                        columns=columns, index=[index])
+                    profile = profile.append(measure)
                 else:
                     break
                 row_jj += 1
-            y_bin = y_bin_mid
         elif len(col_y) == 2:
             col_flag = 1
             bin_flag = 1
-            y_bin_sup = []
-            y_bin_low = []
             while bin_flag > 0:
                 try:
-                    y1 = ws.cell(column=col_y[0], row=row_jj).value
-                    y2 = ws.cell(column=col_y[1], row=row_jj).value
+                    y_sup = ws.cell(column=col_y[0], row=row_jj).value
+                    y_low = ws.cell(column=col_y[1], row=row_jj).value
                 except IndexError:
                     break
-                if y1 is not None and y2 is not None:
-                    y_bin_sup.append(y1)
-                    y_bin_low.append(y2)
-                    y_bin_mid.append((y1 + y2) / 2)
+                if y_sup is not None and y_low is not None:
+                    y_mid = (y_sup + y_low) / 2
+                    x =  ws.cell(column=col_x, row=row_jj).value
+                    comment = ws.cell(column=col_c, row=row_jj).value
+                    index = profile_name + str('-%02d' % (row_jj - row_start + 1))
+                    measure = pd.DataFrame(
+                        [[x, y_sup, y_low, y_mid, comment, ice_core_spreadsheet[sheet_name], profile_name, note, np.nan]],
+                        columns=columns, index=[index])
+                    profile = profile.append(measure)
                 else:
                     break
                 row_jj += 1
-            y_bin = np.concatenate((y_bin_sup, [y_bin_low[-1]]))
 
         # length
         length = ws['C2'].value
-        y_bin_length = max(y_bin) - min(y_bin)
-        if length is None or y_bin_length < length:
-            length = max(y_bin) - min(y_bin)
+        if col_flag is 2:
+            y_bin_length = min(profile['y_sup'])-max(profile['y_low'])
+            if length is None or y_bin_length < length:
+                length = y_bin_length
+        profile.ice_core_length = length
 
-        # read variable:
-        x = [nan_value] * (len(y_bin) - col_flag)
-        comment = [None] * (len(y_bin) - col_flag)
-        for row_jj in range(row_start, row_start + len(x)):
-            x_jj = ws.cell(column=col_x, row=row_jj).value
-            if isinstance(x_jj, (float, int)):
-                x[row_jj - row_start] = x_jj
-            comment[row_jj - 6] = ws.cell(column=col_c, row=row_jj).value
-        comment.append(ws['C3'].value)
-        return Profile(x, y_bin, profile_name, ice_core_spreadsheet[sheet_name], comment, note, length)
+        return profile
     else:
         logging.info('profile %s missing' % ice_core_spreadsheet[sheet_name])
-
+        return None
 
 def import_src(ics_filepath, missing_value=float('nan')):
     """
