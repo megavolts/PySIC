@@ -544,7 +544,7 @@ class CoreSet:
                 for ii_variable in ics_data.variables:
                     if ii_variable in ic_data.profiles.keys():
                         if ic_data.snow_thickness is not None:
-                            snow_thickness.append(ic_dindexata.snow_thickness)
+                            snow_thickness.append(ic_data.snow_thickness)
                         if ic_data.ice_thickness is not None:
                            ice_thickness.append(ic_data.ice_thickness)
                         if ic_data.date not in date:
