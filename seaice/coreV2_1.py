@@ -15,7 +15,6 @@ import datetime
 from seaice.properties import si_prop_list
 from seaice.properties import si_prop_unit
 from seaice.properties import si_state_variable
-import pandas as pd
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -39,7 +38,6 @@ LOG_LEVELS = {'debug': logging.DEBUG,
 # logging.warning('And this, too')
 # ic_path = '/mnt/data_lvm/seaice/core/BRW/2010_11/BRW_CS-20110122A.xlsx'
 nan_value = float('nan')
-
 
 class Profile:
     """
@@ -168,9 +166,7 @@ class Core:
         self.note = None
         if note is not None:
             self.add_comment(note)
-
-        self.data = pd.DataFrame(index)
-
+        self.profiles = {}
 
     def add_profile(self, profile, variable):
         """
