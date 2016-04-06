@@ -41,11 +41,23 @@ LOG_LEVELS = {'debug': logging.DEBUG,
 # ic_path = '/mnt/data_lvm/seaice/core/BRW/2010_11/BRW_CS-20110122A.xlsx'
 nan_value = float('nan')
 
+import time
+
+def timing(f):
+    def wrap(*args):
+        time1 = time.time()
+        ret = f(*args)
+        time2 = time.time()
+        print('%s function took %0.3f ms' % (f.func_name, (time2-time1)*1000.0))
+        return ret
+    return wrap
+
+
 class Core:
     """
     Core
     """
-    def __init__(self, name, date, location, ice_thickness, snow_thickness, comment=None, note=None):
+    def __init__(self, core_name, coring_date, coring_location, ice_thickness, snow_thickness, comment=None, note=None):
         """
         :param name:
         :param date:
@@ -55,10 +67,10 @@ class Core:
         :param comment:
         :return:
         """
-        self.name = name
-        self.date = date
-        self.location = location
-        self.corenames = [name]
+        self.core_name = core_name
+        self.coring_date = coring_date
+        self.coring_location = coring_location
+        self.core_collection = [core_name]
         self.ice_thickness = ice_thickness
         self.snow_thickness = snow_thickness
         self.profiles = pd.DataFrame()
@@ -72,21 +84,23 @@ class Core:
     def add_profile(self, profile):
         """
         :param profile:
-        :param variable:
         :return:
         """
+        core_info = ['core_name', 'coring_date', 'location', 'core_collection', 'ice_thickness', 'snow_thickness', 'coring_comment', 'coring_note']
+        core_data = pd.DataFrame([[self.core_name, self.coring_date, self.coring_location, self.core_collection, self.ice_thickness, self.snow_thickness, self.comment, self.note]], columns=core_info, index=profile.index)
+        profile = profile.join(core_data)
         self.profiles = self.profiles.append(profile)
 
     def del_profile(self, core, variable=None):
         self.profiles = self.profiles[(self.profiles.core != core) & (self.profiles.variable != variable)]
 
-    def add_corenames(self, corename):
+    def add_corenames(self, core_name):
         """
-        :param corename:
+        :param core_name:
         :return:
         """
-        if corename not in self.corenames:
-            self.corenames.append(corename)
+        if core_name not in self.core_collection:
+            self.core_collection.append(core_name)
 
     def add_comment(self, comment):
         """
@@ -100,12 +114,12 @@ class Core:
 
     def calc_prop(self, property):
         """
-        :param prop:
+        :param property:
         :return:
         """
         # check properties variables
         if property not in si_prop_list.keys():
-            logging.warning('property %s not defined in the ice core property module' % prop)
+            logging.warning('property %s not defined in the ice core property module' % property)
             return None
         elif 'salinity' not in self.profiles:
             logging.warning('ice core %s is missing salinity profile for further calculation' % self.name)
@@ -750,6 +764,7 @@ class CoreSet:
 def import_core(ic_filepath, variables=None, missing_value=float('nan')):
     """
     :param ic_filepath:
+    :param variables:
     :param missing_value:
     """
 
@@ -759,7 +774,7 @@ def import_core(ic_filepath, variables=None, missing_value=float('nan')):
     ws_name = wb.get_sheet_names()
     ws_summary = wb.get_sheet_by_name('summary')  # load the data from the summary sheet
 
-    if variables is 'state variable':
+    if variables == 'state variables':
         variables = ['T_ice', 'S_ice']
     elif variables is None:
         variables = []
@@ -827,19 +842,34 @@ def import_core(ic_filepath, variables=None, missing_value=float('nan')):
             imported_core.add_profile(profile)
     return imported_core
 
+## profile operation
+def drop_profile(data, core_name, keys):
+    data = data[(data.core_name != core_name) | (data.variable != keys)]
+    return data
 
-def make_section(core, variable=None, section_thickness=0.05):
+
+def replace_profile(data, profile):
+    data = drop_profile(data, profile.core_name.dropna().unique()[0], profile.variable.dropna().unique()[0])
+    data = data.append(profile)
+    return data
+
+
+def discretize_profile(data, key, bins):
+    return None
+
+
+def make_section(core, variables=None, section_thickness=0.05):
     """
     :param core:
     :param variable:
     :param section_thickness:
     """
-    if variable is None:
-        variable = sorted(core.profiles.keys())
-    if not isinstance(variable, list):
-        variable = [variable]
+    if variables is None:
+        variables = sorted(core.profiles.keys())
+    if not isinstance(variables, list):
+        variables = [variables]
 
-    for ii_profile in variable:
+    for ii_profile in variables:
         profile = core.profiles[ii_profile]
         if core.ice_thickness is not None:
             ice_thickness = core.ice_thickness
@@ -915,10 +945,10 @@ def read_variable(wb, sheet_name, variable_dict):
     """
 
     [col_x, col_y, col_c, row_start] = variable_dict
-    ice_core_spreadsheet = {'T_ice': 'temperature', 'S_ice': 'salinity'}
+    ice_core_spreadsheet = {'T_ice': ['temperature', 'T'], 'S_ice': ['salinity', 'S']}
 
     # create profile data frame
-    columns = ['x', 'y_sup', 'y_low', 'y_mid', 'comment', 'variable', 'core', 'note', 'ice_core_length']
+    columns = ['x', 'y_sup', 'y_low', 'y_mid', 'comment', 'variable', 'core', 'note', 'ice_core_length', 'sample_name']
     profile = pd.DataFrame(columns=columns)
 
     if sheet_name in wb.sheetnames:
@@ -954,10 +984,10 @@ def read_variable(wb, sheet_name, variable_dict):
                 if y_mid is not None:
                     x = ws.cell(column=col_x, row=row_jj).value
                     comment = ws.cell(column=col_c, row=row_jj).value
-                    index = profile_name + str('-%02d' % (row_jj - row_start + 1))
+                    sample_name = profile_name + '-' + ice_core_spreadsheet[sheet_name][1] + str('-%02d' % (row_jj - row_start + 1))
                     measure = pd.DataFrame(
-                        [[x, y_sup, y_low, y_mid, comment, ice_core_spreadsheet[sheet_name], profile_name, note, np.nan]],
-                        columns=columns, index=[index])
+                        [[x, y_sup, y_low, y_mid, comment, ice_core_spreadsheet[sheet_name][0], profile_name, note, np.nan, sample_name]],
+                        columns=columns, index=[sample_name])
                     profile = profile.append(measure)
                 else:
                     break
@@ -973,12 +1003,12 @@ def read_variable(wb, sheet_name, variable_dict):
                     break
                 if y_sup is not None and y_low is not None:
                     y_mid = (y_sup + y_low) / 2
-                    x =  ws.cell(column=col_x, row=row_jj).value
+                    x = ws.cell(column=col_x, row=row_jj).value
                     comment = ws.cell(column=col_c, row=row_jj).value
-                    index = profile_name + str('-%02d' % (row_jj - row_start + 1))
+                    sample_name = profile_name + '-' + ice_core_spreadsheet[sheet_name][1]+ str('-%02d' % (row_jj - row_start + 1))
                     measure = pd.DataFrame(
-                        [[x, y_sup, y_low, y_mid, comment, ice_core_spreadsheet[sheet_name], profile_name, note, np.nan]],
-                        columns=columns, index=[index])
+                        [[x, y_sup, y_low, y_mid, comment, ice_core_spreadsheet[sheet_name][0], profile_name, note, np.nan, sample_name]],
+                        columns=columns, index=[sample_name])
                     profile = profile.append(measure)
                 else:
                     break
@@ -997,7 +1027,8 @@ def read_variable(wb, sheet_name, variable_dict):
         logging.info('profile %s missing' % ice_core_spreadsheet[sheet_name])
         return None
 
-def import_src(ics_filepath, missing_value=float('nan')):
+
+def import_src(ics_filepath, variables=None, missing_value=float('nan')):
     """
     import_src import ice core data which path is listed in the text file found in ics_filepath. File formatting: 1 ice
     core by line, entry beginning with # are ignored
@@ -1014,8 +1045,8 @@ def import_src(ics_filepath, missing_value=float('nan')):
     for ii in range(0, len(filepath)):
         if not filepath[ii].startswith('#'):
             ic_filepath = filepath[ii]
-            ic_data = import_core(ic_filepath, missing_value)
-            ic_dict[ic_data.name] = ic_data
+            ic_data = import_core(ic_filepath, variables=variables)
+            ic_dict[ic_data.core_name] = ic_data
     print('done')
     return ic_dict
 
