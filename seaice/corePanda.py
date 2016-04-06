@@ -70,7 +70,10 @@ class Core:
         self.core_name = core_name
         self.coring_date = coring_date
         self.coring_location = coring_location
-        self.core_collection = [core_name]
+        if isinstance(core_name, list):
+            self.core_collection = core_name
+        else:
+            self.core_collection = [core_name]
         self.ice_thickness = ice_thickness
         self.snow_thickness = snow_thickness
         self.profiles = pd.DataFrame()
@@ -99,7 +102,11 @@ class Core:
         :param core_name:
         :return:
         """
-        if core_name not in self.core_collection:
+        if isinstance(core_name, list):
+            for ii_core in core_name:
+                if ii_core not in self.core_collection:
+                    self.core_collection.append(ii_core)
+        elif core_name not in self.core_collection:
             self.core_collection.append(core_name)
 
     def add_comment(self, comment):
@@ -799,18 +806,17 @@ def import_core(ic_filepath, variables=None, missing_value=float('nan')):
 
     # snow thickness
     temp_cell = ws_summary['C9']
-    if temp_cell is None or temp_cell.value in ['n/m', 'n/a', 'unknow']:
-        ic_snow_depth = missing_value
-    else:
+    if isinstance(temp_cell, (float, str)):
         ic_snow_depth = temp_cell.value
+    else:
+        ic_snow_depth = np.nan
 
     # ice thickness
     temp_cell = ws_summary['C11']
-    if temp_cell is None or temp_cell.value in ['n/m', 'n/a', 'unknow']:
-        ic_ice_thickness = missing_value
-    else:
+    if isinstance(temp_cell, (float, str)):
         ic_ice_thickness = temp_cell.value
-
+    else:
+        ic_ice_thickness = np.nan
 
     imported_core = Core(ic_name, ic_date, ic_loc, ic_ice_thickness, ic_snow_depth)
 
@@ -846,7 +852,6 @@ def import_core(ic_filepath, variables=None, missing_value=float('nan')):
 def drop_profile(data, core_name, keys):
     data = data[(data.core_name != core_name) | (data.variable != keys)]
     return data
-
 
 def replace_profile(data, profile):
     data = drop_profile(data, profile.core_name.dropna().unique()[0], profile.variable.dropna().unique()[0])
@@ -984,6 +989,12 @@ def read_variable(wb, sheet_name, variable_dict):
                 if y_mid is not None:
                     x = ws.cell(column=col_x, row=row_jj).value
                     comment = ws.cell(column=col_c, row=row_jj).value
+                    if not isinstance(x, (float, int)):
+                        if comment is not None:
+                            comment = comment + '; value not defined'
+                        else:
+                            comment = 'value not defined'
+                        x = np.nan
                     sample_name = profile_name + '-' + ice_core_spreadsheet[sheet_name][1] + str('-%02d' % (row_jj - row_start + 1))
                     measure = pd.DataFrame(
                         [[x, y_sup, y_low, y_mid, comment, ice_core_spreadsheet[sheet_name][0], profile_name, note, np.nan, sample_name]],
@@ -1005,6 +1016,12 @@ def read_variable(wb, sheet_name, variable_dict):
                     y_mid = (y_sup + y_low) / 2
                     x = ws.cell(column=col_x, row=row_jj).value
                     comment = ws.cell(column=col_c, row=row_jj).value
+                    if not isinstance(x, (float, int)):
+                        if comment is not None:
+                            comment = comment + '; value not defined'
+                        else:
+                            comment = 'value not defined'
+                        x = np.nan
                     sample_name = profile_name + '-' + ice_core_spreadsheet[sheet_name][1]+ str('-%02d' % (row_jj - row_start + 1))
                     measure = pd.DataFrame(
                         [[x, y_sup, y_low, y_mid, comment, ice_core_spreadsheet[sheet_name][0], profile_name, note, np.nan, sample_name]],
@@ -1018,8 +1035,11 @@ def read_variable(wb, sheet_name, variable_dict):
         length = ws['C2'].value
         if col_flag is 2:
             y_bin_length = min(profile['y_sup'])-max(profile['y_low'])
-            if length is None or y_bin_length < length:
-                length = y_bin_length
+            if isinstance(y_bin_length, (float, int)):
+                if isinstance(length, (float, int)) and y_bin_length > length:
+                    length = y_bin_length
+        elif not isinstance(length, (float, int)):
+            length = np.nan
         profile.ice_core_length = length
 
         return profile
