@@ -951,12 +951,13 @@ def read_variable(wb, sheet_name, variable_dict):
 
     [col_x, col_y, col_c, row_start] = variable_dict
     ice_core_spreadsheet = {'T_ice': ['temperature', 'T'], 'S_ice': ['salinity', 'S']}
-
-    # create profile data frame
-    columns = ['x', 'y_sup', 'y_low', 'y_mid', 'comment', 'variable', 'core', 'note', 'ice_core_length', 'sample_name']
-    profile = pd.DataFrame(columns=columns)
+    variable_name = {'T_ice':'temperature', 'S_ice':'salinity'}
 
     if sheet_name in wb.sheetnames:
+        columns = [variable_name[sheet_name], 'y_sup', 'y_low', 'y_mid', 'comment', 'variable', 'core', 'note',
+                   'ice_core_length', 'sample_name']
+        profile = pd.DataFrame(columns=columns)
+
         # logging.info('%s sheet present, importing profile for %s' % (sheet_name, ice_core_spreadsheet[sheet_name]))
 
         if not isinstance(col_y, list) and len(col_y) < 2:

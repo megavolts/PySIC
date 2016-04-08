@@ -17,7 +17,15 @@ import numpy as np
 import datetime
 import logging
 import seaice.icdtools
+import seaice.corePanda
 import pandas as pd
+
+
+# ----------------------------------------------------------------------------------------------------------------------#
+# MBS variable
+# ----------------------------------------------------------------------------------------------------------------------#
+
+mbs_ice_surface = {2006:8, 2007:8, 2008:8, 2009:8, 2010:8, 2011:8, 2012:8, 2013:8, 2014:8}
 
 # ----------------------------------------------------------------------------------------------------------------------#
 def read(MBS_path, lcomment='n'):
@@ -217,62 +225,92 @@ def read(MBS_path, lcomment='n'):
     return np.array(dataout)
 
 
-def ice_temperature_profile(mbs_data, start_day, end_day='False', ice_thickness=float('nan'), section_thickness=0.05, comment='n'):
-    '''
-    :rtype: np.ndarray: blabal
-    :param mbs_data: dict
-    :param time:
+def import_core(mbs_data, day, location=None, ice_thickness=np.nan, comment = None):
+    """
+
+    :param mbs_data:
+    :param day:
     :param ice_thickness:
-    :param section_thickness:
-    :param comment:
     :return:
-    '''
+    """
 
-    mbs_ice_surface = {}
-    mbs_ice_surface[2006] = 8
-    mbs_ice_surface[2007] = 8
-    mbs_ice_surface[2008] = 8
-    mbs_ice_surface[2009] = 8
-    mbs_ice_surface[2010] = 8
-    mbs_ice_surface[2011] = 8
-    mbs_ice_surface[2012] = 8
-    mbs_ice_surface[2013] = 8
-    mbs_ice_surface[2014] = 8
+    index_month = np.where(mbs_data[day.year][:, 1] == day.month)[0]
+    index_day = np.where(mbs_data[day.year][index_month, 2] == day.day)[0]
 
-    year = start_day.year
-    if end_day == 'False':
-        end_day = start_day
-
-    index = np.array([], dtype=int)
-    while start_day <= end_day:
-        index_month = np.where(mbs_data[year][:, 1] == start_day.month)[0]
-        index_day = np.where(mbs_data[year][index_month, 2] == start_day.day)[0]
-        index = np.append(index, index_month[index_day])
-        start_day += datetime.timedelta(1)
-
-    if index.size == 0:
-        logging.warning('no data present for this date in the dataset')
+    if index_day.size == 0:
         return None
 
     else:
-        T_mbs = np.nanmean(mbs_data[year][index], axis=0)[15 + mbs_ice_surface[year] - 1:]
+        # import temperature
+        t_mbs = np.nanmean(mbs_data[day.year][index_day], axis=0)[15 + mbs_ice_surface[day.year] - 1:]
+        t_mbs_y = [0.1*ii for ii in range(t_mbs.__len__())]
 
-        h_max_mbs = np.nanmax(mbs_data[year][index, 5])
-        if np.isnan(h_max_mbs) and np.isnan(ice_thickness):
-            h_max_mbs = ice_thickness
-        elif np.isnan(h_max_mbs):
-            h_max_mbs = 0.1*(15 + mbs_ice_surface[int(year)] - 1)
-            logging.warning('ice thickness not defined, ')
-        y_mbs = np.arange(0, h_max_mbs, 0.1)
+        if np.isnan(t_mbs).all():
+            return None
 
-        if y_mbs[-1] < h_max_mbs:
-            T_h_mbs = np.interp(h_max_mbs, np.append(y_mbs, [y_mbs[-1] + 0.1]), T_mbs[0:len(y_mbs)+1])
-            T_mbs = np.append(T_mbs[0:len(y_mbs)], T_h_mbs)
-            y_mbs = np.append(y_mbs, h_max_mbs)
         else:
-            T_mbs = T_mbs[0:len(y_mbs)]
+            # generate ice core
+            import seaice.corePanda
 
-        return [T_mbs, y_mbs]
+            core_name = 'mbs-' + day.strftime('%Y%m%d')
+            coring_location = location
+            coring_date = day
+            ice_thickness_mbs = None
+            if not np.isnan(np.nanmax(mbs_data[day.year][index_day, 5])):
+                ice_thickness_mbs = np.isnan(np.nanmax(mbs_data[day.year][index_day, 5]))
+                comment = 'ice thickness from underwater pinger'
+            else:
+                T_flag = 0
+                while T_flag <= t_mbs.__len__() - 1:
+                    if (-2 < t_mbs[T_flag] < -1.8 and -2 < t_mbs[T_flag + 1] < -1.8):
+                        break
+                    else:
+                        T_flag += 1
+                if T_flag+1 != t_mbs.__len__():
+                    ice_thickness_mbs = 0.1 * (T_flag + 1)
+                comment = 'ice thickness estimated from temperature profile'
+            # TODO: read snow thickness from mbs data file
+            snow_thickness = None
+            ic = seaice.corePanda.Core(core_name, coring_date, coring_location, ice_thickness_mbs, snow_thickness,
+                                           comment=comment)
+
+            # import temperature
+            if ice_thickness_mbs is not None:
+                ice_thickness = ice_thickness_mbs
+
+            columns = ['x', 'y_mid', 'comment', 'variable', 'core', 'ice_core_length',
+                       'sample_name']
+            profile = pd.DataFrame(columns=columns)
+            core_name = 'mbs-'+ day.strftime('%Y%m%d')
+            print(core_name)
+            comment = 'temperature profile from mbs'
+            variable = 'temperature'
+
+            ii = 0
+            while t_mbs_y[ii] <= ice_thickness:
+                sample_name = core_name + str('%02d' %ii)
+                x = t_mbs[ii]
+                y_mid = t_mbs_y[ii]
+                measure = pd.DataFrame(
+                                    [[x, y_mid, comment, variable, core_name, ice_thickness, sample_name]],
+                                    columns=columns, index=[sample_name])
+                profile = profile.append(measure)
+                ii+=1
+            if y_mid < ice_thickness and ice_thickness < t_mbs_y[-1]:
+                sample_name = core_name + str('%02d' %ii)
+                y_mid = ice_thickness
+                x = np.interp(ice_thickness, t_mbs_y, t_mbs)
+                measure = pd.DataFrame(
+                                    [[x, y_mid, comment, variable, core_name, ice_thickness, sample_name]],
+                                    columns=columns, index=[sample_name])
+                profile = profile.append(measure)
+            ic.add_profile(profile)
+            return ic
+
+
+def ice_core(mbs_data, day, ice_thickness = np.nan):
+    return None
+
 
 def daily_max(mbs_data, year, ii_col):
     day_start = datetime.datetime(year, int(mbs_data[year][0, 1]), int(mbs_data[year][0, 2]))
