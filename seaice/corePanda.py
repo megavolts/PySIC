@@ -43,6 +43,7 @@ nan_value = float('nan')
 
 import time
 
+
 def timing(f):
     def wrap(*args):
         time1 = time.time()
@@ -161,7 +162,6 @@ class Core:
         """
         :param ax:
         :param variable:
-            variable could also be a property. See the general help for more details
         :param param_dict:
         :return:
         """
@@ -175,8 +175,9 @@ class Core:
         else:
             logging.warning('no data available to plot')
             return None
-        profile = self.profiles[profile_label]
 
+
+        profile = self.profiles[profile_label]
         y = profile.y
         x = profile.x
         if profile.y.__len__() > profile.x.__len__():
@@ -766,6 +767,79 @@ class CoreSet:
             ax.set_ylim(max(ax.get_ylim()), 0)
             ax.set_xlabel(variable + ' ' + si_prop_unit[variable])
         return out
+
+
+def plot_profile(ax, profile, variable, param_dict=None):
+    """
+
+    :param ax:
+    :param profile:
+    :param variable:
+    :param param_dict:
+    :return:
+    """
+
+    x = profile[variable].tolist()
+
+    if profile.y_low.isnull().all():
+        # step function
+        y = pd.unique(pd.concat((profile.y_low, profile.y_sup))).tolist()
+        x = np.concatenate((x, np.atleast_1d(x[-1])))
+        if param_dict is None:
+            ax.step(x, y)
+        else:
+            ax.step(x, y, **param_dict)
+    else:
+        # linear function
+        y = profile.y_mid
+        if param_dict is None:
+            ax.plot(x, y)
+        else:
+            ax.plot(x, y, **param_dict)
+
+    ax.set_xlabel(variable + ' ' + si_prop_unit[variable])
+    ax.set_ylim(max(ax.get_ylim()), 0)
+    return ax
+
+
+def plot_state_variable(profile_stack, ax=None, variables='state variables', color='core'):
+    """
+    :param profile_stack:
+    :param ax:
+    :param variables:
+        default 'state variables' which plot salinity and temperature
+    :param color:
+    :return:
+    """
+    if variables == None:
+        variables = np.unique(profile_stack.variable).tolist()
+    elif not isinstance(variables, list):
+        variables = [variables]
+    elif variables == 'state variables':
+        variables = ['salinity, temperature']
+
+    if ax is None:
+        fig = plt.figure()
+        ax = []
+        for ii in range(len(variables)):
+            ax.append(plt.subplot(1, len(variables), ii+1))
+    elif len(ax) != len(variables):
+        logging.warning('ax (len %d) and variables (len %d) should be of same size' %(len(ax), len(variables)))
+        return None
+
+    # colors
+    if  color is 'core':
+
+    elif color is 'year':
+
+
+
+
+    for ii in len(variables):
+        var = variables[ii]
+        ax[ii]
+
+
 
 
 def import_core(ic_filepath, variables=None, missing_value=float('nan')):
