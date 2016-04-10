@@ -9,6 +9,7 @@ corePanda.py: ice core data is a toolbox to import ice core data file from xlsx 
 
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import pandas as pd
 import logging
 import openpyxl
@@ -120,43 +121,43 @@ class Core:
         else:
             self.comment.append(comment)
 
-    def calc_prop(self, property):
-        """
-        :param property:
-        :return:
-        """
-        # check properties variables
-        if property not in si_prop_list.keys():
-            logging.warning('property %s not defined in the ice core property module' % property)
-            return None
-        elif 'salinity' not in self.profiles:
-            logging.warning('ice core %s is missing salinity profile for further calculation' % self.name)
-            return None
-        elif 'temperature' not in self.profiles:
-            logging.warning('ice core %s is missing temperature profile for further calculation' % self.name)
-            return None
-        else:
-            import seaice.properties
-            variable = si_prop_list[property]
-            function = getattr(seaice.properties, variable.replace(" ", "_"))
-            profilet = self.profiles['temperature']
-            profiles = self.profiles['salinity']
-            y = np.sort(np.unique(np.concatenate((profilet.y, profiles.y))))
-            y = y[np.where(y <= max(max(profilet.y), max(profiles.y)))]
-            y = y[np.where(y >= max(min(profilet.y), min(profiles.y)))]
-            y_mid = y[0:-1] + np.diff(y) / 2
-            length = max(y) - min(y)
-
-            xt = np.interp(y_mid, profilet.y, profilet.x, left=np.nan, right=np.nan)
-            xs = np.interp(y_mid, profiles.y[:-1] + np.diff(profiles.y) / 2, profiles.x, left=np.nan, right=np.nan)
-            x = function(xt, xs)
-
-            note = 'computed from ' + self.profiles['temperature'].profile_label + ' temperature profile and ' + \
-                   self.profiles['salinity'].profile_label + ' salinity profile'
-            profile_label = self.name
-            prop_profile = Profile(x, y, profile_label, variable, comment=None, note=note, length=length)
-            self.add_profile(prop_profile, variable)
-            self.add_comment('computed %s' % variable)
+    # def calc_prop(self, property):
+    #     """
+    #     :param property:
+    #     :return:
+    #     """
+    #     # check properties variables
+    #     if property not in si_prop_list.keys():
+    #         logging.warning('property %s not defined in the ice core property module' % property)
+    #         return None
+    #     elif 'salinity' not in self.profiles:
+    #         logging.warning('ice core %s is missing salinity profile for further calculation' % self.name)
+    #         return None
+    #     elif 'temperature' not in self.profiles:
+    #         logging.warning('ice core %s is missing temperature profile for further calculation' % self.name)
+    #         return None
+    #     else:
+    #         import seaice.properties
+    #         variable = si_prop_list[property]
+    #         function = getattr(seaice.properties, variable.replace(" ", "_"))
+    #         profilet = self.profiles['temperature']
+    #         profiles = self.profiles['salinity']
+    #         y = np.sort(np.unique(np.concatenate((profilet.y, profiles.y))))
+    #         y = y[np.where(y <= max(max(profilet.y), max(profiles.y)))]
+    #         y = y[np.where(y >= max(min(profilet.y), min(profiles.y)))]
+    #         y_mid = y[0:-1] + np.diff(y) / 2
+    #         length = max(y) - min(y)
+    #
+    #         xt = np.interp(y_mid, profilet.y, profilet.x, left=np.nan, right=np.nan)
+    #         xs = np.interp(y_mid, profiles.y[:-1] + np.diff(profiles.y) / 2, profiles.x, left=np.nan, right=np.nan)
+    #         x = function(xt, xs)
+    #
+    #         note = 'computed from ' + self.profiles['temperature'].profile_label + ' temperature profile and ' + \
+    #                self.profiles['salinity'].profile_label + ' salinity profile'
+    #         profile_label = self.name
+    #         prop_profile = Profile(x, y, profile_label, variable, comment=None, note=note, length=length)
+    #         self.add_profile(prop_profile, variable)
+    #         self.add_comment('computed %s' % variable)
 
     def plot_variable(self, ax, variable, param_dict=None):
         """
@@ -231,6 +232,34 @@ class Core:
     def rescale(self, variable=None, section_thickness=0.05):
         return make_section(self, variable, section_thickness)
 
+
+class CoreStack:
+    """
+
+    """
+
+    def __init__(self, stack_name, core, comment=None):
+        self.stack_name = stack_name
+        self.core = core
+        self.comment = []
+        if comment is not None:
+            self.add_comment(comment)
+
+    def add_core(self, core):
+        return None
+
+
+    def add_profiel(self, profile):
+        return None
+
+    def ice_thickness(self):
+        return None
+
+    def stat(self):
+        return None
+
+    def merge_bin(self):
+        return None
 
 class CoreSet:
     """
@@ -357,416 +386,416 @@ class CoreSet:
         return ics_merged_bin_set
 
     # statistic
-    def mean(self, var=None):
-        """
-        :param var:
-        :return:
-        """
-
-        variable = {}
-        snow_thickness = []
-        ice_thickness = []
-        date = []
-        ics_data = self.merge_bin()
-        for ii_core in ics_data.core:
-            ic_data = ics_data.core_data[ii_core]
-            if var is None:
-                for ii_variable in ics_data.variables:
-                    if ii_variable in ic_data.profiles.keys():
-                        if ic_data.snow_thickness is not None:
-                            snow_thickness.append(ic_data.snow_thickness)
-                        if ic_data.ice_thickness is not None:
-                           ice_thickness.append(ic_data.ice_thickness)
-                        if ic_data.date not in date:
-                            date.append(ic_data.date)
-
-                        if ii_variable not in variable.keys():
-                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
-                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
-                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
-                        else:
-                            logging.warning('vertical resolution is not the same between the cores')
-            else:
-                if not isinstance(var, list):
-                    var = [var]
-                for ii_variable in var:
-                    if ii_variable in ic_data.profiles.keys():
-                        if ic_data.snow_thickness is not None:
-                            snow_thickness.append(ic_data.snow_thickness)
-                        if ic_data.ice_thickness is not None:
-                           ice_thickness.append(ic_data.ice_thickness)
-                        if ic_data.date not in date:
-                            date.append(ic_data.date)
-
-                        if ii_variable not in variable.keys():
-                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
-                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
-                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
-                        else:
-                            logging.warning('vertical resolution is not the same between the cores')
-
-            str_temp = ''
-            for ii_core in ics_data.core:
-                str_temp += ii_core+', '
-            str_temp = str_temp[:-2]
-            comment = 'statistic mean computed from ice cores: ' + str_temp
-            name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
-
-            ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp)
-
-            for ii_variable in variable.keys():
-                y = variable[ii_variable][1]
-                x = np.nanmean(np.atleast_2d(variable[ii_variable][0]), axis=0)
-                count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
-
-                profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
-                ic_out.add_profile(profile, ii_variable)
-        return ic_out
-
-    def std(self, var=None):
-        """
-        :param var:
-        :return:
-        """
-        variable = {}
-        snow_thickness = []
-        ice_thickness = []
-        date = []
-        ics_data = self.merge_bin()
-        for ii_core in ics_data.core:
-            ic_data = ics_data.core_data[ii_core]
-            if var is None:
-                for ii_variable in ics_data.variables:
-                    if ii_variable in ic_data.profiles.keys():
-                        if ic_data.snow_thickness is not None:
-                            snow_thickness.append(ic_data.snow_thickness)
-                        if ic_data.ice_thickness is not None:
-                           ice_thickness.append(ic_data.ice_thickness)
-                        if ic_data.date not in date:
-                            date.append(ic_data.date)
-
-                        if ii_variable not in variable.keys():
-                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
-                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
-                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
-                        else:
-                            logging.warning('vertical resolution is not the same between the cores')
-            else:
-                if not isinstance(var, list):
-                    var = [var]
-                for ii_variable in var:
-                    if ii_variable in ic_data.profiles.keys():
-                        if ic_data.snow_thickness is not None:
-                            snow_thickness.append(ic_data.snow_thickness)
-                        if ic_data.ice_thickness is not None:
-                           ice_thickness.append(ic_data.ice_thickness)
-                        if ic_data.date not in date:
-                            date.append(ic_data.date)
-
-                        if ii_variable not in variable.keys():
-                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
-                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
-                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
-                        else:
-                            logging.warning('vertical resolution is not the same between the cores')
-
-            str_temp = ''
-            for ii_core in ics_data.core:
-                str_temp += ii_core+', '
-            comment = 'statistic mean computed from ice cores: ' + str_temp[:-2]
-            name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
-            ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp[:-2])
-
-            for ii_variable in variable.keys():
-                y = variable[ii_variable][1]
-                x = np.nanstd(np.atleast_2d(variable[ii_variable][0]), axis=0)
-                count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
-
-                profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
-                ic_out.add_profile(profile, ii_variable)
-        return ic_out
-
-
-    def min(self, var=None):
-        """
-        :param var:
-        :return:
-        """
-        variable = {}
-        snow_thickness = []
-        ice_thickness = []
-        date = []
-        ics_data = self.merge_bin()
-        for ii_core in ics_data.core:
-            ic_data = ics_data.core_data[ii_core]
-            if var is None:
-                for ii_variable in ics_data.variables:
-                    if ii_variable in ic_data.profiles.keys():
-                        if ic_data.snow_thickness is not None:
-                            snow_thickness.append(ic_data.snow_thickness)
-                        if ic_data.ice_thickness is not None:
-                           ice_thickness.append(ic_data.ice_thickness)
-                        if ic_data.date not in date:
-                            date.append(ic_data.date)
-
-                        if ii_variable not in variable.keys():
-                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
-                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
-                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
-                        else:
-                            logging.warning('vertical resolution is not the same between the cores')
-            else:
-                if not isinstance(var, list):
-                    var = [var]
-                for ii_variable in var:
-                    if ii_variable in ic_data.profiles.keys():
-                        if ic_data.snow_thickness is not None:
-                            snow_thickness.append(ic_data.snow_thickness)
-                        if ic_data.ice_thickness is not None:
-                           ice_thickness.append(ic_data.ice_thickness)
-                        if ic_data.date not in date:
-                            date.append(ic_data.date)
-
-                        if ii_variable not in variable.keys():
-                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
-                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
-                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
-                        else:
-                            logging.warning('vertical resolution is not the same between the cores')
-
-            str_temp = ''
-            for ii_core in ics_data.core:
-                str_temp += ii_core+', '
-            comment = 'statistic mean computed from ice cores: ' + str_temp[:-2]
-            name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
-            ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp[:-2])
-
-            for ii_variable in variable.keys():
-                y = variable[ii_variable][1]
-                x = np.nanmin(np.atleast_2d(variable[ii_variable][0]), axis=0)
-                count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
-
-                profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
-                ic_out.add_profile(profile, ii_variable)
-        return ic_out
-
-    def max(self, var=None):
-        """
-        :param var:
-        :return:
-        """
-        variable = {}
-        snow_thickness = []
-        ice_thickness = []
-        date = []
-        ics_data = self.merge_bin()
-        for ii_core in ics_data.core:
-            ic_data = ics_data.core_data[ii_core]
-            if var is None:
-                for ii_variable in ics_data.variables:
-                    if ii_variable in ic_data.profiles.keys():
-                        if ic_data.snow_thickness is not None:
-                            snow_thickness.append(ic_data.snow_thickness)
-                        if ic_data.ice_thickness is not None:
-                           ice_thickness.append(ic_data.ice_thickness)
-                        if ic_data.date not in date:
-                            date.append(ic_data.date)
-
-                        if ii_variable not in variable.keys():
-                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
-                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
-                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
-                        else:
-                            logging.warning('vertical resolution is not the same between the cores')
-            else:
-                if not isinstance(var, list):
-                    var = [var]
-                for ii_variable in var:
-                    if ii_variable in ic_data.profiles.keys():
-                        if ic_data.snow_thickness is not None:
-                            snow_thickness.append(ic_data.snow_thickness)
-                        if ic_data.ice_thickness is not None:
-                           ice_thickness.append(ic_data.ice_thickness)
-                        if ic_data.date not in date:
-                            date.append(ic_data.date)
-
-                        if ii_variable not in variable.keys():
-                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
-                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
-                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
-                        else:
-                            logging.warning('vertical resolution is not the same between the cores')
-
-            str_temp = ''
-            for ii_core in ics_data.core:
-                str_temp += ii_core+', '
-            comment = 'statistic mean computed from ice cores: ' + str_temp[:-2]
-            name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
-            ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp[:-2])
-
-            for ii_variable in variable.keys():
-                y = variable[ii_variable][1]
-                x = np.namax(np.atleast_2d(variable[ii_variable][0]), axis=0)
-                count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
-
-                profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
-                ic_out.add_profile(profile, ii_variable)
-        return ic_out
-
-    def count(self, var=None):
-        """
-        :param var:
-        :return:
-        """
-        variable = {}
-        snow_thickness = []
-        ice_thickness = []
-        date = []
-        ics_data = self.merge_bin()
-        for ii_core in ics_data.core:
-            ic_data = ics_data.core_data[ii_core]
-            if var is None:
-                for ii_variable in ics_data.variables:
-                    if ii_variable in ic_data.profiles.keys():
-                        if ic_data.snow_thickness is not None:
-                            snow_thickness.append(ic_data.snow_thickness)
-                        if ic_data.ice_thickness is not None:
-                           ice_thickness.append(ic_data.ice_thickness)
-                        if ic_data.date not in date:
-                            date.append(ic_data.date)
-
-                        if ii_variable not in variable.keys():
-                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
-                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
-                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
-                        else:
-                            logging.warning('vertical resolution is not the same between the cores')
-            else:
-                if not isinstance(var, list):
-                    var = [var]
-                for ii_variable in var:
-                    if ii_variable in ic_data.profiles.keys():
-                        if ic_data.snow_thickness is not None:
-                            snow_thickness.append(ic_data.snow_thickness)
-                        if ic_data.ice_thickness is not None:
-                           ice_thickness.append(ic_data.ice_thickness)
-                        if ic_data.date not in date:
-                            date.append(ic_data.date)
-
-                        if ii_variable not in variable.keys():
-                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
-                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
-                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
-                        else:
-                            logging.warning('vertical resolution is not the same between the cores')
-
-            str_temp = ''
-            for ii_core in ics_data.core:
-                str_temp += ii_core+', '
-            comment = 'statistic mean computed from ice cores: ' + str_temp[:-2]
-            name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
-            ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp[:-2])
-
-            for ii_variable in variable.keys():
-                y = variable[ii_variable][1]
-                x = np.nancount(np.atleast_2d(variable[ii_variable][0]), axis=0)
-                count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
-
-                profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
-                ic_out.add_profile(profile, ii_variable)
-        return ic_out
-
-    def statistic(self, var=None):
-        """
-        :param var:
-        :return:
-        """
-        ics_merge_bin_set = self.merge_bin()
-        variable = {}
-        for ii_core in ics_merge_bin_set.core:
-            ic_data = ics_merge_bin_set.core_data[ii_core]
-            if var is None:
-                for ii_variable in ics_merge_bin_set.variables:
-                    if ii_variable in ic_data.profiles.keys():
-                        if ii_variable not in variable.keys():
-                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
-                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
-                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
-                        else:
-                            logging.warning('vertical resolution is not the same between the cores')
-            else:
-                if not isinstance(var, list):
-                    var = [var]
-                for ii_variable in var:
-                    if ii_variable in ic_data.profiles.keys():
-                        if ii_variable not in variable.keys():
-                            variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
-                        elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
-                            variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
-                        else:
-                            logging.warning('vertical resolution is not the same between the cores')
-
-        for ii_variable in variable.keys():
-            y = variable[ii_variable][1]
-            x_mean = np.nanmean(np.atleast_2d(variable[ii_variable][0]), axis=0)
-            x_std = np.nanstd(np.atleast_2d(variable[ii_variable][0]), axis=0)
-            x_min = np.nanmin(np.atleast_2d(variable[ii_variable][0]), axis=0)
-            x_max = np.nanmax(np.atleast_2d(variable[ii_variable][0]), axis=0)
-            count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
-            x = [x_mean, x_std, x_min, x_max, count]
-
-            profile = Profile(x, y, ic_data.name, ii_variable+'-stat', comment='statistic envelop computed from merged'
-                                                                               'bin ice cores', note=None, length=None)
-
-            if ii_variable in ic_data.profiles.keys():
-                ic_data.del_profile(ii_variable)
-            ic_data.add_profile(profile, ii_variable)
-        return ic_data
-
-    def plot_variable_stat(self, ax, variable, param_dict=None):
-        """
-        :param ax:
-        :param variable:
-        :param param_dict:
-        :return:
-        """
-
-        if variable not in self.variables:
-            logging.warning('variable %s not a statistical variable' % variable)
-            return None
-
-        ic_stat = self.statistic()
-
-        y = ic_stat.profiles[variable].y
-        x = ic_stat.profiles[variable].x
-
-        if len(y) == len(x[0]):
-            out = ax.plot(x[0], y, color='k', label='Mean')
-            ax.plot(x[2], y, color='b', label='Min')
-            ax.plot(x[3], y, color='r', label='Max')
-            ax.fill_betweenx(y, x[0] - x[1], x[0] + x[1], facecolor='black', alpha=0.3, label=str(u"\c2b1") + "std dev")
-            ax.set_ylim(max(ax.get_ylim()), 0)
-            ax.set_xlabel(variable + ' ' + si_prop_unit[variable])
-        else:
-            out = ax.step(np.append(x[0], x[0][-1]), y, color='k', label='Mean')
-            ax.step(np.append(x[2], x[2][-1]), y, color='b', label='Min')
-            ax.step(np.append(x[3], x[3][-1]), y, color='r', label='Max')
-
-            x_fill_l = [x[0][0]-x[1][0]]
-            x_fill_h = [x[0][0]+x[1][0]]
-            y_fill = y[0]
-            for ii in range(1, len(x[0])):
-                x_fill_l = np.append(x_fill_l, x[0][ii-1]-x[1][ii-1])
-                x_fill_l = np.append(x_fill_l, x[0][ii]-x[1][ii])
-                x_fill_h = np.append(x_fill_h, x[0][ii-1]+x[1][ii-1])
-                x_fill_h = np.append(x_fill_h, x[0][ii]+x[1][ii])
-                y_fill = np.append(y_fill, y[ii])
-                y_fill = np.append(y_fill, y[ii])
-
-            ax.fill_betweenx(y_fill, x_fill_l, x_fill_h, facecolor='black', alpha=0.3, label=str(u"\c2b1") + "std dev")
-            ax.set_ylim(max(ax.get_ylim()), 0)
-            ax.set_xlabel(variable + ' ' + si_prop_unit[variable])
-        return out
+    # def mean(self, var=None):
+    #     """
+    #     :param var:
+    #     :return:
+    #     """
+    #
+    #     variable = {}
+    #     snow_thickness = []
+    #     ice_thickness = []
+    #     date = []
+    #     ics_data = self.merge_bin()
+    #     for ii_core in ics_data.core:
+    #         ic_data = ics_data.core_data[ii_core]
+    #         if var is None:
+    #             for ii_variable in ics_data.variables:
+    #                 if ii_variable in ic_data.profiles.keys():
+    #                     if ic_data.snow_thickness is not None:
+    #                         snow_thickness.append(ic_data.snow_thickness)
+    #                     if ic_data.ice_thickness is not None:
+    #                        ice_thickness.append(ic_data.ice_thickness)
+    #                     if ic_data.date not in date:
+    #                         date.append(ic_data.date)
+    #
+    #                     if ii_variable not in variable.keys():
+    #                         variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+    #                     elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+    #                         variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+    #                     else:
+    #                         logging.warning('vertical resolution is not the same between the cores')
+    #         else:
+    #             if not isinstance(var, list):
+    #                 var = [var]
+    #             for ii_variable in var:
+    #                 if ii_variable in ic_data.profiles.keys():
+    #                     if ic_data.snow_thickness is not None:
+    #                         snow_thickness.append(ic_data.snow_thickness)
+    #                     if ic_data.ice_thickness is not None:
+    #                        ice_thickness.append(ic_data.ice_thickness)
+    #                     if ic_data.date not in date:
+    #                         date.append(ic_data.date)
+    #
+    #                     if ii_variable not in variable.keys():
+    #                         variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+    #                     elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+    #                         variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+    #                     else:
+    #                         logging.warning('vertical resolution is not the same between the cores')
+    #
+    #         str_temp = ''
+    #         for ii_core in ics_data.core:
+    #             str_temp += ii_core+', '
+    #         str_temp = str_temp[:-2]
+    #         comment = 'statistic mean computed from ice cores: ' + str_temp
+    #         name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
+    #
+    #         ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp)
+    #
+    #         for ii_variable in variable.keys():
+    #             y = variable[ii_variable][1]
+    #             x = np.nanmean(np.atleast_2d(variable[ii_variable][0]), axis=0)
+    #             count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
+    #
+    #             profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
+    #             ic_out.add_profile(profile, ii_variable)
+    #     return ic_out
+    #
+    # def std(self, var=None):
+    #     """
+    #     :param var:
+    #     :return:
+    #     """
+    #     variable = {}
+    #     snow_thickness = []
+    #     ice_thickness = []
+    #     date = []
+    #     ics_data = self.merge_bin()
+    #     for ii_core in ics_data.core:
+    #         ic_data = ics_data.core_data[ii_core]
+    #         if var is None:
+    #             for ii_variable in ics_data.variables:
+    #                 if ii_variable in ic_data.profiles.keys():
+    #                     if ic_data.snow_thickness is not None:
+    #                         snow_thickness.append(ic_data.snow_thickness)
+    #                     if ic_data.ice_thickness is not None:
+    #                        ice_thickness.append(ic_data.ice_thickness)
+    #                     if ic_data.date not in date:
+    #                         date.append(ic_data.date)
+    #
+    #                     if ii_variable not in variable.keys():
+    #                         variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+    #                     elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+    #                         variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+    #                     else:
+    #                         logging.warning('vertical resolution is not the same between the cores')
+    #         else:
+    #             if not isinstance(var, list):
+    #                 var = [var]
+    #             for ii_variable in var:
+    #                 if ii_variable in ic_data.profiles.keys():
+    #                     if ic_data.snow_thickness is not None:
+    #                         snow_thickness.append(ic_data.snow_thickness)
+    #                     if ic_data.ice_thickness is not None:
+    #                        ice_thickness.append(ic_data.ice_thickness)
+    #                     if ic_data.date not in date:
+    #                         date.append(ic_data.date)
+    #
+    #                     if ii_variable not in variable.keys():
+    #                         variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+    #                     elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+    #                         variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+    #                     else:
+    #                         logging.warning('vertical resolution is not the same between the cores')
+    #
+    #         str_temp = ''
+    #         for ii_core in ics_data.core:
+    #             str_temp += ii_core+', '
+    #         comment = 'statistic mean computed from ice cores: ' + str_temp[:-2]
+    #         name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
+    #         ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp[:-2])
+    #
+    #         for ii_variable in variable.keys():
+    #             y = variable[ii_variable][1]
+    #             x = np.nanstd(np.atleast_2d(variable[ii_variable][0]), axis=0)
+    #             count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
+    #
+    #             profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
+    #             ic_out.add_profile(profile, ii_variable)
+    #     return ic_out
+    #
+    #
+    # def min(self, var=None):
+    #     """
+    #     :param var:
+    #     :return:
+    #     """
+    #     variable = {}
+    #     snow_thickness = []
+    #     ice_thickness = []
+    #     date = []
+    #     ics_data = self.merge_bin()
+    #     for ii_core in ics_data.core:
+    #         ic_data = ics_data.core_data[ii_core]
+    #         if var is None:
+    #             for ii_variable in ics_data.variables:
+    #                 if ii_variable in ic_data.profiles.keys():
+    #                     if ic_data.snow_thickness is not None:
+    #                         snow_thickness.append(ic_data.snow_thickness)
+    #                     if ic_data.ice_thickness is not None:
+    #                        ice_thickness.append(ic_data.ice_thickness)
+    #                     if ic_data.date not in date:
+    #                         date.append(ic_data.date)
+    #
+    #                     if ii_variable not in variable.keys():
+    #                         variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+    #                     elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+    #                         variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+    #                     else:
+    #                         logging.warning('vertical resolution is not the same between the cores')
+    #         else:
+    #             if not isinstance(var, list):
+    #                 var = [var]
+    #             for ii_variable in var:
+    #                 if ii_variable in ic_data.profiles.keys():
+    #                     if ic_data.snow_thickness is not None:
+    #                         snow_thickness.append(ic_data.snow_thickness)
+    #                     if ic_data.ice_thickness is not None:
+    #                        ice_thickness.append(ic_data.ice_thickness)
+    #                     if ic_data.date not in date:
+    #                         date.append(ic_data.date)
+    #
+    #                     if ii_variable not in variable.keys():
+    #                         variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+    #                     elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+    #                         variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+    #                     else:
+    #                         logging.warning('vertical resolution is not the same between the cores')
+    #
+    #         str_temp = ''
+    #         for ii_core in ics_data.core:
+    #             str_temp += ii_core+', '
+    #         comment = 'statistic mean computed from ice cores: ' + str_temp[:-2]
+    #         name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
+    #         ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp[:-2])
+    #
+    #         for ii_variable in variable.keys():
+    #             y = variable[ii_variable][1]
+    #             x = np.nanmin(np.atleast_2d(variable[ii_variable][0]), axis=0)
+    #             count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
+    #
+    #             profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
+    #             ic_out.add_profile(profile, ii_variable)
+    #     return ic_out
+    #
+    # def max(self, var=None):
+    #     """
+    #     :param var:
+    #     :return:
+    #     """
+    #     variable = {}
+    #     snow_thickness = []
+    #     ice_thickness = []
+    #     date = []
+    #     ics_data = self.merge_bin()
+    #     for ii_core in ics_data.core:
+    #         ic_data = ics_data.core_data[ii_core]
+    #         if var is None:
+    #             for ii_variable in ics_data.variables:
+    #                 if ii_variable in ic_data.profiles.keys():
+    #                     if ic_data.snow_thickness is not None:
+    #                         snow_thickness.append(ic_data.snow_thickness)
+    #                     if ic_data.ice_thickness is not None:
+    #                        ice_thickness.append(ic_data.ice_thickness)
+    #                     if ic_data.date not in date:
+    #                         date.append(ic_data.date)
+    #
+    #                     if ii_variable not in variable.keys():
+    #                         variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+    #                     elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+    #                         variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+    #                     else:
+    #                         logging.warning('vertical resolution is not the same between the cores')
+    #         else:
+    #             if not isinstance(var, list):
+    #                 var = [var]
+    #             for ii_variable in var:
+    #                 if ii_variable in ic_data.profiles.keys():
+    #                     if ic_data.snow_thickness is not None:
+    #                         snow_thickness.append(ic_data.snow_thickness)
+    #                     if ic_data.ice_thickness is not None:
+    #                        ice_thickness.append(ic_data.ice_thickness)
+    #                     if ic_data.date not in date:
+    #                         date.append(ic_data.date)
+    #
+    #                     if ii_variable not in variable.keys():
+    #                         variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+    #                     elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+    #                         variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+    #                     else:
+    #                         logging.warning('vertical resolution is not the same between the cores')
+    #
+    #         str_temp = ''
+    #         for ii_core in ics_data.core:
+    #             str_temp += ii_core+', '
+    #         comment = 'statistic mean computed from ice cores: ' + str_temp[:-2]
+    #         name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
+    #         ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp[:-2])
+    #
+    #         for ii_variable in variable.keys():
+    #             y = variable[ii_variable][1]
+    #             x = np.namax(np.atleast_2d(variable[ii_variable][0]), axis=0)
+    #             count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
+    #
+    #             profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
+    #             ic_out.add_profile(profile, ii_variable)
+    #     return ic_out
+    #
+    # def count(self, var=None):
+    #     """
+    #     :param var:
+    #     :return:
+    #     """
+    #     variable = {}
+    #     snow_thickness = []
+    #     ice_thickness = []
+    #     date = []
+    #     ics_data = self.merge_bin()
+    #     for ii_core in ics_data.core:
+    #         ic_data = ics_data.core_data[ii_core]
+    #         if var is None:
+    #             for ii_variable in ics_data.variables:
+    #                 if ii_variable in ic_data.profiles.keys():
+    #                     if ic_data.snow_thickness is not None:
+    #                         snow_thickness.append(ic_data.snow_thickness)
+    #                     if ic_data.ice_thickness is not None:
+    #                        ice_thickness.append(ic_data.ice_thickness)
+    #                     if ic_data.date not in date:
+    #                         date.append(ic_data.date)
+    #
+    #                     if ii_variable not in variable.keys():
+    #                         variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+    #                     elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+    #                         variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+    #                     else:
+    #                         logging.warning('vertical resolution is not the same between the cores')
+    #         else:
+    #             if not isinstance(var, list):
+    #                 var = [var]
+    #             for ii_variable in var:
+    #                 if ii_variable in ic_data.profiles.keys():
+    #                     if ic_data.snow_thickness is not None:
+    #                         snow_thickness.append(ic_data.snow_thickness)
+    #                     if ic_data.ice_thickness is not None:
+    #                        ice_thickness.append(ic_data.ice_thickness)
+    #                     if ic_data.date not in date:
+    #                         date.append(ic_data.date)
+    #
+    #                     if ii_variable not in variable.keys():
+    #                         variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+    #                     elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+    #                         variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+    #                     else:
+    #                         logging.warning('vertical resolution is not the same between the cores')
+    #
+    #         str_temp = ''
+    #         for ii_core in ics_data.core:
+    #             str_temp += ii_core+', '
+    #         comment = 'statistic mean computed from ice cores: ' + str_temp[:-2]
+    #         name = ic_data.name.split('-')[0]+'-'+ic_data.name.split('-')[1][0:8]+'-mean'
+    #         ic_out = Core(name, date, ic_data.location, np.nanmean(ice_thickness), np.nanmean(snow_thickness), comment='mean value of '+str_temp[:-2])
+    #
+    #         for ii_variable in variable.keys():
+    #             y = variable[ii_variable][1]
+    #             x = np.nancount(np.atleast_2d(variable[ii_variable][0]), axis=0)
+    #             count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
+    #
+    #             profile = Profile(x, y, name, 'mean '+ii_variable, comment=comment, note=count, length=None)
+    #             ic_out.add_profile(profile, ii_variable)
+    #     return ic_out
+    #
+    # def statistic(self, var=None):
+    #     """
+    #     :param var:
+    #     :return:
+    #     """
+    #     ics_merge_bin_set = self.merge_bin()
+    #     variable = {}
+    #     for ii_core in ics_merge_bin_set.core:
+    #         ic_data = ics_merge_bin_set.core_data[ii_core]
+    #         if var is None:
+    #             for ii_variable in ics_merge_bin_set.variables:
+    #                 if ii_variable in ic_data.profiles.keys():
+    #                     if ii_variable not in variable.keys():
+    #                         variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+    #                     elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+    #                         variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+    #                     else:
+    #                         logging.warning('vertical resolution is not the same between the cores')
+    #         else:
+    #             if not isinstance(var, list):
+    #                 var = [var]
+    #             for ii_variable in var:
+    #                 if ii_variable in ic_data.profiles.keys():
+    #                     if ii_variable not in variable.keys():
+    #                         variable[ii_variable] = [ic_data.profiles[ii_variable].x, ic_data.profiles[ii_variable].y]
+    #                     elif variable[ii_variable][1] is ic_data.profiles[ii_variable].y:
+    #                         variable[ii_variable][0] = np.vstack((variable[ii_variable][0], ic_data.profiles[ii_variable].x))
+    #                     else:
+    #                         logging.warning('vertical resolution is not the same between the cores')
+    #
+    #     for ii_variable in variable.keys():
+    #         y = variable[ii_variable][1]
+    #         x_mean = np.nanmean(np.atleast_2d(variable[ii_variable][0]), axis=0)
+    #         x_std = np.nanstd(np.atleast_2d(variable[ii_variable][0]), axis=0)
+    #         x_min = np.nanmin(np.atleast_2d(variable[ii_variable][0]), axis=0)
+    #         x_max = np.nanmax(np.atleast_2d(variable[ii_variable][0]), axis=0)
+    #         count = np.sum(~np.isnan(np.atleast_2d(variable[ii_variable][0])), axis=0)
+    #         x = [x_mean, x_std, x_min, x_max, count]
+    #
+    #         profile = Profile(x, y, ic_data.name, ii_variable+'-stat', comment='statistic envelop computed from merged'
+    #                                                                            'bin ice cores', note=None, length=None)
+    #
+    #         if ii_variable in ic_data.profiles.keys():
+    #             ic_data.del_profile(ii_variable)
+    #         ic_data.add_profile(profile, ii_variable)
+    #     return ic_data
+    #
+    # def plot_variable_stat(self, ax, variable, param_dict=None):
+    #     """
+    #     :param ax:
+    #     :param variable:
+    #     :param param_dict:
+    #     :return:
+    #     """
+    #
+    #     if variable not in self.variables:
+    #         logging.warning('variable %s not a statistical variable' % variable)
+    #         return None
+    #
+    #     ic_stat = self.statistic()
+    #
+    #     y = ic_stat.profiles[variable].y
+    #     x = ic_stat.profiles[variable].x
+    #
+    #     if len(y) == len(x[0]):
+    #         out = ax.plot(x[0], y, color='k', label='Mean')
+    #         ax.plot(x[2], y, color='b', label='Min')
+    #         ax.plot(x[3], y, color='r', label='Max')
+    #         ax.fill_betweenx(y, x[0] - x[1], x[0] + x[1], facecolor='black', alpha=0.3, label=str(u"\c2b1") + "std dev")
+    #         ax.set_ylim(max(ax.get_ylim()), 0)
+    #         ax.set_xlabel(variable + ' ' + si_prop_unit[variable])
+    #     else:
+    #         out = ax.step(np.append(x[0], x[0][-1]), y, color='k', label='Mean')
+    #         ax.step(np.append(x[2], x[2][-1]), y, color='b', label='Min')
+    #         ax.step(np.append(x[3], x[3][-1]), y, color='r', label='Max')
+    #
+    #         x_fill_l = [x[0][0]-x[1][0]]
+    #         x_fill_h = [x[0][0]+x[1][0]]
+    #         y_fill = y[0]
+    #         for ii in range(1, len(x[0])):
+    #             x_fill_l = np.append(x_fill_l, x[0][ii-1]-x[1][ii-1])
+    #             x_fill_l = np.append(x_fill_l, x[0][ii]-x[1][ii])
+    #             x_fill_h = np.append(x_fill_h, x[0][ii-1]+x[1][ii-1])
+    #             x_fill_h = np.append(x_fill_h, x[0][ii]+x[1][ii])
+    #             y_fill = np.append(y_fill, y[ii])
+    #             y_fill = np.append(y_fill, y[ii])
+    #
+    #         ax.fill_betweenx(y_fill, x_fill_l, x_fill_h, facecolor='black', alpha=0.3, label=str(u"\c2b1") + "std dev")
+    #         ax.set_ylim(max(ax.get_ylim()), 0)
+    #         ax.set_xlabel(variable + ' ' + si_prop_unit[variable])
+    #     return out
 
 
 def plot_profile(ax, profile, variable, param_dict=None):
@@ -802,7 +831,7 @@ def plot_profile(ax, profile, variable, param_dict=None):
     return ax
 
 
-def plot_state_variable(profile_stack, ax=None, variables='state variables', color='core'):
+def plot_state_variable(profile_stack, ax=None, variables='state variables', color_map='core'):
     """
     :param profile_stack:
     :param ax:
@@ -828,17 +857,16 @@ def plot_state_variable(profile_stack, ax=None, variables='state variables', col
         return None
 
     # colors
-    if  color is 'core':
-
-    elif color is 'year':
-
-
-
+    color = {}
+    if  color_map is 'core':
+        n_core = np.unique(profile_stack.core_name).__len__()
+        color[ii] = [cm.jet(float(ii)/n_core) for ii in n_core]
+    elif color_map is 'year':
+        n_year = pd.unique([ii.year for ii in profile_stack.coring_date]).__len__()
+        color[ii] = [cm.jet(float(ii)/n_year) for ii in n_year]
 
     for ii in len(variables):
         var = variables[ii]
-        ax[ii]
-
 
 
 
@@ -925,11 +953,6 @@ def import_core(ic_filepath, variables=None, missing_value=float('nan')):
 ## profile operation
 def drop_profile(data, core_name, keys):
     data = data[(data.core_name != core_name) | (data.variable != keys)]
-    return data
-
-def replace_profile(data, profile):
-    data = drop_profile(data, profile.core_name.dropna().unique()[0], profile.variable.dropna().unique()[0])
-    data = data.append(profile)
     return data
 
 

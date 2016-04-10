@@ -257,7 +257,7 @@ def import_core(mbs_data, day, location=None, ice_thickness=np.nan, comment = No
             coring_date = day
             ice_thickness_mbs = None
             if not np.isnan(np.nanmax(mbs_data[day.year][index_day, 5])):
-                ice_thickness_mbs = np.isnan(np.nanmax(mbs_data[day.year][index_day, 5]))
+                ice_thickness_mbs = np.nanmedian(mbs_data[day.year][index_day, 5])
                 comment = 'ice thickness from underwater pinger'
             else:
                 T_flag = 0
@@ -278,7 +278,7 @@ def import_core(mbs_data, day, location=None, ice_thickness=np.nan, comment = No
             if ice_thickness_mbs is not None:
                 ice_thickness = ice_thickness_mbs
 
-            columns = ['x', 'y_mid', 'comment', 'variable', 'core', 'ice_core_length',
+            columns = ['temperature', 'y_mid', 'comment', 'variable', 'core', 'ice_core_length',
                        'sample_name']
             profile = pd.DataFrame(columns=columns)
             core_name = 'mbs-'+ day.strftime('%Y%m%d')
