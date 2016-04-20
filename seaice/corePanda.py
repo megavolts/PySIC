@@ -177,7 +177,6 @@ class Core:
             logging.warning('no data available to plot')
             return None
 
-
         profile = self.profiles[profile_label]
         y = profile.y
         x = profile.x
@@ -233,23 +232,43 @@ class Core:
         return make_section(self, variable, section_thickness)
 
 
-class CoreStack:
-    """
-
-    """
-
-    def __init__(self, stack_name, core, comment=None):
-        self.stack_name = stack_name
-        self.core = core
-        self.comment = []
-        if comment is not None:
-            self.add_comment(comment)
-
-    def add_core(self, core):
-        return None
 
 
-    def add_profiel(self, profile):
+from seaice.df_attrhandler import transfer_attr
+
+class CoreStack(pd.DataFrame):
+    @property
+    def _constructor(self):
+        return CoreStack
+    pass
+
+    def __init__(self, *args, **kwargs):
+        super(CoreStack, self).__init__(*args, **kwargs)
+
+    def add_profiles(self, profile, ignore_index=True, verify_integrity=False):
+        #if isinstance(profile, pd.DataFrame):
+        temp = CoreStack()
+        temp = self.append(profile, ignore_index=ignore_index, verify_integrity=verify_integrity)
+        temp = transfer_attr(self, temp)
+        return temp
+        #else:
+            #    raise ValueError("not a valid profile")
+
+
+    # def add_core(self, core, ignore_index=True, verify_integrity=False):
+    #     if isinstance(core, Core):
+    #         if isinstance(core.profiles, pd.DataFrame):
+    #             return self.append(core.profiles, ignore_index=ignore_index, verify_integrity=verify_integrity)
+    #         else:
+    #             raise ValueError("not valid profile in %s" %core.core_name)
+    #     else:
+    #         raise ValueError("not a valid core")
+
+
+    def cores(self):
+        return self['core_name'].unique().tolist()
+
+    def add_property(self, profile_dict, profile_property):
         return None
 
     def ice_thickness(self):
