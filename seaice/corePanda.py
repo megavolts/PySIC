@@ -236,7 +236,9 @@ class Core:
 
 from seaice.df_attrhandler import transfer_attr
 
+
 class CoreStack(pd.DataFrame):
+
     @property
     def _constructor(self):
         return CoreStack
@@ -247,10 +249,8 @@ class CoreStack(pd.DataFrame):
 
     def add_profiles(self, profile, ignore_index=True, verify_integrity=False):
         #if isinstance(profile, pd.DataFrame):
-        temp = CoreStack()
         temp = self.append(profile, ignore_index=ignore_index, verify_integrity=verify_integrity)
-        temp = transfer_attr(self, temp)
-        return temp
+        return CoreStack(temp)
         #else:
             #    raise ValueError("not a valid profile")
 
