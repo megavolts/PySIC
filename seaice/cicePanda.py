@@ -28,7 +28,7 @@ __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 # ---------------------------------------------------------------------------------------------------------------#
 
 
-def index_from_day(cice_data, day, ):
+def index_from_day(cice_data, day):
     """
 
     :param cice_data:
@@ -43,7 +43,7 @@ def index_from_day(cice_data, day, ):
     if index_day.size == 0:
         return None
     else:
-        return index_day
+        return index_year[index_month[index_day]][0]
 
 
 # ---------------------------------------------------------------------------------------------------------------#
@@ -67,30 +67,40 @@ def import_ice_core(cice_data, day, location=None, run=None):
 
     if index_day is None:
         return None
-
     else:
         core_name = 'CICE-' + day.strftime('%Y%m%d')
         coring_day = day
-        ice_thickness = cice_data[index_day, 3][0] / 100
-        snow_thickness = cice_data[index_day, 4][0] / 100
+        ice_thickness = cice_data[index_day, 3] / 100
+        snow_thickness = cice_data[index_day, 4] / 100
         comment = 'from CICE model simulation'
         if run is not None:
             comment += '; ' + run
 
         ic = seaice.corePanda.Core(core_name, coring_day, location, ice_thickness, snow_thickness, comment=comment)
         variables = ['temperature', 'salinity']
-
-        columns = ['x', 'y_mid', 'variable', 'core', 'ice_core_length', 'note']
-
+        # columns = ['temperature', 'salinity', 'note', 'core', 'ice_core_length', 'variable', 'y_low', 'y_sup', 'y_mid', 'sample_name']
+        # ic_df = pd.DataFrame(columns=columns)
+        y = np.linspace(0, ice_thickness, 21)
         for ii_var in range(variables.__len__()):
-            x = cice_data[index_day, 5 + ii_var * 20:5 + (ii_var + 1) * 20][0]
-            y = np.linspace(0, ice_thickness, 20)
+            x = cice_data[index_day, 5 + ii_var * 20:5 + (ii_var + 1) * 20]
+            df = pd.DataFrame(x, columns=[variables[ii_var]])
+
             note = 'ice core length is given by the ice thickness of the model'
+            data = [note, core_name, ice_thickness, variables[ii_var]]
+            columns = ['note', 'core', 'ice_core_length', 'variable']
+            df = df.join(pd.DataFrame([data], columns=columns, index = df.index.tolist()))
+            if variables[ii_var] in ['temperature']:
+                df = df.join(pd.DataFrame(y[:-1] + np.diff(y) / 2, columns=['y_mid'], index=df.index.tolist()))
+            elif variables[ii_var] in ['salinity']:
+                df = df.join(pd.DataFrame(np.vstack((y[:-1], y[1:], y[:-1] + np.diff(y) / 2)).transpose(), columns=['y_low', 'y_sup', 'y_mid'], index=df.index.tolist()))
+
             for ii in range(x.__len__()):
                 sample_name = core_name + '-' + variable_abv[variables[ii_var]] + '-' + str('-%02d' % (ii + 1))
-                ic.add_profile(pd.DataFrame(
-                    [[x[ii], y[ii], variables[ii_var], core_name, ice_thickness, note]],
-                    columns=columns, index=[sample_name]))
+                if ii == 0:
+                    df = df.join(pd.DataFrame([sample_name], columns=['sample_name'], index=[ii]))
+                else:
+                    df.update(pd.DataFrame([sample_name], columns=['sample_name'], index=[ii]))
+            ic.add_profile(df)
         return ic
 
 
