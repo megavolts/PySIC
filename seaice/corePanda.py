@@ -290,12 +290,58 @@ class CoreStack(pd.DataFrame):
             data = pd.DataFrame(data, columns=data_label, index=index)
 
         if all(x in data_select.columns.tolist() for x in data.columns.tolist()):
-            data = pd.concat([data_deselect, data_select.merge(data)])
+            data_select.update(data)
+            data = pd.concat([data_deselect, data_select])
         else:
-            data = pd.concat([data_deselect, data_select.join(data)])
-            # data = data_deselect.append(data_select.join(data), ignore_index=True)
+            # data = pd.concat([data_deselect, data_select.join(data)])
+            data = data_deselect.append(data_select.join(data), ignore_index=True)
         return CoreStack(data)
 
+
+    def discretize(self, y_bins=None, y_mid=None):
+        if y_bins is None and y_mid is None:
+            y_bins = pd.Series(self.y_low.dropna().tolist()+self.y_sup.dropna().tolist()).sort_values().unique()
+            y_mid = self.y_mid.dropna().sort_values().unique()
+
+        elif y_mid is None:
+            y_bins = pd.Series(self.y_low.dropna().tolist() + self.y_sup.dropna().tolist()).sort_values().unique()
+            y_mid = y_bins[:-1]+np.diff(y_bins)/2
+
+        ics_data_stack = self
+        for ii_core in ics_data_stack.core_name.unique().tolist():
+            ic_data = ics_data_stack[ics_data_stack.core_name == ii_core]
+            for ii_variable in ic_data.variable.unique().tolist():
+                if ic_data[ic_data.variable == ii_variable].y_low.isnull().all():
+                    temp = ic_data[ic_data.variable == ii_variable].set_index(['y_mid'], inplace=False, drop=True)
+                    ics_data_stack = drop_profile(ics_data_stack, ii_core, ii_variable)
+                    new_ic_data = temp[temp.variable == ii_variable].reindex(y_mid, method='bfill')
+                    new_ic_data[ii_variable] = temp[temp.variable == ii_variable][ii_variable].reindex(
+                        y_mid[y_mid <= max(temp[ii_variable].index)]).interpolate(method='linear')
+                    new_ic_data['y_mid'] = new_ic_data.index
+                    ics_data_stack = ics_data_stack.append(new_ic_data)
+                else:
+                    temp = ic_data[ic_data.variable == ii_variable].set_index(['y_low'], inplace=False, drop=True)
+                    ics_data_stack = drop_profile(ics_data_stack, ii_core, ii_variable)
+                    new_ic_data = temp[temp.variable == ii_variable].reindex(y_bins[:-1], method='bfill')
+                    new_ic_data['y_sup'] = y_bins[1:]
+                    new_ic_data['y_mid'] = y_bins[:-1] + np.diff(y_bins) / 2
+                    # new_ic_data.reset_index()
+                    ics_data_stack = ics_data_stack.append(new_ic_data)
+
+        return CoreStack(ics_data_stack)
+
+
+    def grouped_stat(self, variable, stat, bins_DD, bins_y):
+        y_cuts = pd.cut(self.y_mid, bins_y, labels=False)
+        t_cuts = pd.cut(self.DD, bins_DD, labels=False)
+
+        data_grouped = self.groupby([t_cuts, y_cuts])
+
+        func = "groups['"+variable+"']."+stat+"()"
+
+        temp = np.nan * np.ones((bins_DD.__len__(), bins_y.__len__()))
+        for k1, groups in data_grouped:
+            temp[int(k1[0]), int(k1[1])] = eval(func)
 
     def cores(self):
         return self['core_name'].unique().tolist()
@@ -847,6 +893,12 @@ class CoreSet:
     #         ax.set_ylim(max(ax.get_ylim()), 0)
     #         ax.set_xlabel(variable + ' ' + si_prop_unit[variable])
     #     return out
+
+def get_plotdata(data_grouped, func, var):
+    temp = np.nan * np.ones((bins_DD.__len__(), bins_y.__len__()))
+    for k1, groups in data_grouped:
+        temp[int(k1[0]), int(k1[1])] = eval(func)
+    return temp
 
 
 def plot_profile(ax, profile, variable, param_dict=None):
