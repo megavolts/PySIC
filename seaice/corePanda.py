@@ -248,21 +248,53 @@ class CoreStack(pd.DataFrame):
         super(CoreStack, self).__init__(*args, **kwargs)
 
     def add_profiles(self, profile, ignore_index=True, verify_integrity=False):
-        #if isinstance(profile, pd.DataFrame):
         temp = self.append(profile, ignore_index=ignore_index, verify_integrity=verify_integrity)
         return CoreStack(temp)
-        #else:
-            #    raise ValueError("not a valid profile")
+
+    def remove_profiles(self, core, variable=None):
+        if variable is None:
+            temp = self[self.core!= core]
+        elif isinstance(variable, list):
+            for ii_variable in core:
+                temp = self[(self.core != core) & (self.variable != ii_variable)]
+        else:
+            temp = self[(self.core != core) & (self.variable != variable)]
+        return CoreStack(temp)
 
 
-    # def add_core(self, core, ignore_index=True, verify_integrity=False):
-    #     if isinstance(core, Core):
-    #         if isinstance(core.profiles, pd.DataFrame):
-    #             return self.append(core.profiles, ignore_index=ignore_index, verify_integrity=verify_integrity)
-    #         else:
-    #             raise ValueError("not valid profile in %s" %core.core_name)
-    #     else:
-    #         raise ValueError("not a valid core")
+    def select_profile(self, variable_dict):
+        str_select = '('
+        ii_var = []
+        ii = 0
+        for ii_key in variable_dict.keys():
+            if ii_key in self.columns.values:
+                ii_var.append(variable_dict[ii_key])
+                str_select = str_select + 'self.' + ii_key + '==ii_var[' + str('%d' % ii) + ']) & ('
+                ii += 1
+        str_select = str_select[:-4]
+
+        index_select = self[eval(str_select)].index
+        index_deselect = [ii for ii in self.index.tolist() if ii not in index_select]
+        data_select = self.ix[index_select]
+        data_deselect = self.ix[index_deselect]
+        return CoreStack(data_select), CoreStack(data_deselect)
+
+
+    def add_variable(self, variable_dict, data, data_label=None):
+        data_select, data_deselect = self.select_profile(variable_dict)
+
+        if data_label is None and not isinstance(data, pd.DataFrame):
+            data = pd.DataFrame(data)
+        elif data.__len__() != data_select.__len__():
+            index = data_select.index.tolist()
+            data = pd.DataFrame(data, columns=data_label, index=index)
+
+        if all(x in data_select.columns.tolist() for x in data.columns.tolist()):
+            data = pd.concat([data_deselect, data_select.merge(data)])
+        else:
+            data = pd.concat([data_deselect, data_select.join(data)])
+            # data = data_deselect.append(data_select.join(data), ignore_index=True)
+        return CoreStack(data)
 
 
     def cores(self):
