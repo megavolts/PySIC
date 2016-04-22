@@ -311,6 +311,20 @@ class CoreStack(pd.DataFrame):
             ic_data = ics_data_stack[ics_data_stack.core_name == ii_core]
             for ii_variable in ic_data.variable.unique().tolist():
                 if ic_data[ic_data.variable == ii_variable].y_low.isnull().all():  # temperature
+                    # DO NOT USE PANDA INTERP, BECAUSE OF IMPLEMENTATION ISSUE RESULTS ARE WIGGLING DUE TO NUMERICAL NOISE
+                    x_np = np.array(ic_data[ic_data.variable == ii_variable][ii_variable].tolist())
+                    y_np = np.array(ic_data[ic_data.variable == ii_variable]['y_mid'].tolist())
+                    x_mid = np.interp(y_mid, y_np[~np.isnan(y_np)], x_np[~np.isnan(y_np)], left=np.nan, right=np.nan)
+
+                    temp = pd.DataFrame(columns=ic_data.columns.tolist(), index=range(y_mid.__len__()))
+                    temp.update(pd.DataFrame(np.vstack((y_mid, x_mid)).transpose(), columns=['y_mid', ii_variable], index=temp.index))
+
+                    ic_data = ic_data.drop(ii_variable, 1)
+                    ic_data = ic_data.drop(y_mid, 1 )
+
+                    pd.DataFrame()
+
+
                     temp = ic_data[ic_data.variable == ii_variable].set_index(['y_mid'])
 
 
