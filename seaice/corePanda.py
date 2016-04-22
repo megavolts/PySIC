@@ -311,6 +311,9 @@ class CoreStack(pd.DataFrame):
             ic_data = ics_data_stack[ics_data_stack.core_name == ii_core]
             for ii_variable in ic_data.variable.unique().tolist():
                 if ic_data[ic_data.variable == ii_variable].y_low.isnull().all():  # temperature
+                    temp = ic_data[ic_data.variable == ii_variable].set_index(['y_mid'])
+
+
                     temp = ic_data[ic_data.variable == ii_variable].set_index(['y_mid'], inplace=False, drop=True)
                     ics_data_stack = drop_profile(ics_data_stack, ii_core, ii_variable)
                     new_ic_data = temp[temp.variable == ii_variable].reindex(y_mid, method='bfill')
