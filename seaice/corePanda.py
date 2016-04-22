@@ -275,8 +275,8 @@ class CoreStack(pd.DataFrame):
 
         index_select = self[eval(str_select)].index
         index_deselect = [ii for ii in self.index.tolist() if ii not in index_select]
-        data_select = self.ix[index_select]
-        data_deselect = self.ix[index_deselect]
+        data_select = self.iloc[index_select]
+        data_deselect = self.iloc[index_deselect]
         return CoreStack(data_select), CoreStack(data_deselect)
 
 
@@ -304,14 +304,13 @@ class CoreStack(pd.DataFrame):
             y_mid = self.y_mid.dropna().sort_values().unique()
 
         elif y_mid is None:
-            y_bins = pd.Series(self.y_low.dropna().tolist() + self.y_sup.dropna().tolist()).sort_values().unique()
             y_mid = y_bins[:-1]+np.diff(y_bins)/2
 
         ics_data_stack = self
         for ii_core in ics_data_stack.core_name.unique().tolist():
             ic_data = ics_data_stack[ics_data_stack.core_name == ii_core]
             for ii_variable in ic_data.variable.unique().tolist():
-                if ic_data[ic_data.variable == ii_variable].y_low.isnull().all():
+                if ic_data[ic_data.variable == ii_variable].y_low.isnull().all():  # temperature
                     temp = ic_data[ic_data.variable == ii_variable].set_index(['y_mid'], inplace=False, drop=True)
                     ics_data_stack = drop_profile(ics_data_stack, ii_core, ii_variable)
                     new_ic_data = temp[temp.variable == ii_variable].reindex(y_mid, method='bfill')
@@ -319,7 +318,7 @@ class CoreStack(pd.DataFrame):
                         y_mid[y_mid <= max(temp[ii_variable].index)]).interpolate(method='linear')
                     new_ic_data['y_mid'] = new_ic_data.index
                     ics_data_stack = ics_data_stack.append(new_ic_data)
-                else:
+                else:  # salinity-like
                     temp = ic_data[ic_data.variable == ii_variable].set_index(['y_low'], inplace=False, drop=True)
                     ics_data_stack = drop_profile(ics_data_stack, ii_core, ii_variable)
                     new_ic_data = temp[temp.variable == ii_variable].reindex(y_bins[:-1], method='bfill')
@@ -350,10 +349,10 @@ class CoreStack(pd.DataFrame):
                 core_var = [[[np.nan] for x in range(bins_y.__len__())] for y in range(bins_DD.__len__()-1)]
                 for k1, groups in data_grouped:
                     stat_var[int(k1[0]), int(k1[1])] = eval(func)
-                    core_var[int(k1[0])][int(k1[1])] = (groups['core'].unique().tolist())
+                    # core_var[int(k1[0])][int(k1[1])] = (groups['core'].unique().tolist())
                 for ii_bin in range(stat_var.__len__()):
                     temp = pd.DataFrame(stat_var[ii_bin], columns=[ii_variable])
-                    temp = temp.join(pd.DataFrame(core_var[ii_bin], columns=['core_collection']))
+                    # temp = temp.join(pd.DataFrame(core_var[ii_bin], columns=['core_collection']))
 
                     DD_label = 'DD-' + str(bins_DD[ii_bin]) + '_' + str(bins_DD[ii_bin + 1])
                     data = [str(bins_DD[ii_bin]), str(bins_DD[ii_bin + 1]), DD_label, int(ii_bin), ii_stat, ii_variable]
@@ -375,7 +374,19 @@ class CoreStack(pd.DataFrame):
                         all = temp.join(t2)
                     else:
                         all = all.append(temp.join(t2), ignore_index=True)
-        return CoreStack(all)
+
+        #        data_grouped = self.groupby([self['t_cuts'], self['variable']])
+        data_grouped = self.groupby([t_cuts, self['variable']])
+
+
+
+        grouped_dict = {}
+        for var in variables:
+            grouped_dict[var] = [[] for ii_DD in range(bins_DD.__len__()-1)]
+
+        for k1, groups in data_grouped:
+            grouped_dict[k1[1]][int(k1[0])] = groups['core'].unique().tolist()
+        return CoreStack(all), grouped_dict
 
 
     def plot_profile(self, ax, variable_dict, param_dict=None):
@@ -439,6 +450,7 @@ class CoreStack(pd.DataFrame):
         ax.axes.set_xlabel(variable)
         ax.axes.set_ylim([max(ax.axes.get_ylim()), min(ax.axes.get_ylim())])
         return ax
+
 
     def plot_stat_median(self, ax, variable, bin_index):
         ax = self.plot_profile(ax, {'stats': 'median', 'variable': variable,
@@ -509,6 +521,8 @@ class CoreStack(pd.DataFrame):
 
     def merge_bin(self):
         return None
+
+
 
 class CoreSet:
     """
@@ -1045,6 +1059,31 @@ class CoreSet:
     #         ax.set_ylim(max(ax.get_ylim()), 0)
     #         ax.set_xlabel(variable + ' ' + si_prop_unit[variable])
     #     return out
+
+# particular for
+def stack_DD_fud(ics_data, DD, freezup_dates):
+    ics_data_stack = CoreStack()
+    for ii_core in ics_data.keys():
+        core = ics_data[ii_core]
+        ics_data_stack = ics_data_stack.add_profiles(core.profiles)
+
+    for ii_day in sorted(ics_data_stack.coring_date.unique()):
+        ii_day = pd.DatetimeIndex([ii_day])[0].to_datetime()
+        variable_dict = {'coring_date': ii_day}
+        # freezup day:
+        if ii_day < datetime.datetime(ii_day.year, 9, 1):
+            freezup_day = datetime.datetime.fromordinal(freezup_dates[ii_day.year - 1])
+        else:
+            freezup_day = datetime.datetime.fromordinal(freezup_dates[ii_day.year])
+        # DD
+        if DD[ii_day][1] < 0:
+            data = [[DD[ii_day][0], DD[ii_day][1], DD[ii_day][1], freezup_day]]
+        else:
+            data = [[DD[ii_day][0], DD[ii_day][1], DD[ii_day][0], freezup_day]]
+        data_label = ['FDD', 'TDD', 'DD', 'freezup_day']
+
+        ics_data_stack = ics_data_stack.add_variable(variable_dict, data, data_label)
+    return ics_data_stack
 
 def plot_stat(ax, stat_grouped, variable, DD):
 
