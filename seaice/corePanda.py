@@ -299,6 +299,11 @@ class CoreStack(pd.DataFrame):
 
 
     def discretize(self, y_bins=None, y_mid=None):
+        #
+        #
+        #
+        # ic_data = ics_data['CICE-20000619']
+        # self = ic_data
         if y_bins is None and y_mid is None:
             y_bins = pd.Series(self.y_low.dropna().tolist()+self.y_sup.dropna().tolist()).sort_values().unique()
             y_mid = self.y_mid.dropna().sort_values().unique()
@@ -345,13 +350,9 @@ class CoreStack(pd.DataFrame):
                     #     y_mid[y_mid <= max(temp[ii_variable].index)]).interpolate(method='linear')
                     # new_ic_data['y_mid'] = new_ic_data.index
                     # ics_data_stack = ics_data_stack.append(new_ic_data)
-                else:  # salinity-like
-                    yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid', drop=False).sort_index().as_matrix(['y_sup', 'y_low', ii_variable])
-                    yx = yx[:3, :]
-                    ii_yx = 0
-                    x_step = []
-                    y_step = []
-                    ii_bin = 1
+                elif ic_data[ic_data.variable == ii_variable].y_low.isnull().all():  # salinity-like
+                    yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid', drop=False).sort_index().as_matrix(['y_low', 'y_sup', ii_variable])
+                    # plot real curve
                     plt.close()
                     x = []
                     y = []
@@ -361,8 +362,46 @@ class CoreStack(pd.DataFrame):
                         x.append(yx[ii, 2])
                         x.append(yx[ii, 2])
                     plt.plot(x, y)
+                    # end plot real curve
 
+                    y_bins = [0, 0.025, 0.05, 0.075, 0.1, 0.125, 0.2, 0.25, 0.4, 0.42]
+
+                    yx = yx[:, :]
+                    ii_yx = 0
+                    x_step = []
+                    y_step = []
+
+                    ii_yx = 1
+                    ii_bin = 1
                     bottom_flag = 1
+                    while ii_bin < y_bins.__len__():
+
+                        while y_bins[ii_bin] <= yx[ii_yx, 0]:
+                            S = yx[ii_yx-1, 2]
+                            y_step.append(y_bins[ii_bin-1])
+                            y_step.append(y_bins[ii_bin])
+                            x_step.append(S)
+                            x_step.append(S)
+                            plt.plot(x_step, y_step, 'r')
+                            plt.plot(x_step, y_step, 'xr')
+                            ii_bin += 1
+
+                        S = (yx[ii_yx, 0]-y_bins[ii_bin - 1])* yx[ii_yx-1, 2]
+                        while yx[ii_yx, 1] < y_bins[ii_bin]:
+                            S += (y_bins[ii_bin]-yx[ii_yx, 0])* yx[ii_yx, 2]
+                            ii_yx += 1
+                        S += (y_bins[ii_bin] - yx[ii_yx, 0]) * yx[ii_yx, 2]
+
+                        S = S/(y_bins[ii_bin]-y_bins[ii_bin-1])
+                        y_step.append(y_bins[ii_bin - 1])
+                        y_step.append(y_bins[ii_bin])
+                        x_step.append(S)
+                        x_step.append(S)
+                        plt.plot(x_step, y_step, 'r')
+                        plt.plot(x_step, y_step, 'xr')
+                        ii_bin +=1
+
+
                     while ii_bin < y_bins.__len__():
                         ii_yx_low = ii_yx
 
@@ -386,14 +425,11 @@ class CoreStack(pd.DataFrame):
                         while ii_yx_low == ii_yx:
                             S = 0
 
-                            if ii_yx
-
-
-                            y_step.append(y_bins[ii_bin-1])
-                            y_step.append(y_bins[ii_bin])
-
-
-
+                            # if ii_yx
+                            #
+                            #
+                            #     y_step.append(y_bins[ii_bin-1])
+                            #     y_step.append(y_bins[ii_bin])
                             # core calculation
                             S = 0
                             # if ii_yx < yx[:,1].__len__()-1:
