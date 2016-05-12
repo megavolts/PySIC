@@ -350,7 +350,7 @@ class CoreStack(pd.DataFrame):
                     #     y_mid[y_mid <= max(temp[ii_variable].index)]).interpolate(method='linear')
                     # new_ic_data['y_mid'] = new_ic_data.index
                     # ics_data_stack = ics_data_stack.append(new_ic_data)
-                elif ic_data[ic_data.variable == ii_variable].y_low.isnull().all():  # salinity-like
+                elif not ic_data[ic_data.variable == ii_variable].y_low.isnull().any():  # salinity-like
                     yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid', drop=False).sort_index().as_matrix(['y_low', 'y_sup', ii_variable])
                     # plot real curve
                     plt.close()
@@ -364,18 +364,15 @@ class CoreStack(pd.DataFrame):
                     plt.plot(x, y)
                     # end plot real curve
 
-                    y_bins = [0, 0.025, 0.05, 0.075, 0.1, 0.125, 0.2, 0.25, 0.4, 0.42]
+                    y_bins = [0, 0.025, 0.05, 0.075, 0.1, 0.125, 0.2, 0.25, 0.4, 0.42, 0.5, 0.6, 0.7]
 
                     yx = yx[:, :]
-                    ii_yx = 0
                     x_step = []
                     y_step = []
-
-                    ii_yx = 1
                     ii_bin = 1
-                    bottom_flag = 1
-                    while ii_bin < y_bins.__len__():
+                    ii_yx = 1
 
+                    while ii_bin < y_bins.__len__():
                         while y_bins[ii_bin] <= yx[ii_yx, 0]:
                             S = yx[ii_yx-1, 2]
                             y_step.append(y_bins[ii_bin-1])
@@ -385,118 +382,47 @@ class CoreStack(pd.DataFrame):
                             plt.plot(x_step, y_step, 'r')
                             plt.plot(x_step, y_step, 'xr')
                             ii_bin += 1
+                            if ii_bin == y_bins.__len__():
+                                break
+                        if ii_bin < y_bins.__len__():
+                            S = (yx[ii_yx, 0]-y_bins[ii_bin - 1])* yx[ii_yx-1, 2]
+                            while yx[ii_yx, 1] <= y_bins[ii_bin]:
+                                S += (yx[ii_yx, 1]-yx[ii_yx, 0])*yx[ii_yx, 2]
+                                ii_yx += 1
+                                if ii_yx == yx[:, 1].__len__():
+                                    break
+                            S = S/(y_bins[ii_bin]-y_bins[ii_bin-1])
+                            if S != 0:
+                                y_step.append(y_bins[ii_bin - 1])
+                                y_step.append(y_bins[ii_bin])
+                                x_step.append(S)
+                                x_step.append(S)
+                                plt.plot(x_step, y_step, 'r')
+                                plt.plot(x_step, y_step, 'xr')
+                                ii_bin += 1
 
-                        S = (yx[ii_yx, 0]-y_bins[ii_bin - 1])* yx[ii_yx-1, 2]
-                        while yx[ii_yx, 1] < y_bins[ii_bin]:
-                            S += (y_bins[ii_bin]-yx[ii_yx, 0])* yx[ii_yx, 2]
-                            ii_yx += 1
-                        S += (y_bins[ii_bin] - yx[ii_yx, 0]) * yx[ii_yx, 2]
+                            #if y_bins[ii_bin-1] >= yx[-1, 1]:
+                            #    break
+                        ii_yx += 1
 
-                        S = S/(y_bins[ii_bin]-y_bins[ii_bin-1])
-                        y_step.append(y_bins[ii_bin - 1])
-                        y_step.append(y_bins[ii_bin])
-                        x_step.append(S)
-                        x_step.append(S)
-                        plt.plot(x_step, y_step, 'r')
-                        plt.plot(x_step, y_step, 'xr')
-                        ii_bin +=1
-
-
-                    while ii_bin < y_bins.__len__():
-                        ii_yx_low = ii_yx
-
-                        while y_bins[ii_bin] < yx[ii_yx, 1]:
-                            S = yx[ii_yx, 2]
-                            y_step.append(y_bins[ii_bin-1])
+                        if y_bins[ii_bin - 1] >= yx[- 1, 1]:
+                            y_step.append(y_bins[ii_bin - 1])
                             y_step.append(y_bins[ii_bin])
-                            x_step.append(S)
-                            x_step.append(S)
-                            plt.plot(x_step, y_step, 'r')
-                            plt.plot(x_step, y_step, 'xr')
+                            x_step.append(np.nan)
+                            x_step.append(np.nan)
                             ii_bin += 1
 
-                        S = 0
-                        if y_bins[ii_bin-1] < yx[ii_yx, 1]:
-                            S += (yx[ii_yx, 1] - y_bins[ii_bin-1])*yx[ii_yx, 2]
-                            print(y_bins[ii_bin-1], yx[ii_yx, 1], yx[ii_yx, 2], S)
-                        if y_bins[ii_bin] > yx[ii_yx, 1]:
 
-
-                        while ii_yx_low == ii_yx:
-                            S = 0
-
-                            # if ii_yx
-                            #
-                            #
-                            #     y_step.append(y_bins[ii_bin-1])
-                            #     y_step.append(y_bins[ii_bin])
-                            # core calculation
-                            S = 0
-                            # if ii_yx < yx[:,1].__len__()-1:
-                            if y_bins[ii_bin] < yx[ii_yx, 1]:
-                                S -= (yx[ii_yx, 1] - y_bins[ii_bin]) * yx[ii_yx, 2]
-                                print(y_bins[ii_bin], yx[ii_yx, 1], yx[ii_yx, 2], S)
-                            if ii_yx+1 < yx[:,2].__len__():
-                                if y_bins[ii_bin] > yx[ii_yx, 1] and ii_yx+1 < y_bins.__len__():
-                                    S += (y_bins[ii_bin] - yx[ii_yx, 1]) * yx[ii_yx + 1, 2]
-                                    print(yx[ii_yx, 1], y_bins[ii_bin], yx[ii_yx + 1, 2], S)
-                                for jj in range(ii_yx_low, ii_yx+1):
-                                    S += (yx[jj, 1] - yx[jj, 0]) * yx[jj, 2]
-                                    print(yx[jj, 0], yx[jj, 1], yx[ii_yx, 2], S)
-                            else:
-                                bottom_flag = 0
-                                S += (yx[ii_yx, 1] - yx[ii_yx, 0]) * yx[ii_yx, 2]
-                                # else:
-                            #     if y_bins[ii_bin] < yx[ii_yx, 1]:
-                            #         S -= (yx[ii_yx, 1] - y_bins[ii_bin]) * yx[ii_yx, 2]
-                            #         print(y_bins[ii_bin], yx[ii_yx, 1], yx[ii_yx, 2], S)
-                            #     for jj in range(ii_yx_low, ii_yx):
-                            #         S += (yx[jj, 1] - yx[jj, 0]) * yx[jj, 2]
-                            #         print(yx[jj, 0], yx[jj, 1], yx[ii_yx, 2], S)
-
-                            if y_bins[ii_bin-1] < yx[ii_yx_low, 1]:
-                                S += (yx[ii_yx_low, 0] - y_bins[ii_bin - 1]) * yx[ii_yx_low, 2]
-                                print(y_bins[ii_bin - 1], yx[ii_yx_low, 0], yx[ii_yx_low, 2], S)
-                            # if y_bins[ii_bin] < yx[ii_yx, 1]:
-                            #     S += (y_bins[ii_bin] - yx[jj, 1]) * yx[jj+1, 2]
-                            #
-                            # elif y_bins[ii_bin] < yx[ii_yx, 1]:
-                            #     S += (y_bins[ii_bin] - yx[jj, 1]) * yx[jj+1, 2]
-
-                            y_step.append(y_bins[ii_bin - 1])
-
-                            if bottom_flag == 0:
-                                S = S / (yx[-1, 1] - y_bins[ii_bin-1])
-                                y_step.append(yx[-1, 1])
-                            else:
-                                S = S / (y_bins[ii_bin] - y_bins[ii_bin - 1])
-                                y_step.append(y_bins[ii_bin])
-                            x_step.append(S)
-                            x_step.append(S)
-                            plt.plot(x_step, y_step, 'r')
-                            plt.plot(x_step, y_step, 'xr')
-
-                            ii_bin +=1
-                            print(y_bins[ii_bin], yx[ii_yx, 1])
-
-                            if y_bins[ii_bin-1] > yx[ii_yx, 1]:
-                                ii_yx += 1
-
-                            if ii_yx > yx[:,1].__len__():
-                                end_flag = 0
-
-                    # plt test
-                    # modifiy first
-
-                    plt.plot(x_step, y_step)
-
-                    temp = ic_data[ic_data.variable == ii_variable].set_index(['y_low'], inplace=False, drop=True)
-                    ics_data_stack = drop_profile(ics_data_stack, ii_core, ii_variable)
-                    new_ic_data = temp[temp.variable == ii_variable].reindex(y_bins[:-1], method='bfill')
-                    new_ic_data['y_sup'] = y_bins[1:]
-                    new_ic_data['y_mid'] = y_bins[:-1] + np.diff(y_bins) / 2
-                    # new_ic_data.reset_index()
-                    ics_data_stack = ics_data_stack.append(new_ic_data)
+                    #
+                    # plt.plot(x_step, y_step)
+                    #
+                    # temp = ic_data[ic_data.variable == ii_variable].set_index(['y_low'], inplace=False, drop=True)
+                    # ics_data_stack = drop_profile(ics_data_stack, ii_core, ii_variable)
+                    # new_ic_data = temp[temp.variable == ii_variable].reindex(y_bins[:-1], method='bfill')
+                    # new_ic_data['y_sup'] = y_bins[1:]
+                    # new_ic_data['y_mid'] = y_bins[:-1] + np.diff(y_bins) / 2
+                    # # new_ic_data.reset_index()
+                    # ics_data_stack = ics_data_stack.append(new_ic_data)
 
             sample_name = [ic_data.core.tolist()[0] + '-' + str('%3d' % ii) for ii in range(temp.__len__())]
             temp.update(pd.DataFrame(sample_name, columns=['sample_name'], index=temp.index.tolist()))
@@ -1523,7 +1449,7 @@ def read_variable(wb, sheet_name, variable_dict):
     variable_name = {'T_ice':'temperature', 'S_ice':'salinity'}
 
     if sheet_name in wb.sheetnames:
-        columns = [variable_name[sheet_name], 'y_sup', 'y_low', 'y_mid', 'comment', 'variable', 'core', 'note',
+        columns = [variable_name[sheet_name], 'y_low', 'y_sup', 'y_mid', 'comment', 'variable', 'core', 'note',
                    'ice_core_length', 'sample_name']
         profile = pd.DataFrame(columns=columns)
 
@@ -1604,7 +1530,7 @@ def read_variable(wb, sheet_name, variable_dict):
         # length
         length = ws['C2'].value
         if col_flag is 2:
-            y_bin_length = min(profile['y_sup'])-max(profile['y_low'])
+            y_bin_length = min(profile['y_low'])-max(profile['y_sup'])
             if isinstance(y_bin_length, (float, int)):
                 if isinstance(length, (float, int)) and y_bin_length > length:
                     length = y_bin_length
