@@ -314,6 +314,7 @@ class CoreStack(pd.DataFrame):
         ics_data_stack = self
         for ii_core in ics_data_stack.core_name.unique().tolist():
             ic_data = ics_data_stack[ics_data_stack.core_name == ii_core]
+            print(ic_data.core_name)
             for ii_variable in ic_data.variable.unique().tolist():
                 if ic_data[ic_data.variable == ii_variable].y_low.isnull().all():  # temperature
                     # DO NOT USE PANDA INTERP, BECAUSE OF IMPLEMENTATION ISSUE RESULTS ARE WIGGLING DUE TO NUMERICAL NOISE
