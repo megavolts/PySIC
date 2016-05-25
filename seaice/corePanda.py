@@ -298,12 +298,17 @@ class CoreStack(pd.DataFrame):
         return CoreStack(data)
 
 
-    def discretize(self, y_bins=None, y_mid=None):
-        #
-        #
-        #
-        # ic_data = ics_data['CICE-20000619']
-        # self = ic_data
+    def discretize(self, y_bins=None, y_mid=None, variables=None, comment='y', display_figure='n'):
+        """
+
+        :param y_bins:
+        :param y_mid:
+        :param variables:
+        :param comment: {0, 1}, Default 0
+        :param display_figure: {0, 1}, Default 0
+        :return:
+        """
+
         if y_bins is None and y_mid is None:
             y_bins = pd.Series(self.y_low.dropna().tolist()+self.y_sup.dropna().tolist()).sort_values().unique()
             y_mid = self.y_mid.dropna().sort_values().unique()
@@ -311,144 +316,12 @@ class CoreStack(pd.DataFrame):
         elif y_mid is None:
             y_mid = self.y_mid.dropna().sort_values().unique()
 
+
         for ii_core in sorted(self.core_name.unique().tolist()):
             ic_data = self[self.core_name == ii_core]
-            print(ic_data.core_name)
-            for ii_variable in ic_data.variable.unique().tolist():
-                print(ii_variable)
-                if ic_data[ic_data.variable == ii_variable].y_low.isnull().all():  # temperature
-                    # DO NOT USE PANDA INTERP, BECAUSE OF IMPLEMENTATION ISSUE RESULTS ARE WIGGLING DUE TO NUMERICAL NOISE
-                    yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid').sort_index()[[ii_variable]]
-                    y2x = yx.reindex(y_mid).astype(float)
-                    y2x.ix[(y2x.index<=max(yx.index)) & (min(yx.index)<=y2x.index)] = y2x.ix[(y2x.index<=max(yx.index)) & (min(yx.index)<=y2x.index)].interpolate(method='index')
-                    temp = pd.DataFrame(columns=ic_data.columns.tolist(), index=range(y_mid.__len__()))
-                    temp.update(y2x.reset_index('y_mid'))
-
-                    ic_data_prop = ic_data.head(1)
-                    ic_data_prop = ic_data_prop.drop(ii_variable, 1)
-                    ic_data_prop = ic_data_prop.drop('y_low', 1)
-                    ic_data_prop = ic_data_prop.drop('y_mid', 1)
-                    ic_data_prop = ic_data_prop.drop('y_sup', 1)
-                    ic_data_prop = ic_data_prop.drop('sample_name', 1)
-                    temp.update(pd.DataFrame([ic_data_prop.iloc[0].tolist()], columns=ic_data_prop.columns.tolist(), index=temp.index.tolist()))
-                    temp['coring_date'] = temp['coring_date'].astype('datetime64[ns]')
-
-                    # #plot test DO NOT DELETE
-                    # y_test = [0, 0.2, 0.6, 1.2, 1.6, 1.8]
-                    # x_test = np.interp(y_test, yx[:,1][~np.isnan(yx[:,0])], yx[:,0][~np.isnan(yx[:,0])], left=np.nan, right=np.nan)
-                    # plt.plot(yx[:, 1][~np.isnan(yx[:, 0])], yx[:, 0][~np.isnan(yx[:, 1])], 'xr')
-                    # plt.plot(x_mid, y_mid, 'k')
-                    # plt.plot(x_test, y_test, 'b', linewidth=3)
-                    # #end of test
-
-                elif not ic_data[ic_data.variable == ii_variable].y_low.isnull().any():  # salinity-like
-                    yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid', drop=False).sort_index().as_matrix(['y_low', 'y_sup', ii_variable])
-
-                    plot_test = 0
-                    # plot test DO NOT DELETE
-                    if plot_test == 1:
-                        plt.close()
-                        x = []
-                        y = []
-                        for ii in range(yx[:, 0].__len__()):
-                             y.append(yx[ii, 0])
-                             y.append(yx[ii, 1])
-                             x.append(yx[ii, 2])
-                             x.append(yx[ii, 2])
-                        plt.step(x, y)
-                    # # end plot test
-
-                    x_step = []
-                    y_step = []
-                    ii_bin = 0
-                    if yx[0, 0] < y_bins[0]:
-                        ii_yx = np.where(yx[:, 0]<=y_bins[0])[0][-1]
-                    else:
-                        ii_yx = 0
-                        while y_bins[ii_bin] < yx[ii_yx, 0 ]:
-                            y_step.append(y_bins[ii_bin])
-                            y_step.append(y_bins[ii_bin+1])
-                            x_step.append(np.nan)
-                            x_step.append(np.nan)
-                            ii_bin +=1
-                            y_bins[ii_bin]
-
-                    while ii_bin < y_bins.__len__()-1:
-                        while y_bins[ii_bin+1] <= yx[ii_yx, 1]:
-                            S = yx[ii_yx, 2]
-                            y_step.append(y_bins[ii_bin])
-                            y_step.append(y_bins[ii_bin+1])
-                            x_step.append(S)
-                            x_step.append(S)
-                            ii_bin += 1
-                            if plot_test == 1:
-                                plt.plot(x_step, y_step, 'r')
-                            if ii_bin == y_bins.__len__()-1:
-                                break
-
-                        # if y_bins[ii_bin+1] <= yx[ii_yx, 1]:
-                        #     break
-
-                        L = (yx[ii_yx, 1]-y_bins[ii_bin])
-                        S = (yx[ii_yx, 1]-y_bins[ii_bin])*yx[ii_yx, 2]
-                        while ii_yx < len(yx[:,1])-1 and yx[ii_yx+1, 1] <= y_bins[ii_bin+1]:
-                            L += (yx[ii_yx+1, 1]-yx[ii_yx+1, 0])
-                            S += (yx[ii_yx+1, 1]-yx[ii_yx+1, 0])*yx[ii_yx+1, 2]
-                            ii_yx += 1
-                            if plot_test == 1:
-                                plt.plot(x_step, y_step, 'r')
-                            if ii_yx == yx[:, 1].__len__()-1:
-                                break
-
-                        if ii_bin+1 == y_bins.__len__():
-                            break
-
-                        # if ii_yx == yx[:, 1].__len__() :
-                        if yx[ii_yx, 1] <= y_bins[ii_bin+1] and ii_yx+1 < yx.__len__():
-                            #if yx[ii_yx, 1] <= y_bins[ii_bin+1]:
-                            L += (y_bins[ii_bin+1]-yx[ii_yx+1, 0])
-                            S += (y_bins[ii_bin+1]-yx[ii_yx+1, 0]) * yx[ii_yx+1, 2]
-                        S = S/L
-                        if S != 0:
-                            y_step.append(y_bins[ii_bin])
-                            y_step.append(y_bins[ii_bin+1])
-                            x_step.append(S)
-                            x_step.append(S)
-                            ii_bin += 1
-                            if plot_test == 1:
-                                plt.plot(x_step, y_step, 'r')
-                        ii_yx += 1
-                        if y_bins[ii_bin] >= yx[-1, 1]:
-                            while ii_bin+1 < y_bins.__len__():
-                                y_step.append(y_bins[ii_bin])
-                                y_step.append(y_bins[ii_bin+1])
-                                x_step.append(np.nan)
-                                x_step.append(np.nan)
-                                ii_bin += 1
-                        if plot_test == 1:
-                            plt.plot(x_step, y_step, 'ro')
-
-                    temp = pd.DataFrame(columns=ic_data.columns.tolist(), index=range(y_bins[:-1].__len__()))
-                    temp.update(pd.DataFrame(np.vstack((y_bins[:-1], y_bins[:-1]+ np.diff(y_bins) / 2, y_bins[1:], [x_step[2*ii] for ii in range(int(x_step.__len__()/2))])).transpose(), columns=['y_low', 'y_mid', 'y_sup', ii_variable], index=temp.index))
-
-                    # properties
-                    ic_data_prop = ic_data.head(1)
-                    ic_data_prop = ic_data_prop.drop(ii_variable, 1)
-                    ic_data_prop = ic_data_prop.drop('y_low', 1)
-                    ic_data_prop = ic_data_prop.drop('y_mid', 1)
-                    ic_data_prop = ic_data_prop.drop('y_sup', 1)
-                    ic_data_prop = ic_data_prop.drop('sample_name', 1)
-                    temp.update(pd.DataFrame([ic_data_prop.iloc[0].tolist()], columns=ic_data_prop.columns.tolist(), index=temp.index.tolist()))
-                    temp['coring_date'] = temp['coring_date'].astype('datetime64[ns]')
-
-                sample_name = [ic_data_prop.core.tolist()[0] + '-' + str('%d' % ii) for ii in range(temp.__len__())]
-                temp.update(pd.DataFrame(sample_name, columns=['sample_name'], index=temp.index.tolist()))
-
-
-                self = self[(self.core_name != ii_core) | (self.variable != ii_variable)] #[(self.core_name == ii_core)].variable
-                # self[(self.core_name != ii_core) | (self.variable != ii_variable)][(self.core_name == ii_core)].variable
-                self = self.append(temp)
-                # self[(self.core_name != ii_core)].variable.unique()
+            ic_data = discretize_profile(ic_data, y_bins=y_bins, y_mid=y_mid, variables=None, comment=comment, display_figure=display_figure)
+            self = self[(self.core_name != ii_core)]
+            self = self.append(ic_data)
         return CoreStack(self)
 
 
@@ -1213,7 +1086,7 @@ def plot_stat(ax, stat_grouped, variable, DD):
         x = stat_grouped[(stat_grouped.variables==variable) & (stat_gr)]
         x = np.concatenate([x, [x[-1]]])
 
-def plot_profile(ax, profile, variable, param_dict=None):
+def plot_profile(profile, variable, ax=None, param_dict=None):
     """
 
     :param ax:
@@ -1223,8 +1096,21 @@ def plot_profile(ax, profile, variable, param_dict=None):
     :return:
     """
 
-    x = profile[variable].tolist()
+    if not isinstance(variable, list):
+        variable = [variable, ]
 
+    if variable is None:
+        variable = [var for var in profile.variable.unique().tolist()]
+
+
+    if ax is None:
+        plt.figure()
+        ax = plt.subplot(1, 1, 1)
+        ax.set_title(profile.core_name.unique().tolist()[0])
+
+
+
+    x = profile[variable].tolist()
     if profile.y_low.isnull().all():
         # step function
         y = pd.unique(pd.concat((profile.y_low, profile.y_sup))).tolist()
@@ -1373,8 +1259,161 @@ def drop_profile(data, core_name, keys):
     return data
 
 
-def discretize_profile(data, key, bins):
-    return None
+def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment='n', display_figure='y'):
+    """
+
+    :param ic_data:
+    :param y_bins:
+    :param y_mid:
+    :return:
+    """
+
+    # VARIABLES CHECK
+    if y_bins is None and y_mid is None:
+        y_bins = pd.Series(ic_data.y_low.dropna().tolist() + ic_data.y_sup.dropna().tolist()).sort_values().unique()
+        y_mid = ic_data.y_mid.dropna().sort_values().unique()
+    elif y_mid is None:
+        y_mid = ic_data.y_mid.dropna().sort_values().unique()
+
+    if variables is None:
+        variables = [ii_variable for ii_variable in ic_data.variable.unique().tolist()]
+
+    if not isinstance(variables, list):
+        variables = [variables]
+
+
+    for ii_variable in variables:
+        if comment == 1:
+            print(ii_variable)
+
+        # For linear profile, like temperature
+        if ic_data[ic_data.variable == ii_variable].y_low.isnull().all():
+            yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid').sort_index()[[ii_variable]]
+            y2x = yx.reindex(y_mid).astype(float)
+            y2x.ix[(y2x.index <= max(yx.index)) & (min(yx.index) <= y2x.index)] = y2x.ix[
+                (y2x.index <= max(yx.index)) & (min(yx.index) <= y2x.index)].interpolate(method='index')
+            temp = pd.DataFrame(columns=ic_data.columns.tolist(), index=range(y_mid.__len__()))
+            temp.update(y2x.reset_index('y_mid'))
+
+            ic_data_prop = ic_data.head(1)
+            ic_data_prop = ic_data_prop.drop(ii_variable, 1)
+            ic_data_prop = ic_data_prop.drop('y_low', 1)
+            ic_data_prop = ic_data_prop.drop('y_mid', 1)
+            ic_data_prop = ic_data_prop.drop('y_sup', 1)
+            ic_data_prop = ic_data_prop.drop('sample_name', 1)
+            temp.update(pd.DataFrame([ic_data_prop.iloc[0].tolist()], columns=ic_data_prop.columns.tolist(),
+                                     index=temp.index.tolist()))
+            temp['coring_date'] = temp['coring_date'].astype('datetime64[ns]')
+
+            if display_figure == 'y' or display_figure == 'c':
+                if display_figure != 'c':
+                    plt.close()
+                y_test = [0, 0.2, 0.6, 1.2, 1.6, 1.8]
+                x_test = np.interp(y_test, yx[:,1][~np.isnan(yx[:,0])], yx[:,0][~np.isnan(yx[:,0])], left=np.nan, right=np.nan)
+                plt.plot(yx[:, 1][~np.isnan(yx[:, 0])], yx[:, 0][~np.isnan(yx[:, 1])], 'xr')
+                plt.plot(temp[ii_variable], temp[y_mid], 'k')
+                plt.plot(x_test, y_test, 'b', linewidth=3)
+
+        # For step profile, like salinity
+        elif not ic_data[ic_data.variable == ii_variable].y_low.isnull().any():
+            yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid', drop=False).sort_index().as_matrix(
+                ['y_low', 'y_sup', ii_variable])
+
+            x_step = []
+            y_step = []
+            ii_bin = 0
+            if yx[0, 0] < y_bins[0]:
+                ii_yx = np.where(yx[:, 0] <= y_bins[0])[0][-1]
+            else:
+                ii_yx = 0
+                while y_bins[ii_bin] < yx[ii_yx, 0]:
+                    y_step.append(y_bins[ii_bin])
+                    y_step.append(y_bins[ii_bin + 1])
+                    x_step.append(np.nan)
+                    x_step.append(np.nan)
+                    ii_bin += 1
+                    y_bins[ii_bin]
+
+            while ii_bin < y_bins.__len__() - 1:
+                while y_bins[ii_bin + 1] <= yx[ii_yx, 1]:
+                    S = yx[ii_yx, 2]
+                    y_step.append(y_bins[ii_bin])
+                    y_step.append(y_bins[ii_bin + 1])
+                    x_step.append(S)
+                    x_step.append(S)
+                    ii_bin += 1
+
+                    if ii_bin == y_bins.__len__() - 1:
+                        break
+
+                L = (yx[ii_yx, 1] - y_bins[ii_bin])
+                S = (yx[ii_yx, 1] - y_bins[ii_bin]) * yx[ii_yx, 2]
+                while ii_yx < len(yx[:, 1]) - 1 and yx[ii_yx + 1, 1] <= y_bins[ii_bin + 1]:
+                    L += (yx[ii_yx + 1, 1] - yx[ii_yx + 1, 0])
+                    S += (yx[ii_yx + 1, 1] - yx[ii_yx + 1, 0]) * yx[ii_yx + 1, 2]
+                    ii_yx += 1
+                    if ii_yx == yx[:, 1].__len__() - 1:
+                        break
+
+                if ii_bin + 1 == y_bins.__len__():
+                    break
+
+                if yx[ii_yx, 1] <= y_bins[ii_bin + 1] and ii_yx + 1 < yx.__len__():
+                    L += (y_bins[ii_bin + 1] - yx[ii_yx + 1, 0])
+                    S += (y_bins[ii_bin + 1] - yx[ii_yx + 1, 0]) * yx[ii_yx + 1, 2]
+                S = S / L
+                if S != 0:
+                    y_step.append(y_bins[ii_bin])
+                    y_step.append(y_bins[ii_bin + 1])
+                    x_step.append(S)
+                    x_step.append(S)
+                    ii_bin += 1
+                ii_yx += 1
+                if y_bins[ii_bin] >= yx[-1, 1]:
+                    while ii_bin + 1 < y_bins.__len__():
+                        y_step.append(y_bins[ii_bin])
+                        y_step.append(y_bins[ii_bin + 1])
+                        x_step.append(np.nan)
+                        x_step.append(np.nan)
+                        ii_bin += 1
+
+            if display_figure == 'y' or display_figure == 'c':
+                if display_figure != 'c':
+                    plt.close()
+                x = []
+                y = []
+                for ii in range(yx[:, 0].__len__()):
+                    y.append(yx[ii, 0])
+                    y.append(yx[ii, 1])
+                    x.append(yx[ii, 2])
+                    x.append(yx[ii, 2])
+                plt.step(x, y)
+                plt.step(x_step, y_step, 'ro')
+
+            temp = pd.DataFrame(columns=ic_data.columns.tolist(), index=range(y_bins[:-1].__len__()))
+            temp.update(pd.DataFrame(np.vstack((y_bins[:-1], y_bins[:-1] + np.diff(y_bins) / 2, y_bins[1:],
+                                                [x_step[2 * ii] for ii in
+                                                 range(int(x_step.__len__() / 2))])).transpose(),
+                                     columns=['y_low', 'y_mid', 'y_sup', ii_variable], index=temp.index))
+
+            # properties
+            ic_data_prop = ic_data.head(1)
+            ic_data_prop = ic_data_prop.drop(ii_variable, 1)
+            ic_data_prop = ic_data_prop.drop('y_low', 1)
+            ic_data_prop = ic_data_prop.drop('y_mid', 1)
+            ic_data_prop = ic_data_prop.drop('y_sup', 1)
+            ic_data_prop = ic_data_prop.drop('sample_name', 1)
+            temp.update(pd.DataFrame([ic_data_prop.iloc[0].tolist()], columns=ic_data_prop.columns.tolist(),
+                                     index=temp.index.tolist()))
+            temp['coring_date'] = temp['coring_date'].astype('datetime64[ns]')
+
+        sample_name = [ic_data_prop.core.tolist()[0] + '-' + str('%d' % ii) for ii in range(temp.__len__())]
+        temp.update(pd.DataFrame(sample_name, columns=['sample_name'], index=temp.index.tolist()))
+
+        ic_data = ic_data[
+            (ic_data.core_name != ic_data.core_name.unique().tolist()[0]) | (ic_data.variable != ii_variable)]
+        ic_data = ic_data.append(temp)
+    return CoreStack(ic_data)
 
 
 def make_section(core, variables=None, section_thickness=0.05):
