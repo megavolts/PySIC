@@ -44,6 +44,8 @@ nan_value = float('nan')
 
 import time
 
+from .properties import si_prop_unit
+
 
 def timing(f):
     def wrap(*args):
@@ -275,9 +277,8 @@ class CoreStack(pd.DataFrame):
 
         index_select = self[eval(str_select)].index
         index_deselect = [ii for ii in self.index.tolist() if ii not in index_select]
-        data_select = self.iloc[index_select]
         data_deselect = self.iloc[index_deselect]
-        return CoreStack(data_select), CoreStack(data_deselect)
+        return CoreStack(self[eval(str_select)].index), CoreStack(data_deselect)
 
 
     def add_variable(self, variable_dict, data, data_label=None):
@@ -316,13 +317,15 @@ class CoreStack(pd.DataFrame):
         elif y_mid is None:
             y_mid = self.y_mid.dropna().sort_values().unique()
 
-
         for ii_core in sorted(self.core_name.unique().tolist()):
+            if comment == 'y':
+                print(ii_core)
             ic_data = self[self.core_name == ii_core]
             ic_data = discretize_profile(ic_data, y_bins=y_bins, y_mid=y_mid, variables=None, comment=comment, display_figure=display_figure)
             self = self[(self.core_name != ii_core)]
             self = self.append(ic_data)
-        return CoreStack(self)
+
+        return CoreStack(self.reset_index())
 
 
     def grouped_stat(self, variables, stats, bins_DD, bins_y):
@@ -373,45 +376,36 @@ class CoreStack(pd.DataFrame):
         #        data_grouped = self.groupby([self['t_cuts'], self['variable']])
         data_grouped = self.groupby([t_cuts, self['variable']])
 
-
-
         grouped_dict = {}
         for var in variables:
             grouped_dict[var] = [[] for ii_DD in range(bins_DD.__len__()-1)]
 
         for k1, groups in data_grouped:
             grouped_dict[k1[1]][int(k1[0])] = groups['core'].unique().tolist()
-        return CoreStack(all), grouped_dict
+
+        all.reset_index()
+
+        return CoreStack(all.reset_index()), grouped_dict
 
 
-    def plot_profile(self, ax, variable_dict, param_dict=None):
-        profile = self.select_profile(variable_dict)[0]
-        x = profile[variable_dict['variable']].tolist()
-        if ~profile.y_low.isnull().all():
-            y = np.concatenate((profile['y_low'].tolist(), [profile['y_sup'].tolist()[-1]]))
-            x = x + [x[-1]]
-            ax.step(x, y, **param_dict)
-        else:
-            y = profile['y_mid'].tolist()
-            ax.plot(x, y, **param_dict)
+    def plot_core(self, core_dict, ax=None, param_dict=None):
+
+        for ii_core in core:
+            ic_data = self.select_profile(core_dict)[0]
+            ax = plot_profile(ic_data, variable, ax=ax, param_dict=param_dict)
         return ax
 
 
     def plot_stat_mean(self, ax, variable, bin_index):
-        ax = self.plot_profile(ax, {'stats': 'mean', 'variable': variable,
-                                                 'DD_index': bin_index},
-                                                 {'linewidth': 3, 'color': 'k'})
-        ax = self.plot_profile(ax, {'stats': 'max', 'variable': variable,
-                                                 'DD_index': bin_index},
-                                                 {'linewidth': 3, 'color': 'r'})
-        ax = self.plot_profile(ax, {'stats': 'min', 'variable': variable,
-                                                 'DD_index': bin_index},
-                                                 {'linewidth': 3, 'color': 'b'})
+        x_mean = self.select_profile({'stats': 'mean', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
+        x_max  = self.select_profile({'stats': 'max', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
+        x_min  = self.select_profile({'stats': 'min', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
+        x_std  = self.select_profile({'stats': 'std', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
 
-        x_mean = self.select_profile({'stats': 'mean', 'variable': variable, 'DD_index': bin_index})[
-            0].reset_index()
-        x_std = self.select_profile({'stats': 'std', 'variable': variable, 'DD_index': bin_index})[
-            0].reset_index()
+        ax = plot_profile(x_max, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'r'})
+        ax = plot_profile(x_mean, variable, ax = ax,  param_dict={'linewidth': 3, 'color': 'k'})
+        ax = plot_profile(x_min, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'b'})
+
 
         if x_std.__len__() < x_mean.__len__():
             index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
@@ -442,7 +436,7 @@ class CoreStack(pd.DataFrame):
                 x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
         ax = plt.fill_betweenx(y_std, x_std_l, x_std_h, facecolor='black', alpha=0.3,
                                         label=str(u"\c2b1") + "std dev")
-        ax.axes.set_xlabel(variable)
+        ax.axes.set_xlabel(variable + ' ' + si_prop_unit[variable])
         ax.axes.set_ylim([max(ax.axes.get_ylim()), min(ax.axes.get_ylim())])
         return ax
 
@@ -1086,7 +1080,7 @@ def plot_stat(ax, stat_grouped, variable, DD):
         x = stat_grouped[(stat_grouped.variables==variable) & (stat_gr)]
         x = np.concatenate([x, [x[-1]]])
 
-def plot_profile(profile, variable, ax=None, param_dict=None):
+def plot_profile(ic_data, variable, ax=None, param_dict=None):
     """
 
     :param ax:
@@ -1095,41 +1089,39 @@ def plot_profile(profile, variable, ax=None, param_dict=None):
     :param param_dict:
     :return:
     """
-
-    if not isinstance(variable, list):
-        variable = [variable, ]
-
-    if variable is None:
-        variable = [var for var in profile.variable.unique().tolist()]
-
+    if variable is None or isinstance(variable, list):
+        raise('one and only one variable should be specified')
+        return 0
 
     if ax is None:
         plt.figure()
         ax = plt.subplot(1, 1, 1)
-        ax.set_title(profile.core_name.unique().tolist()[0])
 
-
-
-    x = profile[variable].tolist()
-    if profile.y_low.isnull().all():
+    if not ic_data[ic_data.variable == variable].y_low.isnull().all():
         # step function
-        y = pd.unique(pd.concat((profile.y_low, profile.y_sup))).tolist()
-        x = np.concatenate((x, np.atleast_1d(x[-1])))
+        x = []
+        y = []
+        for ii in ic_data.index.tolist():
+            y.append(ic_data['y_low'][ii])
+            y.append(ic_data['y_sup'][ii])
+            x.append(ic_data[variable][ii])
+            x.append(ic_data[variable][ii])
         if param_dict is None:
             ax.step(x, y)
         else:
             ax.step(x, y, **param_dict)
     else:
         # linear function
-        y = profile.y_mid
+        x = ic_data[variable].tolist()
+        y = ic_data.y_mid
         if param_dict is None:
             ax.plot(x, y)
         else:
             ax.plot(x, y, **param_dict)
-
     ax.set_xlabel(variable + ' ' + si_prop_unit[variable])
     ax.set_ylim(max(ax.get_ylim()), 0)
     return ax
+
 
 def plot_stat_envelop(ax, profile):
     return None
@@ -1290,10 +1282,11 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
         if ic_data[ic_data.variable == ii_variable].y_low.isnull().all():
             yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid').sort_index()[[ii_variable]]
             y2x = yx.reindex(y_mid).astype(float)
-            y2x.ix[(y2x.index <= max(yx.index)) & (min(yx.index) <= y2x.index)] = y2x.ix[
-                (y2x.index <= max(yx.index)) & (min(yx.index) <= y2x.index)].interpolate(method='index')
+            y2x.ix[(y2x.index <= max(yx.index)) & (min(yx.index) <= y2x.index)] = y2x.interpolate(method='index')[(y2x.index <= max(yx.index)) & (min(yx.index) <= y2x.index)]
             temp = pd.DataFrame(columns=ic_data.columns.tolist(), index=range(y_mid.__len__()))
             temp.update(y2x.reset_index('y_mid'))
+            yx = yx.reset_index(level='y_mid')
+
 
             ic_data_prop = ic_data.head(1)
             ic_data_prop = ic_data_prop.drop(ii_variable, 1)
@@ -1305,14 +1298,10 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
                                      index=temp.index.tolist()))
             temp['coring_date'] = temp['coring_date'].astype('datetime64[ns]')
 
-            if display_figure == 'y' or display_figure == 'c':
-                if display_figure != 'c':
-                    plt.close()
-                y_test = [0, 0.2, 0.6, 1.2, 1.6, 1.8]
-                x_test = np.interp(y_test, yx[:,1][~np.isnan(yx[:,0])], yx[:,0][~np.isnan(yx[:,0])], left=np.nan, right=np.nan)
-                plt.plot(yx[:, 1][~np.isnan(yx[:, 0])], yx[:, 0][~np.isnan(yx[:, 1])], 'xr')
-                plt.plot(temp[ii_variable], temp[y_mid], 'k')
-                plt.plot(x_test, y_test, 'b', linewidth=3)
+            if display_figure == 'y':
+                plt.close()
+                plt.plot(yx[ii_variable], yx['y_mid'], 'k')
+                plt.plot(temp[ii_variable], temp['y_mid'], 'xr')
 
         # For step profile, like salinity
         elif not ic_data[ic_data.variable == ii_variable].y_low.isnull().any():
@@ -1388,7 +1377,6 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
                     x.append(yx[ii, 2])
                     x.append(yx[ii, 2])
                 plt.step(x, y)
-                plt.step(x_step, y_step, 'ro')
 
             temp = pd.DataFrame(columns=ic_data.columns.tolist(), index=range(y_bins[:-1].__len__()))
             temp.update(pd.DataFrame(np.vstack((y_bins[:-1], y_bins[:-1] + np.diff(y_bins) / 2, y_bins[1:],
