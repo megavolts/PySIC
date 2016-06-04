@@ -7,6 +7,8 @@ corePanda.py: ice core data is a toolbox to import ice core data file from xlsx 
  computation time. Core profiles are considered as collection of point in depth, time and properties (salinity, temperature or other variable)
 """
 
+## TODO:take in account the timezone
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -421,6 +423,8 @@ class CoreStack(pd.DataFrame):
                 x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
                 y_std = np.append(y_std, y_low[ii])
                 y_std = np.append(y_std, y_low[ii])
+            if len(x_mean) == 1:
+                ii = 0
             x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
             x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
             y_std = np.append(y_std, y_sup[ii])
@@ -1047,13 +1051,62 @@ class CoreStack(pd.DataFrame):
 #     #     return out
 
 # particular for
+
+def stack_core(ics_data):
+    ics_stack = CoreStack()
+    for f_core in sorted(ics_data.keys()):
+        core_data = ics_data[f_core]
+        ics_stack = ics_stack.add_profiles(core_data.profiles)
+    return ics_stack
+
+
+def add_variable(ics_stack, variable_dict, data):
+    for col in data.columns.tolist():
+        if col not in ics_stack.columns.tolist():
+            ics_stack[col] = np.nan
+
+    data_select, data_deselect = ics_stack.select_profile(variable_dict)
+
+    index = data_select.index.tolist()
+    data = pd.DataFrame([data.iloc[0]], columns=data.columns, index=index)
+
+    ics_stack = ics_stack.fillna(data)
+    return ics_stack
+
+
+def DD_fillup(ics_stack, DD, freezup_dates):
+    for f_day in ics_stack.coring_date.unique():
+        #f_day = ics_stack.coring_date.unique()[0]
+        data_label = ['FDD', 'TDD', 'DD', 'freezup_day']
+        variable_dict = {'coring_date': f_day}
+
+        # look for freezup_day
+        if isinstance(f_day, np.datetime64):
+            f_day = datetime.datetime.utcfromtimestamp((f_day - np.datetime64('1970-01-01T00:00:00')) / np.timedelta64(1, 's'))
+        f_day = datetime.datetime(f_day.year, f_day.month, f_day.day)
+        if f_day < datetime.datetime(f_day.year, 9, 1):
+            freezup_day = datetime.datetime.fromordinal(freezup_dates[f_day.year-1])
+        else:
+            freezup_day = datetime.datetime.fromordinal(freezup_dates[f_day.year])
+
+        # look for number of freezing/thawing degree day:
+
+        if DD[f_day][1] < 0:
+            data = [[DD[f_day][0], DD[f_day][1], DD[f_day][1], freezup_day]]
+        else:
+            data = [[DD[f_day][0], DD[f_day][1], DD[f_day][0], freezup_day]]
+
+        data = pd.DataFrame(data, columns=data_label)
+        ics_stack = add_variable(ics_stack, variable_dict, data)
+    return ics_stack
+
 def stack_DD_fud(ics_data, DD, freezup_dates):
     ics_data_stack = CoreStack()
     for ii_core in ics_data.keys():
         core = ics_data[ii_core]
         ics_data_stack = ics_data_stack.add_profiles(core.profiles)
 
-    for ii_day in sorted(ics_data_stack.coring_date.unique()):
+    for ii_day in ics_data_stack.coring_date.unique():
         variable_dict = {'coring_date': ii_day}
         ii_day = pd.DatetimeIndex([ii_day])[0].to_datetime()
 
@@ -1067,7 +1120,7 @@ def stack_DD_fud(ics_data, DD, freezup_dates):
             data = [[DD[ii_day][0], DD[ii_day][1], DD[ii_day][1], np.datetime64(freezup_day)]]
         else:
             data = [[DD[ii_day][0], DD[ii_day][1], DD[ii_day][0], np.datetime64(freezup_day)]]
-        data_label = ['FDD', 'TDD', 'DD', 'freezup_day']
+        data_label = ['coring_date', 'FDD', 'TDD', 'DD', 'freezup_day']
         data = pd.DataFrame(data, columns=data_label)
 
         ics_data_stack = ics_data_stack.add_variable(variable_dict, data)
