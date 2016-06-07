@@ -395,50 +395,68 @@ class CoreStack(pd.DataFrame):
         return ax
 
 
+    def plot_core_profile(self, core, ax=None, variable=None, param_dict=None):
+        """
+
+        :param core:
+        :param ax:
+        :param variable:
+        :param param_dict:
+        :return:
+        """
+        ic_data = self.select_profile({'variable': variable, 'core_name':core})[0].reset_index()
+        if ic_data[ic_data.variable == variable].__len__() != 0:
+            ax = plot_profile(ic_data, variable, ax = ax, param_dict=param_dict)
+        ax.axes.set_xlabel(variable + ' ' + si_prop_unit[variable])
+        ax.axes.set_ylim(max(ax.get_ylim()), 0)
+        return ax
+
+
     def plot_stat_mean(self, ax, variable, bin_index):
         x_mean = self.select_profile({'stats': 'mean', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
         x_max  = self.select_profile({'stats': 'max', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
         x_min  = self.select_profile({'stats': 'min', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
         x_std  = self.select_profile({'stats': 'std', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
 
-        ax = plot_profile(x_max, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'r'})
-        ax = plot_profile(x_mean, variable, ax = ax,  param_dict={'linewidth': 3, 'color': 'k'})
-        ax = plot_profile(x_min, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'b'})
+        if x_mean[variable].__len__() !=0:
+            plot_profile(x_max, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'r'})
+            plot_profile(x_mean, variable, ax = ax,  param_dict={'linewidth': 3, 'color': 'k'})
+            plot_profile(x_min, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'b'})
 
 
-        if x_std.__len__() < x_mean.__len__():
-            index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
-            x_std = x_std.append(pd.DataFrame(np.nan, columns=x_std.columns.tolist(), index=index))
+            if x_std.__len__() < x_mean.__len__():
+                index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
+                x_std = x_std.append(pd.DataFrame(np.nan, columns=x_std.columns.tolist(), index=index))
 
-        if variable in ['salinity']:
-            y_low = x_mean['y_low']
-            y_sup = x_mean['y_sup']
-            x_std_l = x_mean[variable][0] - x_std[variable][0]
-            x_std_h = x_mean[variable][0] + x_std[variable][0]
-            y_std = y_low[0]
-            for ii in range(1, len(x_mean)):
-                x_std_l = np.append(x_std_l, x_mean[variable][ii - 1] - x_std[variable][ii - 1])
-                x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
-                x_std_h = np.append(x_std_h, x_mean[variable][ii - 1] + x_std[variable][ii - 1])
-                x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
-                y_std = np.append(y_std, y_low[ii])
-                y_std = np.append(y_std, y_low[ii])
-            if len(x_mean) == 1:
-                ii = 0
-            x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
-            x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
-            y_std = np.append(y_std, y_sup[ii])
-        elif variable in ['temperature']:
-            y_std = x_mean['y_mid']
-            x_std_l = []
-            x_std_h = []
-            for ii in range(0, len(x_mean)):
+            if variable in ['salinity']:
+                y_low = x_mean['y_low']
+                y_sup = x_mean['y_sup']
+                x_std_l = x_mean[variable][0] - x_std[variable][0]
+                x_std_h = x_mean[variable][0] + x_std[variable][0]
+                y_std = y_low[0]
+                for ii in range(1, len(x_mean)):
+                    x_std_l = np.append(x_std_l, x_mean[variable][ii - 1] - x_std[variable][ii - 1])
+                    x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
+                    x_std_h = np.append(x_std_h, x_mean[variable][ii - 1] + x_std[variable][ii - 1])
+                    x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
+                    y_std = np.append(y_std, y_low[ii])
+                    y_std = np.append(y_std, y_low[ii])
+                if len(x_mean) == 1:
+                    ii = 0
                 x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
                 x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
-        ax = plt.fill_betweenx(y_std, x_std_l, x_std_h, facecolor='black', alpha=0.3,
-                                        label=str(u"\c2b1") + "std dev")
-        ax.axes.set_xlabel(variable + ' ' + si_prop_unit[variable])
-        ax.axes.set_ylim([max(ax.axes.get_ylim()), min(ax.axes.get_ylim())])
+                y_std = np.append(y_std, y_sup[ii])
+            elif variable in ['temperature']:
+                y_std = x_mean['y_mid']
+                x_std_l = []
+                x_std_h = []
+                for ii in range(0, len(x_mean)):
+                    x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
+                    x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
+            ax = plt.fill_betweenx(y_std, x_std_l, x_std_h, facecolor='black', alpha=0.3,
+                                            label=str(u"\c2b1") + "std dev")
+            ax.axes.set_xlabel(variable + ' ' + si_prop_unit[variable])
+            ax.axes.set_ylim([max(ax.axes.get_ylim()), min(ax.axes.get_ylim())])
         return ax
 
 
@@ -1149,7 +1167,7 @@ def plot_profile(ic_data, variable, ax=None, param_dict=None):
         plt.figure()
         ax = plt.subplot(1, 1, 1)
 
-    if not ic_data[ic_data.variable == variable].y_low.isnull().all():
+    if not ic_data.y_low.isnull().all():
         # step function
         x = []
         y = []
@@ -1170,8 +1188,8 @@ def plot_profile(ic_data, variable, ax=None, param_dict=None):
             ax.plot(x, y)
         else:
             ax.plot(x, y, **param_dict)
-    ax.set_xlabel(variable + ' ' + si_prop_unit[variable])
-    ax.set_ylim(max(ax.get_ylim()), 0)
+    #ax.axes.xlabel(variable + ' ' + si_prop_unit[variable])
+    #ax.axes.ylim(max(ax.get_ylim()), 0)
     return ax
 
 
