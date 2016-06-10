@@ -419,10 +419,9 @@ class CoreStack(pd.DataFrame):
         x_std  = self.select_profile({'stats': 'std', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
 
         if x_mean[variable].__len__() !=0:
-            plot_profile(x_max, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'r'})
-            plot_profile(x_mean, variable, ax = ax,  param_dict={'linewidth': 3, 'color': 'k'})
-            plot_profile(x_min, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'b'})
-
+            plot_profile(x_max, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'r', 'label':'min'})
+            plot_profile(x_min, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'b', 'label':'max'})
+            plot_profile(x_mean, variable, ax = ax,  param_dict={'linewidth': 3, 'color': 'k', 'label':'mean'})
 
             if x_std.__len__() < x_mean.__len__():
                 index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
@@ -454,7 +453,7 @@ class CoreStack(pd.DataFrame):
                     x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
                     x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
             ax = plt.fill_betweenx(y_std, x_std_l, x_std_h, facecolor='black', alpha=0.3,
-                                            label=str(u"\c2b1") + "std dev")
+                                            label=str(r"$\pm$"+"std dev"))
             ax.axes.set_xlabel(variable + ' ' + si_prop_unit[variable])
             ax.axes.set_ylim([max(ax.axes.get_ylim()), min(ax.axes.get_ylim())])
         return ax

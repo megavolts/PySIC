@@ -72,20 +72,21 @@ def read(MBS_path, lcomment='n'):
     csv.register_dialect('MBS13', delimiter=',', doublequote=False, quotechar='', lineterminator='\n', escapechar='',
                          quoting=csv.QUOTE_NONE)
 
-    if 13 <= MBSyear:
+    if 13 <= MBSyear: # 2013, 2014
         source = csv.reader(fopen)
         nheader = 1
-        col_date = 6 - 1  # YYYY-MM-DD HH:MM:SS
-        col_Hi = 48 - 1
+        col_date = 2 -1   # 2: year, 3: day of year, 4: time
         col_Hs = np.nan
-        col_Hs1 = 49 - 1
-        col_Hs2 = 50 - 1
-        col_Hs3 = 51 - 1
-        col_Hw = 52 - 1
-        col_Tw = 38 - 1
-        col_Tair = 53 - 1
-        col_HR = 2 - 1
-        col_Tice_00 = 8 - 1
+        col_Tw = 7 - 1
+        col_HR = 8 - 1
+        col_Tair = 9 - 1
+        col_Hs1 = 10 - 1
+        col_Hs2 = 11 - 1
+        col_Hs3 = 12 - 1
+        col_Hi = 13 - 1
+        col_Hw = 14 - 1
+        col_Tice_00 = 22 - 1
+        pos_Tice_00 = 0  #
         n_th_air = 7
         n_th = 30
         tz = 'UTC'
@@ -93,63 +94,70 @@ def read(MBS_path, lcomment='n'):
         source = csv.reader(fopen, 'MBS09')
         nheader = 0
         col_date = 2 - 1  # 2: year, 3: day of year, 4: time
-        col_Hs = np.nan
+        col_Tw = 7 - 1
+        col_HR = 8 - 1
+        col_Tair = 9 - 1
         col_Hs1 = 10 - 1
         col_Hs2 = 11 - 1
         col_Hs3 = 12 - 1
         col_Hi = 13 - 1
         col_Hw = 14 - 1
-        col_Tw = 7 - 1
-        col_Tair = 9 - 1
-        col_HR = 8 - 1
-        col_Tice_00 = 17 - 1
+        col_Tice_00 = 22 - 1
+        pos_Tice_00 = 0  #
         n_th_air = 7
         n_th = 29
-        if MBSyear == 12:
-            tz = 'AKST'
-        else:
-            tz = 'UTC'
-    elif 8 <= MBSyear < 10:  # for 2009, 2008
+        tz = 'UTC'
+    elif 8 <= MBSyear < 10 or MBSyear == 6:  # for 2006, 2008, 2009
         source = csv.reader(fopen, 'MBS09')
         nheader = 0
         col_date = 2 - 1  # 2: year, 3: day of year, 4: time
-        col_Hs = np.nan
-        col_Hs1 = 10 - 1
-        col_Hs2 = 11 - 1
-        col_Hs3 = 12 - 1
-        col_Hi = 13 - 1
-        col_Hw = 14 - 1
-        col_Tw = 7 - 1
-        col_Tair = 9 - 1
-        col_HR = 8 - 1
-        col_Tice_00 = 16 - 1
+        col_Tw = 7 - 1  # water temperature
+        col_HR = 8 - 1  # Rel. Humidity
+        col_Tair = 9 - 1  # air temperature
+        col_Hs1 = 10 - 1  # snow pinger 1
+        col_Hs2 = 11 - 1  # snow pinger 2
+        col_Hs3 = 12 - 1  # snow pinger 3
+        col_Hi = 13 - 1  # ice thickness
+        col_Hw = 14 - 1  # water depth
+        col_Tice_00 = 19 - 1  #
+        pos_Tice_00 = 0  # depth in meter of first thermistor from ice surface
         n_th_air = 4
         n_th = 29
-        if MBSyear == 8:
-            tz = 'UTC'
-        elif MBSyear == 9:
-            tz = 'AKST'
-    elif 6 <= MBSyear < 8:  # for 2007
+        tz = 'AKST'
+    elif 7 <= MBSyear < 8:  # for 2007
         source = csv.reader(fopen, 'MBS06')
         nheader = 0
         col_date = 2 - 1  # 2: year, 3: day of year, 4: time
-        col_Hs = 10 - 1
-        col_Hs1 = np.nan
+        col_Tw = 7 - 1
+        col_HR = 8 - 1
+        col_Tair = 9 - 1
+        col_Hs1 = 10 - 1  # only one snow pinger
         col_Hs2 = np.nan
         col_Hs3 = np.nan
         col_Hi = 11 - 1
         col_Hw = 12 - 1
-        col_Tw = 7 - 1
-        col_Tair = 9 - 1
-        col_HR = 8 - 1
-        col_Tice_00 = 14 - 1
-        if MBSyear == 7:
-            n_th_air = 0
-            n_th = 19
-        elif MBSyear == 6:
-            n_th_air = 4
-            n_th = 29
+        col_Tice_00 = 15 - 1
+        pos_Tice_00 = 0.05  # depth in meter of first thermistor from ice surface
+        n_th_air = 0
+        n_th = 29
         tz = 'UTC'
+    elif 6 <= MBSyear < 7:  # for 2006, 2008, 2009
+        source = csv.reader(fopen, 'MBS09')
+        nheader = 0
+        col_date = 2 - 1  # 2: year, 3: day of year, 4: time
+        col_Tw = 7 - 1  # water temperature
+        col_HR = 8 - 1  # Rel. Humidity
+        col_Tair = 9 - 1  # air temperature
+        col_Hs1 = 10 - 1  # snow pinger 1
+        col_Hs2 = np.nan  # snow pinger 2
+        col_Hs3 = np.nan  # snow pinger 3
+        col_Hi = 13 - 1  # ice thickness
+        col_Hw = 14 - 1  # water depth
+        col_Tice_00 = 19 - 1  #
+        pos_Tice_00 = 0  # depth in meter of first thermistor from ice surface
+        n_th_air = 4
+        n_th = 29
+        tz = 'AKST'
     else:
         if lcomment == 'y':
             print('out of range')
@@ -179,48 +187,37 @@ def read(MBS_path, lcomment='n'):
     for ii in range(0, len(data)):
         dataout.append([])
         # date and time
-        if 12 < MBSyear:
-            d = dt.datetime.strptime(data[ii][col_date], "%Y-%m-%d %H:%M:%S") + dt.timedelta(0, dtzone)
-            dataout[ii].append(int(d.strftime("%Y")))  # 1
-            dataout[ii].append(int(d.strftime("%m")))  # 2
-            dataout[ii].append(int(d.strftime("%d")))  # 3
-            dataout[ii].append(int(d.strftime("%H")))  # 4
-            dataout[ii].append(int(d.strftime("%M")))  # 5
-        elif 5 < MBSyear <= 12:
-            d = dt.datetime(int(float(data[ii][col_date])), 1, 1) + dt.timedelta(
-                float(data[ii][col_date - 1]) - 1) + dt.timedelta(0, dtzone)
-            dataout[ii].append(int(d.strftime("%Y")))  # 1
-            dataout[ii].append(int(d.strftime("%m")))  # 2
-            dataout[ii].append(int(d.strftime("%d")))  # 3
-            dataout[ii].append(int(d.strftime("%H")))  # 4
-            dataout[ii].append(int(d.strftime("%M")))  # 5
+        d = dt.datetime(int(float(data[ii][col_date])), 1, 1) + dt.timedelta(float(data[ii][col_date - 1]) - 1) + dt.timedelta(0, dtzone)
+        dataout[ii].append(int(d.strftime("%Y")))  # 1
+        dataout[ii].append(int(d.strftime("%m")))  # 2
+        dataout[ii].append(int(d.strftime("%d")))  # 3
+        dataout[ii].append(int(d.strftime("%H")))  # 4
+        dataout[ii].append(int(d.strftime("%M")))  # 5
 
         # ice
         dataout[ii].append(float(data[ii][col_Hi]))  # 6
 
         # snow
         if 6 <= MBSyear < 8:
-            dataout[ii].append(float(data[ii][col_Hs]))  # 7
+            dataout[ii].append(float(data[ii][col_Hs1]))  # 7
             dataout[ii].append(np.nan)  # 8
             dataout[ii].append(np.nan)  # 9
-            dataout[ii].append(np.nan)  # 10
         else:
-            dataout[ii].append(
-                np.nanmean([float(data[ii][col_Hs1]), float(data[ii][col_Hs2]), float(data[ii][col_Hs3])]))  # 7
-            dataout[ii].append(float(data[ii][col_Hs1]))  # 8
-            dataout[ii].append(float(data[ii][col_Hs2]))  # 9
-            dataout[ii].append(float(data[ii][col_Hs3]))  # 10
+            dataout[ii].append(float(data[ii][col_Hs1]))  # 7
+            dataout[ii].append(float(data[ii][col_Hs2]))  # 8
+            dataout[ii].append(float(data[ii][col_Hs3]))  # 9
 
         # water depth
-        dataout[ii].append(float(data[ii][col_Hw]))  # 11
-        dataout[ii].append(float(data[ii][col_Tw]))  # 12
-        dataout[ii].append(float(data[ii][col_Tair]))  # 13
-        dataout[ii].append(float(data[ii][col_HR]))  # 14
+        dataout[ii].append(float(data[ii][col_Hw]))  # 10
+        dataout[ii].append(float(data[ii][col_Tw]))  # 11
+        dataout[ii].append(float(data[ii][col_Tair]))  # 12
+        dataout[ii].append(float(data[ii][col_HR]))  # 13
+        dataout[ii].append(float(pos_Tice_00)) # 14
 
         # thermistor
         for iiT in range(0, 7 - n_th_air):
-            dataout[ii].append(np.nan)
-        for iiT in range(col_Tice_00, col_Tice_00 + n_th):
+            dataout[ii].append(np.nan) # 15 to 21
+        for iiT in range(col_Tice_00, col_Tice_00 + n_th): # 22 to end
             dataout[ii].append(float(data[ii][iiT]))
     return np.array(dataout)
 
