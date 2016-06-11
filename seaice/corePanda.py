@@ -365,7 +365,8 @@ class CoreStack(pd.DataFrame):
                             data = [bins_y[ii_layer], bins_y[ii_layer + 1],
                                     (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2, DD_label + str('-%03d' % ii_layer)]
                         if ii_variable in ['temperature']:
-                            data = [np.nan, np.nan, (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2,
+                            data = [np.nan, np.nan, bins_y[ii_layer], DD_label + str('-%03d' % ii_layer)]  # y_mid corresponds to the top layer
+                            # data = [np.nan, np.nan, (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2,
                                     DD_label + str('-%03d' % ii_layer)]
                         t2 = t2.append(pd.DataFrame([data], columns=columns, index=[ii_layer]))
                     if all.empty:
