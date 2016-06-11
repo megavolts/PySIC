@@ -164,7 +164,7 @@ def read(mbs_path, lcomment='n'):
     for row in source:
         data.append([])
         for col in row:
-            if col not in ['-9999', '-9999.0', '-9999.000', 'NAN', 'nan', '', '#VALUE!']:
+            if col not in ['-9999', '-9999.0', '-9999.00', '-9999.000', 'NAN', 'nan', '', '#VALUE!']:
                 data[rownum].append(col)
             else:
                 data[rownum].append(np.nan)
@@ -179,59 +179,64 @@ def read(mbs_path, lcomment='n'):
         dtzone = 0
 
     for ii in range(0, len(data)):
-        dataout.append([])
 
+        temp = []
         # date and time
         if not np.isnan(float(data[ii][col_date])):
             d = dt.datetime(int(float(data[ii][col_date])), 1, 1) + dt.timedelta(float(data[ii][col_date - 1]) - 1) + dt.timedelta(0, dtzone)
-            dataout[ii].append(int(d.strftime("%Y")))  # 1
-            dataout[ii].append(int(d.strftime("%m")))  # 2
-            dataout[ii].append(int(d.strftime("%d")))  # 3
-            dataout[ii].append(int(d.strftime("%H")))  # 4
-            dataout[ii].append(int(d.strftime("%M")))  # 5
+            temp.append(int(d.strftime("%Y")))  # 1
+            temp.append(int(d.strftime("%m")))  # 2
+            temp.append(int(d.strftime("%d")))  # 3
+            temp.append(int(d.strftime("%H")))  # 4
+            temp.append(int(d.strftime("%M")))  # 5
 
             # ice thickness
-            dataout[ii].append(float(data[ii][col_Hi]))  # 6 Hi
+            temp.append(float(data[ii][col_Hi]))  # 6 Hi
 
             # snow thickness
             if 6 <= MBSyear < 8:
-                dataout[ii].append(float(data[ii][col_Hs1]))  # 7 Hs1
-                dataout[ii].append(np.nan)  # 8 Hs2
-                dataout[ii].append(np.nan)  # 9 Hs3
+                temp.append(float(data[ii][col_Hs1]))  # 7 Hs1
+                temp.append(np.nan)  # 8 Hs2
+                temp.append(np.nan)  # 9 Hs3
             else:
-                dataout[ii].append(float(data[ii][col_Hs1]))  # 7 Hs1
-                dataout[ii].append(float(data[ii][col_Hs2]))  # 8 Hs2
-                dataout[ii].append(float(data[ii][col_Hs3]))  # 9 Hs3
-            dataout[ii].append(np.nanmean(dataout[ii][-3:]))  # 10 mean(Hs)
+                temp.append(float(data[ii][col_Hs1]))  # 7 Hs1
+                temp.append(float(data[ii][col_Hs2]))  # 8 Hs2
+                temp.append(float(data[ii][col_Hs3]))  # 9 Hs3
+            temp.append(np.nanmean(temp[-3:]))  # 10 mean(Hs)
 
             # water depth
-            dataout[ii].append(float(data[ii][col_Hw]))  # 11
+            temp.append(float(data[ii][col_Hw]))  # 11
 
             # water temperature
-            dataout[ii].append(float(data[ii][col_Tw]))  # 12 Air temperature
+            temp.append(float(data[ii][col_Tw]))  # 12 Air temperature
 
             # air temperature
-            dataout[ii].append(float(data[ii][col_Tair]))  # 13 Water temperature
+            temp.append(float(data[ii][col_Tair]))  # 13 Water temperature
 
             # relative humidity
-            dataout[ii].append(float(data[ii][col_HR]))  # 14 Relative humidity
+            temp.append(float(data[ii][col_HR]))  # 14 Relative humidity
 
             # number of thermistor in air
-            dataout[ii].append(float(n_th_air))  # 15
+            temp.append(float(n_th_air))  # 15
 
             # position first thermistor in ice
-            dataout[ii].append(float(pos_Tice_00))  # 16
+            temp.append(float(pos_Tice_00))  # 16
 
             # thermistor
             for iiT in range(0, n_th):
-                if isinstance(data[ii][col_th+iiT], float):
-                    dataout[ii].append(float(data[ii][col_th+iiT]))  # 17...
+                try:
+                    T_temp = float(data[ii][col_th+iiT])
+                except ValueError:
+                    temp.append(np.nan)
                 else:
-                    dataout[ii].append(np.nan)
+                    temp.append(T_temp)  # 17...
+        if temp:
+            dataout.append(temp)
+            
     return np.array(dataout)
 
 
-def import_core(mbs_data, day, location=None, ice_thickness=np.nan, comment = None):
+def import_core(mbs_data, day, location=None, ice_thickness=np.nan, comment = None, overridehi = 'n'):
     """
     :param mbs_data:
     :param day:
@@ -240,7 +245,8 @@ def import_core(mbs_data, day, location=None, ice_thickness=np.nan, comment = No
     """
 
     index_month = np.where(mbs_data[day.year][:, 1] == day.month)[0]
-    index_day = np.where(mbs_data[day.year][index_month, 2] == day.day)[0]
+    index_month_day = np.where(mbs_data[day.year][index_month, 2] == day.day)[0]
+    index_day = index_month[index_month_day]
 
     if index_day.size == 0:
         return None
@@ -280,33 +286,42 @@ def import_core(mbs_data, day, location=None, ice_thickness=np.nan, comment = No
                                            comment=comment)
 
             # import temperature
-            if ice_thickness_mbs is not None:
+            comment = ''
+
+            if ice_thickness_mbs is not None and overridehi == 'y':
                 ice_thickness = ice_thickness_mbs
+                comment = 'ice thickness  given by mbs'
+            if np.isnan(ice_thickness):
+                ice_thickness = ice_thickness_mbs
+                comment = 'ice thickness does not exist, ice thickness given by mbs instead '
 
             columns = ['temperature', 'y_mid', 'comment', 'variable', 'core', 'ice_core_length',
                        'sample_name']
             profile = pd.DataFrame(columns=columns)
             core_name = 'mbs-'+ day.strftime('%Y%m%d')
             print(core_name)
-            comment = 'temperature profile from mbs'
+            if comment is not '':
+                comment += '; '
+            comment += 'temperature profile from mbs'
             variable = 'temperature'
 
             ii = 0
             while t_mbs_y[ii] <= ice_thickness:
+
                 sample_name = core_name + str('%02d' %ii)
                 x = t_mbs[ii]
-                y_mid = t_mbs_y[ii]
+                y = t_mbs_y[ii]
                 measure = pd.DataFrame(
-                                    [[x, y_mid, comment, variable, core_name, ice_thickness, sample_name]],
+                                    [[x, y, comment, variable, core_name, ice_thickness, sample_name]],
                                     columns=columns, index=[sample_name])
                 profile = profile.append(measure)
-                ii+=1
-            if y_mid < ice_thickness and ice_thickness < t_mbs_y[-1]:
+                ii += 1
+            if profile['y_mid'][-1] < ice_thickness <= t_mbs_y[-1]:
                 sample_name = core_name + str('%02d' %ii)
-                y_mid = ice_thickness
+                y = ice_thickness
                 x = np.interp(ice_thickness, t_mbs_y, t_mbs)
                 measure = pd.DataFrame(
-                                    [[x, y_mid, comment, variable, core_name, ice_thickness, sample_name]],
+                                    [[x, y, comment, variable, core_name, ice_thickness, sample_name]],
                                     columns=columns, index=[sample_name])
                 profile = profile.append(measure)
             ic.add_profile(profile)
