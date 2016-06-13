@@ -365,9 +365,8 @@ class CoreStack(pd.DataFrame):
                             data = [bins_y[ii_layer], bins_y[ii_layer + 1],
                                     (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2, DD_label + str('-%03d' % ii_layer)]
                         if ii_variable in ['temperature']:
-                            data = [np.nan, np.nan, bins_y[ii_layer], DD_label + str('-%03d' % ii_layer)]  # y_mid corresponds to the top layer
-                            # data = [np.nan, np.nan, (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2,
-                                    DD_label + str('-%03d' % ii_layer)]
+                            # data = [np.nan, np.nan, (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2, DD_label + str('-%03d' % ii_layer)]  # y_mid corresponds to the top layer
+                            data = [np.nan, np.nan, (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2, DD_label + str('-%03d' % ii_layer)]
                         t2 = t2.append(pd.DataFrame([data], columns=columns, index=[ii_layer]))
                     if all.empty:
                         all = temp.join(t2)
@@ -461,53 +460,51 @@ class CoreStack(pd.DataFrame):
 
 
     def plot_stat_median(self, ax, variable, bin_index):
-        ax = self.plot_profile(ax, {'stats': 'median', 'variable': variable,
-                                    'DD_index': bin_index},
-                               {'linewidth': 3, 'color': 'k'})
-        ax = self.plot_profile(ax, {'stats': 'max', 'variable': variable,
-                                    'DD_index': bin_index},
-                               {'linewidth': 3, 'color': 'r'})
-        ax = self.plot_profile(ax, {'stats': 'min', 'variable': variable,
-                                    'DD_index': bin_index},
-                               {'linewidth': 3, 'color': 'b'})
+        x_mean = self.select_profile({'stats': 'median', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
+        x_max  = self.select_profile({'stats': 'max', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
+        x_min  = self.select_profile({'stats': 'min', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
+        x_std  = self.select_profile({'stats': 'mad', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
 
-        x_mean = self.select_profile({'stats': 'median', 'variable': variable, 'DD_index': bin_index})[
-            0].reset_index()
-        x_std = self.select_profile({'stats': 'mad', 'variable': variable, 'DD_index': bin_index})[
-            0].reset_index()
+        if x_mean[variable].__len__() !=0:
+            plot_profile(x_max, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'r', 'label':'min'})
+            plot_profile(x_min, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'b', 'label':'max'})
+            plot_profile(x_mean, variable, ax = ax,  param_dict={'linewidth': 3, 'color': 'k', 'label':'median'})
 
-        if x_std.__len__() < x_mean.__len__():
-            index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
-            x_std = x_std.append(pd.DataFrame(np.nan, columns=x_std.columns.tolist(), index=index))
+            if x_std.__len__() < x_mean.__len__():
+                index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
+                x_std = x_std.append(pd.DataFrame(np.nan, columns=x_std.columns.tolist(), index=index))
 
-        if variable in ['salinity']:
-            y_low = x_mean['y_low']
-            y_sup = x_mean['y_sup']
-            x_std_l = x_mean[variable][0] - x_std[variable][0]
-            x_std_h = x_mean[variable][0] + x_std[variable][0]
-            y_std = y_low[0]
-            for ii in range(1, len(x_mean)):
-                x_std_l = np.append(x_std_l, x_mean[variable][ii - 1] - x_std[variable][ii - 1])
-                x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
-                x_std_h = np.append(x_std_h, x_mean[variable][ii - 1] + x_std[variable][ii - 1])
-                x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
-                y_std = np.append(y_std, y_low[ii])
-                y_std = np.append(y_std, y_low[ii])
-            x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
-            x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
-            y_std = np.append(y_std, y_sup[ii])
-        elif variable in ['temperature']:
-            y_std = x_mean['y_mid']
-            x_std_l = []
-            x_std_h = []
-            for ii in range(0, len(x_mean)):
+            if variable in ['salinity']:
+                y_low = x_mean['y_low']
+                y_sup = x_mean['y_sup']
+                x_std_l = x_mean[variable][0] - x_std[variable][0]
+                x_std_h = x_mean[variable][0] + x_std[variable][0]
+                y_std = y_low[0]
+                for ii in range(1, len(x_mean)):
+                    x_std_l = np.append(x_std_l, x_mean[variable][ii - 1] - x_std[variable][ii - 1])
+                    x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
+                    x_std_h = np.append(x_std_h, x_mean[variable][ii - 1] + x_std[variable][ii - 1])
+                    x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
+                    y_std = np.append(y_std, y_low[ii])
+                    y_std = np.append(y_std, y_low[ii])
+                if len(x_mean) == 1:
+                    ii = 0
                 x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
                 x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
-        ax = plt.fill_betweenx(y_std, x_std_l, x_std_h, facecolor='black', alpha=0.3,
-                               label=str(u"\c2b1") + "std dev")
-        ax.axes.set_xlabel(variable)
-        ax.axes.set_ylim([max(ax.axes.get_ylim()), min(ax.axes.get_ylim())])
+                y_std = np.append(y_std, y_sup[ii])
+            elif variable in ['temperature']:
+                y_std = x_mean['y_mid']
+                x_std_l = []
+                x_std_h = []
+                for ii in range(0, len(x_mean)):
+                    x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
+                    x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
+            ax = plt.fill_betweenx(y_std, x_std_l, x_std_h, facecolor='black', alpha=0.3,
+                                            label=str(r"$\pm$"+"mad"))
+            ax.axes.set_xlabel(variable + ' ' + si_prop_unit[variable])
+            ax.axes.set_ylim([max(ax.axes.get_ylim()), min(ax.axes.get_ylim())])
         return ax
+
 
     def cores(self):
         return self['core_name'].unique().tolist()
@@ -1356,7 +1353,6 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
             temp = pd.DataFrame(columns=ic_data.columns.tolist(), index=range(y_mid.__len__()))
             temp.update(y2x.reset_index('y_mid'))
             yx = yx.reset_index(level='y_mid')
-
 
             ic_data_prop = ic_data.head(1)
             ic_data_prop = ic_data_prop.drop(ii_variable, 1)
