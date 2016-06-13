@@ -342,15 +342,15 @@ class CoreStack(pd.DataFrame):
         all = pd.DataFrame()
         for ii_variable in variables:
             for ii_stat in stats:
+                print(ii_stat)
                 func = "groups['" + ii_variable + "']." + ii_stat + "()"
+                print(func)
                 stat_var = np.nan * np.ones((bins_DD.__len__() - 1, bins_y.__len__()))
                 core_var = [[[np.nan] for x in range(bins_y.__len__())] for y in range(bins_DD.__len__()-1)]
                 for k1, groups in data_grouped:
                     stat_var[int(k1[0]), int(k1[1])] = eval(func)
-                    # core_var[int(k1[0])][int(k1[1])] = (groups['core'].unique().tolist())
                 for ii_bin in range(stat_var.__len__()):
                     temp = pd.DataFrame(stat_var[ii_bin], columns=[ii_variable])
-                    # temp = temp.join(pd.DataFrame(core_var[ii_bin], columns=['core_collection']))
 
                     DD_label = 'DD-' + str(bins_DD[ii_bin]) + '_' + str(bins_DD[ii_bin + 1])
                     data = [str(bins_DD[ii_bin]), str(bins_DD[ii_bin + 1]), DD_label, int(ii_bin), ii_stat, ii_variable]
