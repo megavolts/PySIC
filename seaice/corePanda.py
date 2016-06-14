@@ -342,9 +342,7 @@ class CoreStack(pd.DataFrame):
         all = pd.DataFrame()
         for ii_variable in variables:
             for ii_stat in stats:
-                print(ii_stat)
                 func = "groups['" + ii_variable + "']." + ii_stat + "()"
-                print(func)
                 stat_var = np.nan * np.ones((bins_DD.__len__() - 1, bins_y.__len__()))
                 core_var = [[[np.nan] for x in range(bins_y.__len__())] for y in range(bins_DD.__len__()-1)]
                 for k1, groups in data_grouped:
@@ -502,6 +500,7 @@ class CoreStack(pd.DataFrame):
             ax = plt.fill_betweenx(y_std, x_std_l, x_std_h, facecolor='black', alpha=0.3,
                                             label=str(r"$\pm$"+"mad"))
             ax.axes.set_xlabel(variable + ' ' + si_prop_unit[variable])
+            ax.axes.set_ylabel('ice thickness [m]')
             ax.axes.set_ylim([max(ax.axes.get_ylim()), min(ax.axes.get_ylim())])
         return ax
 
@@ -1164,7 +1163,7 @@ def plot_profile(ic_data, variable, ax=None, param_dict=None):
         plt.figure()
         ax = plt.subplot(1, 1, 1)
 
-    if not ic_data.y_low.isnull().all():
+    if not ic_data.y_low.isnull().all():  # salinity like curve
         # step function
         x = []
         y = []
@@ -1185,8 +1184,6 @@ def plot_profile(ic_data, variable, ax=None, param_dict=None):
             ax.plot(x, y)
         else:
             ax.plot(x, y, **param_dict)
-    #ax.axes.xlabel(variable + ' ' + si_prop_unit[variable])
-    #ax.axes.ylim(max(ax.get_ylim()), 0)
     return ax
 
 
