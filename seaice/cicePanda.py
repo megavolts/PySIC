@@ -130,3 +130,23 @@ def ice_core_range(cice_data, day, end_day=None, location=None, run=None):
         ic = ice_core(cice_data, day, location, run)
         ics_model[ic.core_name] = ic
     return ics_model
+
+
+def freezup_date(cice_data, year, hi_freezup=0.05):
+    if year not in cice_data.year.unique():
+        return None
+    f_ice = 0
+    date = []
+    for f_day in cice_data[cice_data.year == year].date:
+        if not cice_data[(cice_data.date == f_day) & (cice_data['ice thickness'] > hi_freezup)].empty:
+            if f_ice == 0:
+                f_ice = 1
+                date.append(f_day.to_datetime())
+                # hi.append(float(cice_data[(cice_data.date == f_day) & (cice_data['ice thickness'] > hi_freezup)]['ice thickness']))
+        else:
+            f_ice = 0
+
+    if date.__len__() == 0:
+        return None
+    else:
+        return date[-1]

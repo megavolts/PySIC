@@ -1537,7 +1537,7 @@ def generate_source(data_dir, data_ext):
     :param data_dir:
     :param data_ext:
     """
-    ic_path_list = get_filepath(data_dir, data_ext)
+    ic_path_list = sorted(get_filepath(data_dir, data_ext))
     with open(data_dir + '/ic_list.txt', 'w') as f:
         for ii in range(0, len(ic_path_list)):
             f.write(ic_path_list[ii] + "\n")
