@@ -344,7 +344,7 @@ def vstack_mat(A, B, index_period, n_core):
     return B
 
 
-def DegreeDayModel(data, T_col, freezup_day, end_day, Tfreeze=0, Tunit='C', Pday=None):
+def DegreeDayModel(data, T_col, freezup_day, end_day, Tfreeze=0, T_data_unit='C', Pday=None):
     """
     Calculate the number of freezing degree days between the freezup day until a certain day (end_day)
     Number of thawing degree day (FDD) for the day 'day' is given by the following code
@@ -379,11 +379,11 @@ def DegreeDayModel(data, T_col, freezup_day, end_day, Tfreeze=0, Tunit='C', Pday
     DD = {}
     n_FDD = 0
     n_TDD = 0
-    if Tunit == 'K':
-        T_offset = 0
-    elif Tunit == 'C':
+    if T_data_unit == 'K':
         T_offset = -273
-    elif Tunit == 'F':
+    elif T_data_unit == 'C':
+        T_offset = 0
+    elif T_data_unit == 'F':
         print("You're kidding, just use scientific unit!")
 
     while current_day <= end_day:
@@ -397,6 +397,8 @@ def DegreeDayModel(data, T_col, freezup_day, end_day, Tfreeze=0, Tunit='C', Pday
             n_FDD += DD_value
         else:
             if Pday is not None and datetime.datetime(current_day.year, Pday.month, Pday.day) <= current_day:
+                n_TDD += DD_value
+            else:
                 n_TDD += DD_value
         DD[current_day] = [n_FDD, n_TDD]
         current_day += datetime.timedelta(1)
