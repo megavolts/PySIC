@@ -80,6 +80,31 @@ def index_from_day(data, start_day, end_day='False', lcomment='n'):
     return index
 
 
+def index_from_day(data, start_day, end_day='False', lcomment='n'):
+    import datetime as dt
+
+    if end_day == 'False':
+        end_day = start_day
+    day = start_day
+    index = np.array([])
+
+    while day <= end_day:
+        index_year = np.where(data[:, 0] == day.year)[0]
+        index_month = np.where(data[index_year, 1] == day.month)[0]
+        index_day = np.where(data[index_year[index_month], 2] == day.day)[0]
+
+        if index.size == 0:
+            index = index_year[index_month[index_day]]
+        else:
+            index = np.concatenate((index, index_year[index_month[index_day]]))
+        day += dt.timedelta(1)
+
+    if lcomment == 'y':
+        if len(index[0]) == 0:
+            print('no data present in the dataset')
+
+    return index
+
 def is_empty(any_structure):
     if any_structure:
         return False
@@ -392,14 +417,14 @@ def DegreeDayModel(data, T_col, freezup_day, end_day, Tfreeze=0, T_data_unit='C'
         for ii in day_index:
             T_current_day.append(data[ii, T_col - 1] + T_offset)  # temperature given in K
         T_mean_current_day = np.nanmean(T_current_day)
-        DD_value = (Tfreeze - T_mean_current_day)#* 24
+        DD_value = (Tfreeze - T_mean_current_day)
         if 0 < DD_value:
             n_FDD += DD_value
         else:
-            if Pday is not None and datetime.datetime(current_day.year, Pday.month, Pday.day) <= current_day:
-                n_TDD += DD_value
-            else:
-                n_TDD += DD_value
+            if Pday is not None:
+                if current_day < datetime.datetime(freezup_day.year+1, Pday.month, Pday.day):
+                    DD_value = 0
+            n_TDD += DD_value
         DD[current_day] = [n_FDD, n_TDD]
         current_day += datetime.timedelta(1)
     return DD

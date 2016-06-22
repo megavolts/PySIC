@@ -1099,9 +1099,9 @@ def DD_fillup(ics_stack, DD, freezup_dates):
             f_day = datetime.datetime.utcfromtimestamp((f_day - np.datetime64('1970-01-01T00:00:00')) / np.timedelta64(1, 's'))
         f_day = datetime.datetime(f_day.year, f_day.month, f_day.day)
         if f_day < datetime.datetime(f_day.year, 9, 1):
-            freezup_day = datetime.datetime.fromordinal(freezup_dates[f_day.year-1])
-        else:
             freezup_day = datetime.datetime.fromordinal(freezup_dates[f_day.year])
+        else:
+            freezup_day = datetime.datetime.fromordinal(freezup_dates[f_day.year+1])
 
         # look for number of freezing/thawing degree day:
 
