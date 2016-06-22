@@ -70,8 +70,8 @@ def import_ice_core(cice_data, day, location=None, run=None):
     else:
         core_name = 'CICE-' + day.strftime('%Y%m%d')
         coring_day = day
-        ice_thickness = cice_data[index_day, 3] / 100
-        snow_thickness = cice_data[index_day, 4] / 100
+        ice_thickness = cice_data[index_day, 3]
+        snow_thickness = cice_data[index_day, 4]
         comment = 'from CICE model simulation'
         if run is not None:
             comment += '; ' + run
