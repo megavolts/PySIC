@@ -348,7 +348,7 @@ class CoreStack(pd.DataFrame):
                 core_var = [[[None] for x in range(bins_y.__len__())] for y in range(bins_DD.__len__() - 1)]
                 for k1, groups in data_grouped:
                     stat_var[int(k1[0]), int(k1[1])] = eval(func)
-                    core_var[int(k1[0])][int(k1[1])] = [list(groups[groups[ii_variable]>0]['core_name'].unique())]
+                    core_var[int(k1[0])][int(k1[1])] = [list(groups.dropna(subset=[ii_variable])['core_name'].unique())]
                 for ii_bin in range(stat_var.__len__()):
                     temp = pd.DataFrame(stat_var[ii_bin], columns=[ii_variable])
                     temp = temp.join(pd.DataFrame(core_var[ii_bin], columns=['core_collection']))
