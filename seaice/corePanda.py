@@ -332,8 +332,6 @@ class CoreStack(pd.DataFrame):
         y_cuts = pd.cut(self.y_mid, bins_y, labels=False)
         t_cuts = pd.cut(self.DD, bins_DD, labels=False)
 
-        data_grouped = self.groupby([t_cuts, y_cuts])
-
         if not isinstance(variables, list):
             variables = [variables]
         if not isinstance(stats, list):
@@ -341,29 +339,32 @@ class CoreStack(pd.DataFrame):
 
         all = pd.DataFrame()
         for ii_variable in variables:
+            data = self[self.variable == ii_variable]
+            data_grouped = data.groupby([t_cuts, y_cuts])
+
             for ii_stat in stats:
                 func = "groups['" + ii_variable + "']." + ii_stat + "()"
                 stat_var = np.nan * np.ones((bins_DD.__len__() - 1, bins_y.__len__()))
-                core_var = [[[np.nan] for x in range(bins_y.__len__())] for y in range(bins_DD.__len__()-1)]
+                core_var = [[[None] for x in range(bins_y.__len__())] for y in range(bins_DD.__len__() - 1)]
                 for k1, groups in data_grouped:
                     stat_var[int(k1[0]), int(k1[1])] = eval(func)
+                    core_var[int(k1[0])][int(k1[1])] = [list(groups[groups[ii_variable]>0]['core_name'].unique())]
                 for ii_bin in range(stat_var.__len__()):
                     temp = pd.DataFrame(stat_var[ii_bin], columns=[ii_variable])
-
+                    temp = temp.join(pd.DataFrame(core_var[ii_bin], columns=['core_collection']))
                     DD_label = 'DD-' + str(bins_DD[ii_bin]) + '_' + str(bins_DD[ii_bin + 1])
                     data = [str(bins_DD[ii_bin]), str(bins_DD[ii_bin + 1]), DD_label, int(ii_bin), ii_stat, ii_variable]
                     columns = ['DD_min', 'DD_max', 'DD_label', 'DD_index', 'stats', 'variable']
-                    index = np.array(temp.index.tolist())[~np.isnan(temp[ii_variable].tolist())]
+                    index = np.array(temp.index.tolist()) #[~np.isnan(temp[ii_variable].tolist())]
                     temp = temp.join(pd.DataFrame([data], columns=columns, index=index))
-
+                    temp = temp.join(pd.DataFrame(index, columns=['y_index'], index=index))
                     columns = ['y_low', 'y_sup', 'y_mid', 'sample_name']
                     t2 = pd.DataFrame(columns=columns)
-                    for ii_layer in index:
+                    for ii_layer in index[:-1]:
                         if ii_variable in ['salinity']:
                             data = [bins_y[ii_layer], bins_y[ii_layer + 1],
                                     (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2, DD_label + str('-%03d' % ii_layer)]
                         if ii_variable in ['temperature']:
-                            # data = [np.nan, np.nan, (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2, DD_label + str('-%03d' % ii_layer)]  # y_mid corresponds to the top layer
                             data = [np.nan, np.nan, (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2, DD_label + str('-%03d' % ii_layer)]
                         t2 = t2.append(pd.DataFrame([data], columns=columns, index=[ii_layer]))
                     if all.empty:
