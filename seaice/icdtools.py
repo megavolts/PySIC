@@ -528,3 +528,12 @@ def day_from_index(data, index, lcomment='n'):
         event_day.append(dt.datetime(int(data[ii][0]), int(data[ii][1]), int(data[ii][2])))
 
     return unique(event_day)
+
+
+def plt_step(x, y):
+    # step function
+    xy = np.array([x[0], y[0]])
+    for ii in range(x.__len__()-1):
+        xy = np.vstack((xy, [x[ii], y[ii+1]]))
+        xy = np.vstack((xy, [x[ii+1], y[ii+1]]))
+    return xy
