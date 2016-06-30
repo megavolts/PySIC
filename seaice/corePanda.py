@@ -390,7 +390,7 @@ class CoreStack(pd.DataFrame):
     def plot_core(self, core_dict, ax=None, param_dict=None):
         for ii_core in core:
             ic_data = self.select_profile(core_dict)[0]
-            ax = plot_profile(ic_data, variable, ax=ax, param_dict=param_dict)
+            ax = plot_profile(ic_data, core_dict['variable'], ax=ax, param_dict=param_dict)
         return ax
 
 
@@ -1146,6 +1146,23 @@ def plot_stat(ax, stat_grouped, variable, DD):
     if variable in ['salinity']:
         x = stat_grouped[(stat_grouped.variables==variable) & (stat_gr)]
         x = np.concatenate([x, [x[-1]]])
+
+
+def plot_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
+    """
+    :param ic_data:
+    :param variable_dict:
+    :param ax:
+    :param param_dict:
+    :return:
+    """
+    if 'variable' not in variable_dict.keys():
+        print("'a variable should be specified for plotting")
+        return 0
+
+    profile = ic_data.select_profile(variable_dict)[0]
+    ax = plot_profile(profile, variable_dict['variable'], ax=ax, param_dict=param_dict)
+    return ax
 
 def plot_profile(ic_data, variable, ax=None, param_dict=None):
     """
