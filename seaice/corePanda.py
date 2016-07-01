@@ -47,7 +47,7 @@ nan_value = float('nan')
 import time
 
 from .properties import si_prop_unit
-
+import seaice.icdtools
 
 def timing(f):
     def wrap(*args):
@@ -1115,6 +1115,7 @@ def DD_fillup(ics_stack, DD, freezup_dates):
         ics_stack = add_variable(ics_stack, variable_dict, data)
     return ics_stack
 
+
 def stack_DD_fud(ics_data, DD, freezup_dates):
     ics_data_stack = CoreStack()
     for ii_core in ics_data.keys():
@@ -1142,7 +1143,12 @@ def stack_DD_fud(ics_data, DD, freezup_dates):
     return ics_data_stack
 
 
-def plot_stddev_envelop(ic_data, variable_dict, ax=None, param_dic=None):
+def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dic=None):
+
+    if ax is None:
+        plt.figure()
+        ax = plt.subplot(1, 1, 1)
+
 
     if 'variable' not in variable_dict.keys():
         print("'a variable should be specified for plotting")
@@ -1151,47 +1157,53 @@ def plot_stddev_envelop(ic_data, variable_dict, ax=None, param_dic=None):
         print("DD index should be specified for plotting")
         return 0
 
-    variable = variable_dict['variable']
+    f_variable = variable_dict['variable']
     bin_index = variable_dict['bin_index']
 
-    x_mean = ic_data.select_profile({'stats': 'median', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
-    x_std = ic_data.select_profile({'stats': 'mad', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
+    x_mean = ic_data.select_profile({'stats': 'mean', 'variable': f_variable, 'DD_index': float(bin_index)})[0].reset_index()
+    x_std = ic_data.select_profile({'stats': 'std', 'variable': f_variable, 'DD_index': float(bin_index)})[0].reset_index()
 
-    if x_mean[variable].__len__() != 0:
+    if x_mean[f_variable].__len__() !=0:
         if x_std.__len__() < x_mean.__len__():
             index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
             x_std = x_std.append(pd.DataFrame(np.nan, columns=x_std.columns.tolist(), index=index))
 
-        if variable in ['salinity']:
+        if not x_mean[x_mean.variable == f_variable].y_low.isnull().all():
             y_low = x_mean['y_low']
             y_sup = x_mean['y_sup']
-            x_std_l = x_mean[variable][0] - x_std[variable][0]
-            x_std_h = x_mean[variable][0] + x_std[variable][0]
-            y_std = y_low[0]
-            for ii in range(1, len(x_mean)):
-                x_std_l = np.append(x_std_l, x_mean[variable][ii - 1] - x_std[variable][ii - 1])
-                x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
-                x_std_h = np.append(x_std_h, x_mean[variable][ii - 1] + x_std[variable][ii - 1])
-                x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
-                y_std = np.append(y_std, y_low[ii])
-                y_std = np.append(y_std, y_low[ii])
-            if len(x_mean) == 1:
-                ii = 0
-            x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
-            x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
-            y_std = np.append(y_std, y_sup[ii])
-        elif variable in ['temperature']:
+            y = np.concatenate((y_low.tolist(), [y_sup.tolist()[-1]]))
+            x_std_l = x_mean[f_variable] - x_std[f_variable]
+            x_std_h = x_mean[f_variable] + x_std[f_variable]
+
+            x_std_l = seaice.icdtools.plt_step(x_std_l.tolist(), y).transpose()
+            x_std_h = seaice.icdtools.plt_step(x_std_h.tolist(), y).transpose()
+            #
+            # x_std_l = x_mean[f_variable][0] - x_std[f_variable][0]
+            # x_std_h = x_mean[f_variable][0] + x_std[f_variable][0]
+
+
+            #
+            # y_std = y_low[0]
+            # for ii in range(1, len(x_mean)):
+            #     x_std_l = np.append(x_std_l, x_mean[f_variable][ii - 1] - x_std[f_variable][ii - 1])
+            #     x_std_l = np.append(x_std_l, x_mean[f_variable][ii] - x_std[f_variable][ii])
+            #     x_std_h = np.append(x_std_h, x_mean[f_variable][ii - 1] + x_std[f_variable][ii - 1])
+            #     x_std_h = np.append(x_std_h, x_mean[f_variable][ii] + x_std[f_variable][ii])
+            #     y_std = np.append(y_std, y_low[ii])
+            #     y_std = np.append(y_std, y_low[ii])
+            # if len(x_mean) == 1:
+            #     ii = 0
+            # x_std_l = np.append(x_std_l, x_mean[f_variable][ii] - x_std[f_variable][ii])
+            # x_std_h = np.append(x_std_h, x_mean[f_variable][ii] + x_std[f_variable][ii])
+            # y_std = np.append(y_std, y_sup[ii])
+
+        elif x_mean[x_mean.variable == f_variable].y_low.isnull().all():
             y_std = x_mean['y_mid']
-            x_std_l = []
-            x_std_h = []
-            for ii in range(0, len(x_mean)):
-                x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
-                x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
-        ax = plt.fill_betweenx(y_std, x_std_l, x_std_h, facecolor='black', alpha=0.3,
-                               label=str(r"$\pm$" + "mad"))
-        ax.axes.set_xlabel(variable + ' ' + si_prop_unit[variable])
-        ax.axes.set_ylabel('ice thickness [m]')
-        ax.axes.set_ylim([max(ax.axes.get_ylim()), min(ax.axes.get_ylim())])
+            x_std_l = np.array([y_std, x_mean[f_variable] - x_std[f_variable]])
+            x_std_h = np.array([y_std, x_mean[f_variable] + x_std[f_variable]])
+
+        ax = plt.fill_betweenx(x_std_l[0,:], x_std_l[1,:], x_std_h[1,:], facecolor='black', alpha=0.3,
+                                        label=str(r"$\pm$"+"std dev"))
     return ax
 
 

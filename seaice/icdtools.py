@@ -537,3 +537,17 @@ def plt_step(x, y):
         xy = np.vstack((xy, [x[ii], y[ii+1]]))
         xy = np.vstack((xy, [x[ii+1], y[ii+1]]))
     return xy
+
+def flatten_list(xs):
+    res = []
+    def loop(ys):
+        for i in ys:
+            if isinstance(i, list):
+                loop(i)
+            elif i is not None:
+                res.append(i)
+    loop(xs)
+    return res
+
+
+
