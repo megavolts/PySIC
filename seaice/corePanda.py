@@ -1153,6 +1153,7 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dic=None):
     if 'variable' not in variable_dict.keys():
         print("'a variable should be specified for plotting")
         return 0
+
     if 'bin_index' not in variable_dict.keys():
         print("DD index should be specified for plotting")
         return 0
@@ -1160,8 +1161,8 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dic=None):
     f_variable = variable_dict['variable']
     bin_index = variable_dict['bin_index']
 
-    x_mean = ic_data.select_profile({'stats': 'mean', 'variable': f_variable, 'DD_index': float(bin_index)})[0].reset_index()
-    x_std = ic_data.select_profile({'stats': 'std', 'variable': f_variable, 'DD_index': float(bin_index)})[0].reset_index()
+    x_mean = ic_data.select_profile({'stats': 'mean', 'variable': f_variable, 'DD_index': bin_index})[0].reset_index()
+    x_std = ic_data.select_profile({'stats': 'std', 'variable': f_variable, 'DD_index': bin_index})[0].reset_index()
 
     if x_mean[f_variable].__len__() !=0:
         if x_std.__len__() < x_mean.__len__():
@@ -1177,32 +1178,12 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dic=None):
 
             x_std_l = seaice.icdtools.plt_step(x_std_l.tolist(), y).transpose()
             x_std_h = seaice.icdtools.plt_step(x_std_h.tolist(), y).transpose()
-            #
-            # x_std_l = x_mean[f_variable][0] - x_std[f_variable][0]
-            # x_std_h = x_mean[f_variable][0] + x_std[f_variable][0]
-
-
-            #
-            # y_std = y_low[0]
-            # for ii in range(1, len(x_mean)):
-            #     x_std_l = np.append(x_std_l, x_mean[f_variable][ii - 1] - x_std[f_variable][ii - 1])
-            #     x_std_l = np.append(x_std_l, x_mean[f_variable][ii] - x_std[f_variable][ii])
-            #     x_std_h = np.append(x_std_h, x_mean[f_variable][ii - 1] + x_std[f_variable][ii - 1])
-            #     x_std_h = np.append(x_std_h, x_mean[f_variable][ii] + x_std[f_variable][ii])
-            #     y_std = np.append(y_std, y_low[ii])
-            #     y_std = np.append(y_std, y_low[ii])
-            # if len(x_mean) == 1:
-            #     ii = 0
-            # x_std_l = np.append(x_std_l, x_mean[f_variable][ii] - x_std[f_variable][ii])
-            # x_std_h = np.append(x_std_h, x_mean[f_variable][ii] + x_std[f_variable][ii])
-            # y_std = np.append(y_std, y_sup[ii])
-
         elif x_mean[x_mean.variable == f_variable].y_low.isnull().all():
             y_std = x_mean['y_mid']
-            x_std_l = np.array([y_std, x_mean[f_variable] - x_std[f_variable]])
-            x_std_h = np.array([y_std, x_mean[f_variable] + x_std[f_variable]])
+            x_std_l = np.array([x_mean[f_variable] - x_std[f_variable], y_std])
+            x_std_h = np.array([x_mean[f_variable] + x_std[f_variable], y_std])
 
-        ax = plt.fill_betweenx(x_std_l[0,:], x_std_l[1,:], x_std_h[1,:], facecolor='black', alpha=0.3,
+        ax.fill_betweenx(x_std_l[1,:], x_std_l[0,:], x_std_h[0,:], facecolor='black', alpha=0.3,
                                         label=str(r"$\pm$"+"std dev"))
     return ax
 
