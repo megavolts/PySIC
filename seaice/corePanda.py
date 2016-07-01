@@ -1141,11 +1141,58 @@ def stack_DD_fud(ics_data, DD, freezup_dates):
         ics_data_stack = ics_data_stack.add_variable(variable_dict, data)
     return ics_data_stack
 
-def plot_stat(ax, stat_grouped, variable, DD):
 
-    if variable in ['salinity']:
-        x = stat_grouped[(stat_grouped.variables==variable) & (stat_gr)]
-        x = np.concatenate([x, [x[-1]]])
+def plot_stddev_envelop(ic_data, variable_dict, ax=None, param_dic=None):
+
+    if 'variable' not in variable_dict.keys():
+        print("'a variable should be specified for plotting")
+        return 0
+    if 'bin_index' not in variable_dict.keys():
+        print("DD index should be specified for plotting")
+        return 0
+
+    variable = variable_dict['variable']
+    bin_index = variable_dict['bin_index']
+
+    x_mean = ic_data.select_profile({'stats': 'median', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
+    x_std = ic_data.select_profile({'stats': 'mad', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
+
+    if x_mean[variable].__len__() != 0:
+        if x_std.__len__() < x_mean.__len__():
+            index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
+            x_std = x_std.append(pd.DataFrame(np.nan, columns=x_std.columns.tolist(), index=index))
+
+        if variable in ['salinity']:
+            y_low = x_mean['y_low']
+            y_sup = x_mean['y_sup']
+            x_std_l = x_mean[variable][0] - x_std[variable][0]
+            x_std_h = x_mean[variable][0] + x_std[variable][0]
+            y_std = y_low[0]
+            for ii in range(1, len(x_mean)):
+                x_std_l = np.append(x_std_l, x_mean[variable][ii - 1] - x_std[variable][ii - 1])
+                x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
+                x_std_h = np.append(x_std_h, x_mean[variable][ii - 1] + x_std[variable][ii - 1])
+                x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
+                y_std = np.append(y_std, y_low[ii])
+                y_std = np.append(y_std, y_low[ii])
+            if len(x_mean) == 1:
+                ii = 0
+            x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
+            x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
+            y_std = np.append(y_std, y_sup[ii])
+        elif variable in ['temperature']:
+            y_std = x_mean['y_mid']
+            x_std_l = []
+            x_std_h = []
+            for ii in range(0, len(x_mean)):
+                x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
+                x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
+        ax = plt.fill_betweenx(y_std, x_std_l, x_std_h, facecolor='black', alpha=0.3,
+                               label=str(r"$\pm$" + "mad"))
+        ax.axes.set_xlabel(variable + ' ' + si_prop_unit[variable])
+        ax.axes.set_ylabel('ice thickness [m]')
+        ax.axes.set_ylim([max(ax.axes.get_ylim()), min(ax.axes.get_ylim())])
+    return ax
 
 
 def plot_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
