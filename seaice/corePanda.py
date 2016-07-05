@@ -19,6 +19,7 @@ import datetime
 from seaice.properties import si_prop_list
 from seaice.properties import si_prop_unit
 from seaice.properties import si_state_variable
+import seaice.icdtools
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -37,11 +38,6 @@ LOG_LEVELS = {'debug': logging.DEBUG,
               'warning': logging.WARNING,
               'error': logging.ERROR,
               'critical': logging.CRITICAL}
-# logging.basicConfig(filename='example.log',level=logging.DEBUG)
-# logging.debug('This message should go to the log file')
-# logging.info('So should this')
-# logging.warning('And this, too')
-# ic_path = '/mnt/data_lvm/seaice/core/BRW/2010_11/BRW_CS-20110122A.xlsx'
 nan_value = float('nan')
 
 import time
@@ -236,13 +232,7 @@ class Core:
         return make_section(self, variable, section_thickness)
 
 
-
-
-from seaice.df_attrhandler import transfer_attr
-
-
 class CoreStack(pd.DataFrame):
-
     @property
     def _constructor(self):
         return CoreStack
@@ -265,7 +255,6 @@ class CoreStack(pd.DataFrame):
             temp = self[(self.core != core) & (self.variable != variable)]
         return CoreStack(temp)
 
-
     def select_profile(self, variable_dict):
         str_select = '('
         ii_var = []
@@ -280,8 +269,6 @@ class CoreStack(pd.DataFrame):
         index_select = self[eval(str_select)].index
         index_deselect = [ii for ii in self.index.tolist() if ii not in index_select]
         return self.iloc[index_select], self.iloc[index_deselect]
-
-
 
     def add_variable(self, variable_dict, data):
         for col in data.columns.tolist():
@@ -298,10 +285,8 @@ class CoreStack(pd.DataFrame):
         ics_data_stack = pd.concat([data_deselect, temp])
         return CoreStack(ics_data_stack)
 
-
     def discretize(self, y_bins=None, y_mid=None, variables=None, comment='y', display_figure='n'):
         """
-
         :param y_bins:
         :param y_mid:
         :param variables:
@@ -326,7 +311,6 @@ class CoreStack(pd.DataFrame):
             self = self.append(ic_data)
 
         return CoreStack(self.reset_index())
-
 
     def grouped_stat(self, variables, stats, bins_DD, bins_y):
         y_cuts = pd.cut(self.y_mid, bins_y, labels=False)
@@ -355,24 +339,27 @@ class CoreStack(pd.DataFrame):
                     DD_label = 'DD-' + str(bins_DD[ii_bin]) + '_' + str(bins_DD[ii_bin + 1])
                     data = [str(bins_DD[ii_bin]), str(bins_DD[ii_bin + 1]), DD_label, int(ii_bin), ii_stat, ii_variable]
                     columns = ['DD_min', 'DD_max', 'DD_label', 'DD_index', 'stats', 'variable']
-                    index = np.array(temp.index.tolist()) #[~np.isnan(temp[ii_variable].tolist())]
+                    index = np.array(temp.index.tolist())  #[~np.isnan(temp[ii_variable].tolist())]
                     temp = temp.join(pd.DataFrame([data], columns=columns, index=index))
                     temp = temp.join(pd.DataFrame(index, columns=['y_index'], index=index))
                     columns = ['y_low', 'y_sup', 'y_mid', 'sample_name']
                     t2 = pd.DataFrame(columns=columns)
                     for ii_layer in index[:-1]:
-                        if ii_variable in ['salinity']:
+                        # For step profile, like salinity
+                        # if ii_variable in ['salinity']:
+                        if not self[self.variable == ii_variable].y_low.isnull().any():
                             data = [bins_y[ii_layer], bins_y[ii_layer + 1],
                                     (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2, DD_label + str('-%03d' % ii_layer)]
-                        if ii_variable in ['temperature']:
+                        # For linear profile, like temperature
+                        # if ii_variable in ['temperature']:
+                        elif self[self.variable == ii_variable].y_low.isnull().all():
                             data = [np.nan, np.nan, (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2, DD_label + str('-%03d' % ii_layer)]
                         t2 = t2.append(pd.DataFrame([data], columns=columns, index=[ii_layer]))
                     if all.empty:
-                        all = temp.join(t2)
+                        temp_all = temp.join(t2)
                     else:
-                        all = all.append(temp.join(t2), ignore_index=True)
+                        temp_all = all.append(temp.join(t2), ignore_index=True)
 
-        #        data_grouped = self.groupby([self['t_cuts'], self['variable']])
         data_grouped = self.groupby([t_cuts, self['variable']])
 
         grouped_dict = {}
@@ -382,21 +369,16 @@ class CoreStack(pd.DataFrame):
         for k1, groups in data_grouped:
             grouped_dict[k1[1]][int(k1[0])] = groups['core'].unique().tolist()
 
-        all.reset_index()
-
-        return CoreStack(all.reset_index()), grouped_dict
-
+        return CoreStack(temp_all.reset_index()), grouped_dict
 
     def plot_core(self, core_dict, ax=None, param_dict=None):
-        for ii_core in core:
+        for ii_core in core_dict:
             ic_data = self.select_profile(core_dict)[0]
             ax = plot_profile(ic_data, core_dict['variable'], ax=ax, param_dict=param_dict)
         return ax
 
-
     def plot_core_profile(self, core, ax=None, variable=None, param_dict=None):
         """
-
         :param core:
         :param ax:
         :param variable:
@@ -410,17 +392,16 @@ class CoreStack(pd.DataFrame):
         ax.axes.set_ylim(max(ax.get_ylim()), 0)
         return ax
 
-
     def plot_stat_mean(self, ax, variable, bin_index):
         x_mean = self.select_profile({'stats': 'mean', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
-        x_max  = self.select_profile({'stats': 'max', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
+        x_max = self.select_profile({'stats': 'max', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
         x_min  = self.select_profile({'stats': 'min', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
-        x_std  = self.select_profile({'stats': 'std', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
+        x_std = self.select_profile({'stats': 'std', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
 
         if x_mean[variable].__len__() !=0:
-            plot_profile(x_max, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'r', 'label':'min'})
-            plot_profile(x_min, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'b', 'label':'max'})
-            plot_profile(x_mean, variable, ax = ax,  param_dict={'linewidth': 3, 'color': 'k', 'label':'mean'})
+            plot_profile(x_max, variable, ax=ax, param_dict={'linewidth': 3, 'color': 'r', 'label':'min'})
+            plot_profile(x_min, variable, ax=ax, param_dict={'linewidth': 3, 'color': 'b', 'label':'max'})
+            plot_profile(x_mean, variable, ax=ax,  param_dict={'linewidth': 3, 'color': 'k', 'label':'mean'})
 
             if x_std.__len__() < x_mean.__len__():
                 index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
@@ -451,23 +432,21 @@ class CoreStack(pd.DataFrame):
                 for ii in range(0, len(x_mean)):
                     x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
                     x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
-            ax = plt.fill_betweenx(y_std, x_std_l, x_std_h, facecolor='black', alpha=0.3,
-                                            label=str(r"$\pm$"+"std dev"))
+            ax = plt.fill_betweenx(y_std, x_std_l, x_std_h, facecolor='black', alpha=0.3, label=str(r"$\pm$"+"std dev"))
             ax.axes.set_xlabel(variable + ' ' + si_prop_unit[variable])
             ax.axes.set_ylim([max(ax.axes.get_ylim()), min(ax.axes.get_ylim())])
         return ax
 
-
     def plot_stat_median(self, ax, variable, bin_index):
         x_mean = self.select_profile({'stats': 'median', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
-        x_max  = self.select_profile({'stats': 'max', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
-        x_min  = self.select_profile({'stats': 'min', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
-        x_std  = self.select_profile({'stats': 'mad', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
+        x_max = self.select_profile({'stats': 'max', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
+        x_min = self.select_profile({'stats': 'min', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
+        x_std = self.select_profile({'stats': 'mad', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
 
-        if x_mean[variable].__len__() !=0:
-            plot_profile(x_max, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'r', 'label':'min'})
-            plot_profile(x_min, variable, ax = ax, param_dict={'linewidth': 3, 'color': 'b', 'label':'max'})
-            plot_profile(x_mean, variable, ax = ax,  param_dict={'linewidth': 3, 'color': 'k', 'label':'median'})
+        if x_mean[variable].__len__() != 0:
+            plot_profile(x_max, variable, ax=ax, param_dict={'linewidth': 3, 'color': 'r', 'label':'min'})
+            plot_profile(x_min, variable, ax=ax, param_dict={'linewidth': 3, 'color': 'b', 'label':'max'})
+            plot_profile(x_mean, variable, ax=ax,  param_dict={'linewidth': 3, 'color': 'k', 'label':'median'})
 
             if x_std.__len__() < x_mean.__len__():
                 index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
@@ -505,28 +484,42 @@ class CoreStack(pd.DataFrame):
             ax.axes.set_ylim([max(ax.axes.get_ylim()), min(ax.axes.get_ylim())])
         return ax
 
+    def core_set(self):
+        return list(set(seaice.icdtools.flatten_list(self.core_collection.tolist())))
 
-    def cores(self):
-        return self['core_name'].unique().tolist()
+    def compute_physical_property(self, si_prop, s_profile_shape='linear'):
+        ## look for all core belonging to a coring event:
+        temp_core_processed = []
+        ic_prop = CoreStack()
+        for f_core in sorted(self.core_name.unique()):
+            # f_core = ics_obs_stack.core_name.unique()[41]
+            ic = self[self.core_name == f_core]
+            ic_data = seaice.corePanda.CoreStack()
+            print('\n')
+            if f_core not in temp_core_processed:
+                for ff_core in list(set(seaice.icdtools.flatten_list(ic.core_collection.tolist()))):
+                    print(ff_core)
+                    ic_data = ic_data.add_profiles(self[self.core_name == ff_core])
+                ic_prop = ic_prop.append(calc_prop(ic_data, si_prop, s_profile_shape=s_profile_shape))
+                temp_core_processed.append(ff_core)
 
-    def add_property(self, profile_dict, profile_property):
-        return None
+        ics_stack = seaice.corePanda.CoreStack(self)
+        ic_prop = seaice.corePanda.CoreStack(ic_prop)
 
-    def ice_thickness(self):
-        if 'ice_thickness' in self.columns:
-            ice_thickness = None
-        else:
-            for ii_variable in self.variable.unique():
-                temp = self.select_profile({vari})
-            ice_thickness = None
-        return None
+        ics_stack = ics_stack.add_profiles(ic_prop)
+        return(ics_stack)
 
-    def stat(self):
-        return None
-
-    def merge_bin(self):
-        return None
-
+    # def add_property(self, profile_dict, profile_property):
+    #     return None
+    #
+    # def ice_thickness(self):
+    #     if 'ice_thickness' in self.columns:
+    #         ice_thickness = None
+    #     else:
+    #         for ii_variable in self.variable.unique():
+    #             temp = self.select_profile({ii_variable})
+    #         ice_thickness = None
+    #     return ice_thickness
 
 #
 # class CoreSet:
@@ -1367,7 +1360,7 @@ def import_core(ic_filepath, variables=None, missing_value=float('nan')):
             imported_core.add_profile(profile)
     return imported_core
 
-## profile operation
+
 def drop_profile(data, core_name, keys):
     data = data[(data.core_name != core_name) | (data.variable != keys)]
     return data
@@ -1375,13 +1368,11 @@ def drop_profile(data, core_name, keys):
 
 def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment='n', display_figure='y'):
     """
-
     :param ic_data:
     :param y_bins:
     :param y_mid:
     :return:
     """
-
     # VARIABLES CHECK
     if y_bins is None and y_mid is None:
         y_bins = pd.Series(ic_data.y_low.dropna().tolist() + ic_data.y_sup.dropna().tolist()).sort_values().unique()
@@ -1394,7 +1385,6 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
 
     if not isinstance(variables, list):
         variables = [variables]
-
 
     for ii_variable in variables:
         if comment == 1:
@@ -1528,7 +1518,7 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
 def make_section(core, variables=None, section_thickness=0.05):
     """
     :param core:
-    :param variable:
+    :param variables:
     :param section_thickness:
     """
     if variables is None:
@@ -1605,10 +1595,7 @@ def read_variable(wb, sheet_name, variable_dict):
     """
     :param wb:
     :param sheet_name:
-    :param col_x:
-    :param col_y:
-    :param col_c:
-    :param row_start:
+    :param variable_dict:
     """
 
     [col_x, col_y, col_c, row_start] = variable_dict
@@ -1711,13 +1698,13 @@ def read_variable(wb, sheet_name, variable_dict):
         return None
 
 
-def import_src(ics_filepath, variables=None, missing_value=float('nan')):
+def import_src(ics_filepath, variables=None):
     """
     import_src import ice core data which path is listed in the text file found in ics_filepath. File formatting: 1 ice
     core by line, entry beginning with # are ignored
 
     :param ics_filepath:
-    :param missing_value:
+    :param variables:
     :return ic_dict: dictionnaries of ice core ice_core_name:ice_core_data
     """
 
@@ -1861,11 +1848,110 @@ def import_variable(ic_path, variable='Salinity', missing_value=float('nan')):
         return imported_core
 
 
-## plot
 
-def plot_stat_envelop(ax, variable, ics_data_stack):
-    stat = ['mean', 'std', 'min', 'max']
+def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
+    """
+    :param ic_data:
+    :param si_prop:
+    :param si_prop: 'linear' or 'step'
+    :return:
+    """
+
+    if not isinstance(si_prop, list):
+        si_prop = [si_prop]
+
+    ## function variable:
+    property_stack = seaice.corePanda.CoreStack()
+
+    ## look for variable:
+    core_variable = {}
+    for f_variable in ic_data.variable.unique():
+        core_variable[f_variable] = ic_data[ic_data.variable == f_variable]['core_name'].unique().tolist()
+
+    if 'temperature' not in core_variable or 'salinity' not in core_variable:
+        return None
+
+    if core_variable['temperature'].__len__() > 1:
+        print('average temperature from cores:', core_variable['temperature'])
+        for t_core in core_variable['temperature']:
+            ty0 = ic_data[ic_data.core_name == t_core][ic_data.variable == 'temperature']['y_mid'].tolist()
+            t_profile0 = ic_data[ic_data.core_name == t_core][ic_data.variable == 'temperature']['temperature'].tolist()
+
+            if t_core == core_variable['temperature'][0]:
+                ty = np.array(ty0)
+                t_profile = np.array([t_profile0])
+            else:
+                ty_temp = np.sort(np.unique(np.concatenate((ty, ty0))))
+                t_profile_temp = np.interp(ty_temp, ty0, t_profile0)
+                for ii in range(t_profile.shape[0]):
+                    t_profile_temp = np.vstack((t_profile_temp, np.interp(ty_temp, ty, t_profile[ii])))
+                ty = ty_temp
+                t_profile = t_profile_temp
+        t_profile = np.nanmean(t_profile_temp, axis=0)
+    else:
+        t_core = core_variable['temperature'][0]
+        t_profile = ic_data[ic_data.core_name == t_core][ic_data.variable == 'temperature']['temperature'].tolist()
+        ty = np.array(ic_data[ic_data.core_name == t_core][ic_data.variable == 'temperature']['y_mid'].tolist())
+
+    for f_prop in si_prop:
+        if f_prop not in seaice.properties.si_prop_list.keys():
+            print('property %s not defined in the ice core property module' % property)
+            # return None
+
+        property = seaice.properties.si_prop_list[f_prop]
+
+        for s_core in core_variable['salinity']:
+
+            function = getattr(seaice.properties, property.replace(" ", "_"))
+            s_profile = ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['salinity'].tolist()
+            sy = ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_mid'].tolist()
+            if s_profile_shape == 'linear':
+                xy = np.array([[s_profile[0], sy[0]]])
+                for ii in range(s_profile.__len__()):
+                    if s_profile[ii] != xy[-1, 0]:
+                        if np.isnan(s_profile[ii]):
+                            if ~np.isnan(xy[-1, 0]):
+                                xy = np.vstack((xy, [s_profile[ii], sy[ii]]))
+                        else:
+                            xy = np.vstack((xy, [s_profile[ii], sy[ii]]))
+                if np.isnan(s_profile[ii]):
+                    if np.isnan(xy[-1, 0]):
+                        xy = np.vstack((xy, [s_profile[ii], sy[ii]]))
+
+                s_profile = xy[:, 0]
+                sy = xy[:, 1]
 
 
+            if not sy == ty:
+                x = function(np.interp(sy, ty, t_profile), s_profile)
+            else:
+                x = function(t_profile, s_profile)
 
+            # TODO: check small difference between the curve
+            if s_profile_shape == 'linear':
+                # plt.figure()
+                # plt.plot(x, sy, 'r', linewidth=1)
+                x = np.interp(ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_mid'].tolist(),
+                              sy, x, left=np.nan, right=np.nan)
+                # plt.plot(x, ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_mid'].tolist(), 'b')
 
+            index = ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity'].index
+            property_frame = pd.DataFrame(x, columns=[property.replace(" ", "_")], index=index)
+            variable_frame = pd.DataFrame(property.replace(" ", "_"), columns=['variable'], index=index)
+            core_frame = ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity'].drop('salinity',
+                                                                                                   axis=1).drop(
+                'variable', axis=1)
+            if s_profile_shape == 'linear':
+                core_frame = ic_data[ic_data.core_name == s_core][ic_data.variable == property.replace(" ", "_")].drop('y_low',
+                                                                                                       axis=1).drop(
+                    'y_sup', axis=1)
+            core_frame = pd.concat((core_frame, property_frame, variable_frame), axis=1)
+
+            # TODO: add note in the core_frame
+            # for ii_index in core_frame.index:
+            #     if isinstance(core_frame.iloc[ii_index]['note'], float) and np.isnan(core_frame.iloc[ii_index]['comment']):
+            #         core_frame.iloc[ii_index]['note'] = property +' computed from ' + s_core + '(S) and ' + t_core + '(T)'
+
+            property_stack = property_stack.append(core_frame, ignore_index=True, verify_integrity=False)
+
+    return property_stack
