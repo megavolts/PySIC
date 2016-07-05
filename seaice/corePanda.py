@@ -399,9 +399,9 @@ class CoreStack(pd.DataFrame):
         x_std = self.select_profile({'stats': 'std', 'variable': variable, 'DD_index': bin_index})[0].reset_index()
 
         if x_mean[variable].__len__() !=0:
-            plot_profile(x_max, variable, ax=ax, param_dict={'linewidth': 3, 'color': 'r', 'label':'min'})
-            plot_profile(x_min, variable, ax=ax, param_dict={'linewidth': 3, 'color': 'b', 'label':'max'})
-            plot_profile(x_mean, variable, ax=ax,  param_dict={'linewidth': 3, 'color': 'k', 'label':'mean'})
+            plot_profile(x_max, variable, ax=ax, param_dict={'linewidth': 3, 'color': 'r', 'label': 'min'})
+            plot_profile(x_min, variable, ax=ax, param_dict={'linewidth': 3, 'color': 'b', 'label': 'max'})
+            plot_profile(x_mean, variable, ax=ax,  param_dict={'linewidth': 3, 'color': 'k', 'label': 'mean'})
 
             if x_std.__len__() < x_mean.__len__():
                 index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
@@ -503,8 +503,8 @@ class CoreStack(pd.DataFrame):
                 ic_prop = ic_prop.append(calc_prop(ic_data, si_prop, s_profile_shape=s_profile_shape))
                 temp_core_processed.append(ff_core)
 
-        ics_stack = seaice.corePanda.CoreStack(self)
-        ic_prop = seaice.corePanda.CoreStack(ic_prop)
+        ics_stack = CoreStack(self)
+        ic_prop = CoreStack(ic_prop)
 
         ics_stack = ics_stack.add_profiles(ic_prop)
         return(ics_stack)
@@ -1901,11 +1901,11 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
         property = seaice.properties.si_prop_list[f_prop]
 
         for s_core in core_variable['salinity']:
-
             function = getattr(seaice.properties, property.replace(" ", "_"))
             s_profile = ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['salinity'].tolist()
-            sy = ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_mid'].tolist()
+
             if s_profile_shape == 'linear':
+                sy = ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_low'].tolist()
                 xy = np.array([[s_profile[0], sy[0]]])
                 for ii in range(s_profile.__len__()):
                     if s_profile[ii] != xy[-1, 0]:
@@ -1918,9 +1918,14 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
                     if np.isnan(xy[-1, 0]):
                         xy = np.vstack((xy, [s_profile[ii], sy[ii]]))
 
+                # TODO : MODIFY TO TAKE Y_LOW AND Y_MAX
                 s_profile = xy[:, 0]
                 sy = xy[:, 1]
+                sy = sy + ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_sup'].tolist()[-1]
+                sy = sy[:-1]+np.diff(sy)/2
 
+            else:
+                sy = ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_mid'].tolist()
 
             if not sy == ty:
                 x = function(np.interp(sy, ty, t_profile), s_profile)
