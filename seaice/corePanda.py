@@ -490,7 +490,7 @@ class CoreStack(pd.DataFrame):
     def compute_physical_property(self, si_prop, s_profile_shape='linear'):
         ## look for all core belonging to a coring event:
         temp_core_processed = []
-        ic_prop = CoreStack()
+        ic_prop = seaice.corePanda.CoreStack()
         for f_core in sorted(self.core_name.unique()):
             # f_core = ics_obs_stack.core_name.unique()[41]
             ic = self[self.core_name == f_core]
@@ -500,11 +500,11 @@ class CoreStack(pd.DataFrame):
                 for ff_core in list(set(seaice.icdtools.flatten_list(ic.core_collection.tolist()))):
                     print(ff_core)
                     ic_data = ic_data.add_profiles(self[self.core_name == ff_core])
-                ic_prop = ic_prop.append(calc_prop(ic_data, si_prop, s_profile_shape=s_profile_shape))
+                ic_prop = ic_prop.append(seaice.corePanda.calc_prop(ic_data, si_prop, s_profile_shape=s_profile_shape))
                 temp_core_processed.append(ff_core)
 
-        ics_stack = CoreStack(self)
-        ic_prop = CoreStack(ic_prop)
+        ics_stack = seaice.corePanda.CoreStack(self)
+        ic_prop = seaice.corePanda.CoreStack(ic_prop)
 
         ics_stack = ics_stack.add_profiles(ic_prop)
         return(ics_stack)
@@ -1214,11 +1214,11 @@ def plot_profile(ic_data, variable, ax=None, param_dict=None):
         plt.figure()
         ax = plt.subplot(1, 1, 1)
 
-    if not ic_data.y_low.isnull().all():  # salinity like curve
+    if not ic_data[ic_data.variable == variable].y_low.isnull().all():  # salinity like curve
         # step function
         x = []
         y = []
-        for ii in ic_data.index.tolist():
+        for ii in ic_data[ic_data.variable == variable].index.tolist():
             y.append(ic_data['y_low'][ii])
             y.append(ic_data['y_sup'][ii])
             x.append(ic_data[variable][ii])
@@ -1918,10 +1918,9 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
                     if np.isnan(xy[-1, 0]):
                         xy = np.vstack((xy, [s_profile[ii], sy[ii]]))
 
-                # TODO : MODIFY TO TAKE Y_LOW AND Y_MAX
                 s_profile = xy[:, 0]
                 sy = xy[:, 1]
-                sy = sy + ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_sup'].tolist()[-1]
+                sy = np.concatenate((sy, [ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_sup'].tolist()[-1]]))
                 sy = sy[:-1]+np.diff(sy)/2
 
             else:
@@ -1947,9 +1946,7 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
                                                                                                    axis=1).drop(
                 'variable', axis=1)
             if s_profile_shape == 'linear':
-                core_frame = ic_data[ic_data.core_name == s_core][ic_data.variable == property.replace(" ", "_")].drop('y_low',
-                                                                                                       axis=1).drop(
-                    'y_sup', axis=1)
+                core_frame = core_frame.drop('y_low', axis=1).drop('y_sup', axis=1)
             core_frame = pd.concat((core_frame, property_frame, variable_frame), axis=1)
 
             # TODO: add note in the core_frame
