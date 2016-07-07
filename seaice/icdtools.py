@@ -415,7 +415,7 @@ def DegreeDayModel(data, T_col, freezup_day, end_day, Tfreeze=0, T_data_unit='C'
         day_index = index_from_day(data, current_day)
         T_current_day = []
         for ii in day_index:
-            T_current_day.append(data[ii, T_col - 1] + T_offset)  # temperature given in K
+            T_current_day.append(data[ii, T_col - 1] + T_offset)
         T_mean_current_day = np.nanmean(T_current_day)
         DD_value = (Tfreeze - T_mean_current_day)
         if 0 < DD_value:

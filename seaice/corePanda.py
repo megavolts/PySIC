@@ -321,12 +321,14 @@ class CoreStack(pd.DataFrame):
         if not isinstance(stats, list):
             stats = [stats]
 
-        all = pd.DataFrame()
+        temp_all = pd.DataFrame()
         for ii_variable in variables:
+            print('computing %s' % ii_variable)
             data = self[self.variable == ii_variable]
             data_grouped = data.groupby([t_cuts, y_cuts])
 
             for ii_stat in stats:
+                print('computing %s' % ii_stat)
                 func = "groups['" + ii_variable + "']." + ii_stat + "()"
                 stat_var = np.nan * np.ones((bins_DD.__len__() - 1, bins_y.__len__()))
                 core_var = [[[None] for x in range(bins_y.__len__())] for y in range(bins_DD.__len__() - 1)]
@@ -344,21 +346,23 @@ class CoreStack(pd.DataFrame):
                     temp = temp.join(pd.DataFrame(index, columns=['y_index'], index=index))
                     columns = ['y_low', 'y_sup', 'y_mid', 'sample_name']
                     t2 = pd.DataFrame(columns=columns)
-                    for ii_layer in index[:-1]:
-                        # For step profile, like salinity
-                        # if ii_variable in ['salinity']:
-                        if not self[self.variable == ii_variable].y_low.isnull().any():
-                            data = [bins_y[ii_layer], bins_y[ii_layer + 1],
-                                    (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2, DD_label + str('-%03d' % ii_layer)]
-                        # For linear profile, like temperature
-                        # if ii_variable in ['temperature']:
-                        elif self[self.variable == ii_variable].y_low.isnull().all():
+                    # For step profile, like salinity
+                    # if ii_variable in ['salinity']:
+                    if not self[self.variable == ii_variable].y_low.isnull().any():
+                        for ii_layer in index[:-1]:
+                            data = [bins_y[ii_layer], bins_y[ii_layer + 1], (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2, DD_label + str('-%03d' % ii_layer)]
+                            t2 = t2.append(pd.DataFrame([data], columns=columns, index=[ii_layer]))
+                    # For linear profile, like temperature
+                    # if ii_variable in ['temperature']:
+                    elif self[self.variable == ii_variable].y_low.isnull().all():
+                        for ii_layer in index[:-1]:
                             data = [np.nan, np.nan, (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2, DD_label + str('-%03d' % ii_layer)]
-                        t2 = t2.append(pd.DataFrame([data], columns=columns, index=[ii_layer]))
-                    if all.empty:
+                            t2 = t2.append(pd.DataFrame([data], columns=columns, index=[ii_layer]))
+
+                    if temp_all.empty:
                         temp_all = temp.join(t2)
                     else:
-                        temp_all = all.append(temp.join(t2), ignore_index=True)
+                        temp_all = temp_all.append(temp.join(t2), ignore_index=True)
 
         data_grouped = self.groupby([t_cuts, self['variable']])
 
