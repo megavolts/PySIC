@@ -76,80 +76,32 @@ def read(mbs_path, lcomment='n'):
     nheader = 1
     if MBSyear == 11:
         nheader = 2
+    col_date = 2 - 1  # 2: year, 3: day of year, 4: time
+    col_Tw = 7 - 1
+    col_HR = 8 - 1
+    col_Tair = 9 - 1
+    col_Hs1 = 10 - 1
+    col_Hs2 = 11 - 1
+    col_Hs3 = 12 - 1
+    col_Hi = 13 - 1
+    col_Hw = 14 - 1
+    col_th = 15 - 1  #
 
     if 13 <= MBSyear: # 2013, 2014
-        col_date = 2 -1   # 2: year, 3: day of year, 4: time
-        col_Hs = np.nan
-        col_Tw = 7 - 1
-        col_HR = 8 - 1
-        col_Tair = 9 - 1
-        col_Hs1 = 10 - 1
-        col_Hs2 = 11 - 1
-        col_Hs3 = 12 - 1
-        col_Hi = 13 - 1
-        col_Hw = 14 - 1
-        col_th = 15 - 1  #
         pos_Tice_00 = 0  #
         n_th_air = 7
         n_th = 30
     elif 10 <= MBSyear < 13:  # for 2012, 2011, 2010
-        col_date = 2 - 1  # 2: year, 3: day of year, 4: time
-        col_Tw = 7 - 1
-        col_HR = 8 - 1
-        col_Tair = 9 - 1
-        col_Hs1 = 10 - 1
-        col_Hs2 = 11 - 1
-        col_Hs3 = 12 - 1
-        col_Hi = 13 - 1
-        col_Hw = 14 - 1
-        col_th = 15 - 1  #
         pos_Tice_00 = 0  #
         n_th_air = 7
         n_th = 29
     elif 8 <= MBSyear < 10 or MBSyear == 6:  # for 2006, 2008, 2009
-        nheader = 1
-        col_date = 2 - 1  # 2: year, 3: day of year, 4: time
-        col_Tw = 7 - 1  # water temperature
-        col_HR = 8 - 1  # Rel. Humidity
-        col_Tair = 9 - 1  # air temperature
-        col_Hs1 = 10 - 1  # snow pinger 1
-        col_Hs2 = 11 - 1  # snow pinger 2
-        col_Hs3 = 12 - 1  # snow pinger 3
-        col_Hi = 13 - 1  # ice thickness
-        col_Hw = 14 - 1  # water depth
-        col_th = 15 - 1  #
         pos_Tice_00 = 0  # depth in meter of first thermistor from ice surface
         n_th_air = 4
         n_th = 29
     elif 7 <= MBSyear < 8:  # for 2007
-        nheader = 1
-        col_date = 2 - 1  # 2: year, 3: day of year, 4: time
-        col_Tw = 7 - 1
-        col_HR = 8 - 1
-        col_Tair = 9 - 1
-        col_Hs1 = 10 - 1  # only one snow pinger
-        col_Hs2 = np.nan
-        col_Hs3 = np.nan
-        col_Hi = 11 - 1
-        col_Hw = 12 - 1
-        col_th = 15 - 1  #
         pos_Tice_00 = 0.05  # depth in meter of first thermistor from ice surface
         n_th_air = 0
-        n_th = 29
-    elif 6 <= MBSyear < 7:  # for 2006, 2008, 2009
-        nheader = 1
-        col_date = 2 - 1  # 2: year, 3: day of year, 4: time
-        col_Tw = 7 - 1  # water temperature
-        col_HR = 8 - 1  # Rel. Humidity
-        col_Tair = 9 - 1  # air temperature
-        col_Hs1 = 10 - 1  # snow pinger 1
-        col_Hs2 = np.nan  # snow pinger 2
-        col_Hs3 = np.nan  # snow pinger 3
-        col_Hi = 13 - 1  # ice thickness
-        col_Hw = 14 - 1  # water depth
-        col_th = 15 - 1  #
-        pos_Tice_00 = 0  # depth in meter of first thermistor from ice surface
-        n_th_air = 4
         n_th = 29
     else:
         if lcomment == 'y':
@@ -326,10 +278,6 @@ def import_core(mbs_data, day, location=None, ice_thickness=np.nan, comment = No
                 profile = profile.append(measure)
             ic.add_profile(profile)
             return ic
-
-
-def ice_core(mbs_data, day, ice_thickness = np.nan):
-    return None
 
 
 def daily_max(mbs_data, year, ii_col):

@@ -323,7 +323,7 @@ class CoreStack(pd.DataFrame):
 
         temp_all = pd.DataFrame()
         for ii_variable in variables:
-            print('computing %s' % ii_variable)
+            print('\ncomputing %s' % ii_variable)
             data = self[self.variable == ii_variable]
             data_grouped = data.groupby([t_cuts, y_cuts])
 
@@ -1853,6 +1853,34 @@ def import_variable(ic_path, variable='Salinity', missing_value=float('nan')):
 
 
 
+def bottom_reference(ics_stack, ice_depth=None):
+    for f_core in ics_stack.core_name.unique():
+        ic_data = ics_stack[ics_stack.core_name == f_core]
+
+        if not np.isnan(ic_data.ice_thickness.astype(float)).all():
+            hi = ic_data.ice_thickness.astype(float).dropna().unique()
+            hi = hi[0]
+        elif not np.isnan(ic_data.ice_core_length.astype(float)).all():
+            hi = ic_data.ice_core_length.astype(float).dropna().unique()
+            hi = hi[0]
+        else:
+            hi = []
+            for ff_core in ic_data.core_collection:
+                if not np.isnan(ic_data.ice_thickness.astype(float)).all():
+                    hi.append(ic_data.ice_thickness.astype(float).dropna().unique())[0]
+                if not np.isnan(ic_data.ice_core_length.astype(float)).all():
+                    hi.append(ic_data.ice_thickness.astype(float).dropna().unique())[0]
+            hi = np.nanmean(hi)
+        if not np.isnan(hi):
+            for f_variable in ic_data.variable.unique():
+                ics_stack.loc[(ics_stack.core_name == f_core) & (ics_stack.variable == f_variable), 'y_low'] = hi - ics_stack.loc[(ics_stack.core_name == f_core) & (ics_stack.variable == f_variable), 'y_low']
+                ics_stack.loc[(ics_stack.core_name == f_core) & (ics_stack.variable == f_variable), 'y_mid'] = hi - ics_stack.loc[(ics_stack.core_name == f_core) & (ics_stack.variable == f_variable), 'y_mid']
+                ics_stack.loc[(ics_stack.core_name == f_core) & (ics_stack.variable == f_variable), 'y_sup'] = hi - ics_stack.loc[(ics_stack.core_name == f_core) & (ics_stack.variable == f_variable), 'y_sup']
+        else:
+            ics_stack = ics_stack.remove_profiles(f_core)
+    return ics_stack
+
+
 def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
     """
     :param ic_data:
@@ -1930,7 +1958,7 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
             else:
                 sy = ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_mid'].tolist()
 
-            if not sy == ty:
+            if not np.array_equal(sy, ty):
                 x = function(np.interp(sy, ty, t_profile), s_profile)
             else:
                 x = function(t_profile, s_profile)
