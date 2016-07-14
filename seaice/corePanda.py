@@ -312,7 +312,7 @@ class CoreStack(pd.DataFrame):
 
         return CoreStack(self.reset_index())
 
-    def grouped_stat(self, variables, stats, bins_DD, bins_y):
+    def grouped_stat(self, variables, stats, bins_DD, bins_y, comment='n'):
         y_cuts = pd.cut(self.y_mid, bins_y, labels=False)
         t_cuts = pd.cut(self.DD, bins_DD, labels=False)
 
@@ -323,12 +323,14 @@ class CoreStack(pd.DataFrame):
 
         temp_all = pd.DataFrame()
         for ii_variable in variables:
-            print('\ncomputing %s' % ii_variable)
+            if comment == 'y':
+                print('\ncomputing %s' % ii_variable)
             data = self[self.variable == ii_variable]
             data_grouped = data.groupby([t_cuts, y_cuts])
 
             for ii_stat in stats:
-                print('computing %s' % ii_stat)
+                if comment == 'y':
+                    print('computing %s' % ii_stat)
                 func = "groups['" + ii_variable + "']." + ii_stat + "()"
                 stat_var = np.nan * np.ones((bins_DD.__len__() - 1, bins_y.__len__()))
                 core_var = [[[None] for x in range(bins_y.__len__())] for y in range(bins_DD.__len__() - 1)]
@@ -1322,15 +1324,19 @@ def import_core(ic_filepath, variables=None, missing_value=float('nan')):
 
     # snow thickness
     temp_cell = ws_summary['C9']
-    if isinstance(temp_cell, (float, str)):
-        ic_snow_depth = temp_cell.value
+    if isinstance(temp_cell.value, float):
+        ic_snow_depth = temp_cell.valuefg
+    elif temp_cell.value in ['n/a', 'unknow', 'unknown', None, 'n/m']:
+        ic_snow_depth = np.nan
     else:
         ic_snow_depth = np.nan
 
     # ice thickness
     temp_cell = ws_summary['C11']
-    if isinstance(temp_cell, (float, str)):
+    if isinstance(temp_cell.value, float) :
         ic_ice_thickness = temp_cell.value
+    elif temp_cell.value in ['n/a', 'unknow', 'unknown', None, 'n/m']:
+        ic_ice_thickness = np.nan
     else:
         ic_ice_thickness = np.nan
 
@@ -1344,11 +1350,13 @@ def import_core(ic_filepath, variables=None, missing_value=float('nan')):
     temp_cell = ws_summary['C16']
     if temp_cell is not None or temp_cell.value not in ['n/m', 'n/a', 'unknow']:
         imported_core.t_snow = temp_cell.value
+
     temp_cell = ws_summary['C17']
-    if temp_cell is not None or temp_cell.value not in ['n/m', 'n/a', 'unknow']:
+    if temp_cell.value is not None or temp_cell.value not in ['n/m', 'n/a', 'unknow']:
         imported_core.t_ice0 = temp_cell.value
+
     temp_cell = ws_summary['C18']
-    if temp_cell is not None or temp_cell.value not in ['n/m', 'n/a', 'unknown']:
+    if temp_cell.value is not None or temp_cell.value not in ['n/m', 'n/a', 'unknown']:
         imported_core.t_water = temp_cell.value
 
     ii_row = 23
@@ -1853,7 +1861,7 @@ def import_variable(ic_path, variable='Salinity', missing_value=float('nan')):
 
 
 
-def bottom_reference(ics_stack, ice_depth=None):
+def bottom_reference(ics_stack, ice_depth=None, comment = 'n'):
     for f_core in ics_stack.core_name.unique():
         ic_data = ics_stack[ics_stack.core_name == f_core]
 
@@ -1878,6 +1886,8 @@ def bottom_reference(ics_stack, ice_depth=None):
                 ics_stack.loc[(ics_stack.core_name == f_core) & (ics_stack.variable == f_variable), 'y_sup'] = hi - ics_stack.loc[(ics_stack.core_name == f_core) & (ics_stack.variable == f_variable), 'y_sup']
         else:
             ics_stack = ics_stack.remove_profiles(f_core)
+        if comment == 'y':
+            print(f_core, hi)
     return ics_stack
 
 
