@@ -1325,7 +1325,7 @@ def import_core(ic_filepath, variables=None, missing_value=float('nan')):
     # snow thickness
     temp_cell = ws_summary['C9']
     if isinstance(temp_cell.value, float):
-        ic_snow_depth = temp_cell.valuefg
+        ic_snow_depth = temp_cell.value
     elif temp_cell.value in ['n/a', 'unknow', 'unknown', None, 'n/m']:
         ic_snow_depth = np.nan
     else:
