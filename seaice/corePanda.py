@@ -265,10 +265,23 @@ class CoreStack(pd.DataFrame):
                 str_select = str_select + 'self.' + ii_key + '==ii_var[' + str('%d' % ii) + ']) & ('
                 ii += 1
         str_select = str_select[:-4]
+        return self.loc[eval(str_select)], self.loc[eval(str_select) == 0]
 
-        index_select = self[eval(str_select)].index
-        index_deselect = [ii for ii in self.index.tolist() if ii not in index_select]
-        return self.iloc[index_select], self.iloc[index_deselect]
+    #
+    # def select_profile(self, variable_dict):
+    #     str_select = '('
+    #     ii_var = []
+    #     ii = 0
+    #     for ii_key in variable_dict.keys():
+    #         if ii_key in self.columns.values:
+    #             ii_var.append(variable_dict[ii_key])
+    #             str_select = str_select + 'self.' + ii_key + '==ii_var[' + str('%d' % ii) + ']) & ('
+    #             ii += 1
+    #     str_select = str_select[:-4]
+    #
+    #     index_select = self[eval(str_select)].index
+    #     index_deselect = [ii for ii in self.index.tolist() if ii not in index_select]
+    #     return self.iloc[index_select], self.iloc[index_deselect]
 
     def add_variable(self, variable_dict, data):
         for col in data.columns.tolist():
@@ -309,8 +322,7 @@ class CoreStack(pd.DataFrame):
             ic_data = discretize_profile(ic_data, y_bins=y_bins, y_mid=y_mid, variables=None, comment=comment, display_figure=display_figure)
             self = self[(self.core_name != ii_core)]
             self = self.append(ic_data)
-
-        return CoreStack(self.reset_index())
+        return CoreStack(self.reset_index(drop=True))
 
     def grouped_stat(self, variables, stats, bins_DD, bins_y, comment='n'):
         y_cuts = pd.cut(self.y_mid, bins_y, labels=False)
@@ -1087,6 +1099,19 @@ def add_variable(ics_stack, variable_dict, data):
     ics_stack = ics_stack.fillna(data)
     return ics_stack
 
+#
+# def select_profile2(ics_stack, variable_dict):
+#     str_select = '('
+#     ii_var = []
+#     ii = 0
+#     for ii_key in variable_dict.keys():
+#         if ii_key in ics_stack.columns.values:
+#             ii_var.append(variable_dict[ii_key])
+#             str_select = str_select + 'self.' + ii_key + '==ii_var[' + str('%d' % ii) + ']) & ('
+#             ii += 1
+#     str_select = str_select[:-4]
+#     return ics_stack.loc[eval(str_select)], ics_stack.loc[eval(str_select) == 0]
+
 
 def DD_fillup(ics_stack, DD, freezup_dates):
     for f_day in ics_stack.coring_date.unique():
@@ -1524,6 +1549,9 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
         ic_data = ic_data[
             (ic_data.core_name != ic_data.core_name.unique().tolist()[0]) | (ic_data.variable != ii_variable)]
         ic_data = ic_data.append(temp)
+
+        if 'index' in ic_data.columns:
+            ic_data.drop('index', axis=1)
     return CoreStack(ic_data)
 
 
@@ -1861,24 +1889,26 @@ def import_variable(ic_path, variable='Salinity', missing_value=float('nan')):
 
 
 
-def bottom_reference(ics_stack, ice_depth=None, comment = 'n'):
+def bottom_reference(ics_stack, comment = 'n'):
     for f_core in ics_stack.core_name.unique():
         ic_data = ics_stack[ics_stack.core_name == f_core]
 
+        hi = []
+        if not np.isnan(ic_data.ice_core_length.astype(float)).all():
+            hi.append(ic_data.ice_core_length.astype(float).dropna().unique()[0])
         if not np.isnan(ic_data.ice_thickness.astype(float)).all():
-            hi = ic_data.ice_thickness.astype(float).dropna().unique()
-            hi = hi[0]
-        elif not np.isnan(ic_data.ice_core_length.astype(float)).all():
-            hi = ic_data.ice_core_length.astype(float).dropna().unique()
-            hi = hi[0]
+            hi.append(ic_data.ice_thickness.astype(float).dropna().unique()[0])
         else:
-            hi = []
-            for ff_core in ic_data.core_collection:
-                if not np.isnan(ic_data.ice_thickness.astype(float)).all():
-                    hi.append(ic_data.ice_thickness.astype(float).dropna().unique())[0]
-                if not np.isnan(ic_data.ice_core_length.astype(float)).all():
-                    hi.append(ic_data.ice_thickness.astype(float).dropna().unique())[0]
-            hi = np.nanmean(hi)
+            for ff_core in ic_data.core_collection.iloc[0]:
+                if not np.isnan(ics_stack[ics_stack.core_name == ff_core].ice_thickness.astype(float)).all():
+                    hi.append(ics_stack[ics_stack.core_name == ff_core].ice_thickness.astype(float).dropna().unique()[0])
+                if not np.isnan(ics_stack[ics_stack.core_name == ff_core].ice_core_length.astype(float)).all():
+                    hi.append(ics_stack[ics_stack.core_name == ff_core].ice_core_length.astype(float).dropna().unique()[0])
+        if not hi == []:
+            hi = np.nanmax(hi)
+        else:
+            hi = np.nan
+
         if not np.isnan(hi):
             for f_variable in ic_data.variable.unique():
                 ics_stack.loc[(ics_stack.core_name == f_core) & (ics_stack.variable == f_variable), 'y_low'] = hi - ics_stack.loc[(ics_stack.core_name == f_core) & (ics_stack.variable == f_variable), 'y_low']
@@ -1888,6 +1918,8 @@ def bottom_reference(ics_stack, ice_depth=None, comment = 'n'):
             ics_stack = ics_stack.remove_profiles(f_core)
         if comment == 'y':
             print(f_core, hi)
+        if 'index' in ics_stack.columns:
+            ics_stack.drop('index', axis=1)
     return ics_stack
 
 
@@ -1908,7 +1940,7 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
     ## look for variable:
     core_variable = {}
     for f_variable in ic_data.variable.unique():
-        core_variable[f_variable] = ic_data[ic_data.variable == f_variable]['core_name'].unique().tolist()
+        core_variable[f_variable] = ic_data.loc[ic_data.variable == f_variable, 'core_name'].unique().tolist()
 
     if 'temperature' not in core_variable or 'salinity' not in core_variable:
         return None
@@ -1916,8 +1948,8 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
     if core_variable['temperature'].__len__() > 1:
         print('average temperature from cores:', core_variable['temperature'])
         for t_core in core_variable['temperature']:
-            ty0 = ic_data[ic_data.core_name == t_core][ic_data.variable == 'temperature']['y_mid'].tolist()
-            t_profile0 = ic_data[ic_data.core_name == t_core][ic_data.variable == 'temperature']['temperature'].tolist()
+            ty0 = ic_data.loc[(ic_data.core_name == t_core) & (ic_data.variable == 'temperature'), 'y_mid'].tolist()
+            t_profile0 = ic_data.loc[(ic_data.core_name == t_core) & (ic_data.variable == 'temperature'), 'temperature'].tolist()
 
             if t_core == core_variable['temperature'][0]:
                 ty = np.array(ty0)
@@ -1932,8 +1964,8 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
         t_profile = np.nanmean(t_profile_temp, axis=0)
     else:
         t_core = core_variable['temperature'][0]
-        t_profile = ic_data[ic_data.core_name == t_core][ic_data.variable == 'temperature']['temperature'].tolist()
-        ty = np.array(ic_data[ic_data.core_name == t_core][ic_data.variable == 'temperature']['y_mid'].tolist())
+        t_profile = ic_data.loc[(ic_data.core_name == t_core) & (ic_data.variable == 'temperature'), 'temperature'].tolist()
+        ty = np.array(ic_data.loc[(ic_data.core_name == t_core) & (ic_data.variable == 'temperature'), 'y_mid'].tolist())
 
     for f_prop in si_prop:
         if f_prop not in seaice.properties.si_prop_list.keys():
@@ -1944,10 +1976,10 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
 
         for s_core in core_variable['salinity']:
             function = getattr(seaice.properties, property.replace(" ", "_"))
-            s_profile = ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['salinity'].tolist()
+            s_profile = ic_data.loc[(ic_data.core_name == s_core) & (ic_data.variable == 'salinity'), 'salinity'].tolist()
 
             if s_profile_shape == 'linear':
-                sy = ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_low'].tolist()
+                sy = ic_data.loc[(ic_data.core_name == s_core) & (ic_data.variable == 'salinity'), 'y_low'].tolist()
                 xy = np.array([[s_profile[0], sy[0]]])
                 for ii in range(s_profile.__len__()):
                     if s_profile[ii] != xy[-1, 0]:
@@ -1962,11 +1994,11 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
 
                 s_profile = xy[:, 0]
                 sy = xy[:, 1]
-                sy = np.concatenate((sy, [ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_sup'].tolist()[-1]]))
+                sy = np.concatenate((sy, [ic_data.loc[(ic_data.core_name == s_core) & (ic_data.variable == 'salinity'), 'y_sup'].tolist()[-1]]))
                 sy = sy[:-1]+np.diff(sy)/2
 
             else:
-                sy = ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_mid'].tolist()
+                sy = ic_data.loc[(ic_data.core_name == s_core) & (ic_data.variable == 'salinity'), 'y_mid'].tolist()
 
             if not np.array_equal(sy, ty):
                 x = function(np.interp(sy, ty, t_profile), s_profile)
@@ -1977,14 +2009,13 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
             if s_profile_shape == 'linear':
                 # plt.figure()
                 # plt.plot(x, sy, 'r', linewidth=1)
-                x = np.interp(ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_mid'].tolist(),
-                              sy, x, left=np.nan, right=np.nan)
+                x = np.interp(ic_data.loc[(ic_data.core_name == s_core) & (ic_data.variable == 'salinity'), 'y_mid'].tolist(), sy, x, left=np.nan, right=np.nan)
                 # plt.plot(x, ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_mid'].tolist(), 'b')
 
-            index = ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity'].index
+            index = ic_data.loc[(ic_data.core_name == s_core) & (ic_data.variable == 'salinity')].index
             property_frame = pd.DataFrame(x, columns=[property.replace(" ", "_")], index=index)
             variable_frame = pd.DataFrame(property.replace(" ", "_"), columns=['variable'], index=index)
-            core_frame = ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity'].drop('salinity',
+            core_frame = ic_data.loc[(ic_data.core_name == s_core) & (ic_data.variable == 'salinity')].drop('salinity',
                                                                                                    axis=1).drop(
                 'variable', axis=1)
             if s_profile_shape == 'linear':
