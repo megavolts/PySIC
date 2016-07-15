@@ -387,7 +387,7 @@ class CoreStack(pd.DataFrame):
         for k1, groups in data_grouped:
             grouped_dict[k1[1]][int(k1[0])] = groups['core'].unique().tolist()
 
-        return CoreStack(temp_all.reset_index()), grouped_dict
+        return CoreStack(temp_all.reset_index(drop=True)), grouped_dict
 
     def plot_core(self, core_dict, ax=None, param_dict=None):
         for ii_core in core_dict:
@@ -505,7 +505,7 @@ class CoreStack(pd.DataFrame):
     def core_set(self):
         return list(set(seaice.icdtools.flatten_list(self.core_collection.tolist())))
 
-    def compute_physical_property(self, si_prop, s_profile_shape='linear'):
+    def compute_physical_property(self, si_prop, s_profile_shape='linear', comment='n'):
         ## look for all core belonging to a coring event:
         temp_core_processed = []
         ic_prop = seaice.corePanda.CoreStack()
@@ -513,10 +513,12 @@ class CoreStack(pd.DataFrame):
             # f_core = ics_obs_stack.core_name.unique()[41]
             ic = self[self.core_name == f_core]
             ic_data = seaice.corePanda.CoreStack()
-            print('\n')
+            if comment == 'y':
+                print('\n')
             if f_core not in temp_core_processed:
                 for ff_core in list(set(seaice.icdtools.flatten_list(ic.core_collection.tolist()))):
-                    print(ff_core)
+                    if comment == 'y':
+                        print(ff_core)
                     ic_data = ic_data.add_profiles(self[self.core_name == ff_core])
                 ic_prop = ic_prop.append(seaice.corePanda.calc_prop(ic_data, si_prop, s_profile_shape=s_profile_shape))
                 temp_core_processed.append(ff_core)
