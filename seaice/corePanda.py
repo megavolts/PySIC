@@ -1627,10 +1627,14 @@ def generate_source(data_dir, data_ext):
     :param data_dir:
     :param data_ext:
     """
-    ic_path_list = sorted(get_filepath(data_dir, data_ext))
+    import glob
+
+    files = []
+    for root, dirnames, filenames in os.walk(data_dir):
+        files.extend(glob.glob(root + "/*."+data_ext))
     with open(data_dir + '/ic_list.txt', 'w') as f:
-        for ii in range(0, len(ic_path_list)):
-            f.write(ic_path_list[ii] + "\n")
+        for f_file in files:
+            f.write(f_file + "\n")
 
 
 def read_variable(wb, sheet_name, variable_dict):
