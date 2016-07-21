@@ -495,7 +495,7 @@ class CoreStack(pd.DataFrame):
                 for ii in range(0, len(x_mean)):
                     x_std_l = np.append(x_std_l, x_mean[variable][ii] - x_std[variable][ii])
                     x_std_h = np.append(x_std_h, x_mean[variable][ii] + x_std[variable][ii])
-            ax = plt.fill_betweenx(y_std, x_std_l, x_std_h, facecolor='black', alpha=0.3,
+            ax = plt.fill_betweenx(y_std, x_std_l, x_std_h, facecolor='black', alpha=0.1,
                                             label=str(r"$\pm$"+"mad"))
             ax.axes.set_xlabel(variable + ' ' + si_prop_unit[variable])
             ax.axes.set_ylabel('ice thickness [m]')
@@ -1169,12 +1169,14 @@ def stack_DD_fud(ics_data, DD, freezup_dates):
     return ics_data_stack
 
 
-def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dic=None):
+def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
 
     if ax is None:
         plt.figure()
         ax = plt.subplot(1, 1, 1)
 
+    if param_dict is None:
+        param_dict = {}
 
     if 'variable' not in variable_dict.keys():
         print("'a variable should be specified for plotting")
@@ -1209,8 +1211,14 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dic=None):
             x_std_l = np.array([x_mean[f_variable] - x_std[f_variable], y_std])
             x_std_h = np.array([x_mean[f_variable] + x_std[f_variable], y_std])
 
-        ax.fill_betweenx(x_std_l[1,:], x_std_l[0,:], x_std_h[0,:], facecolor='black', alpha=0.3,
-                                        label=str(r"$\pm$"+"std dev"))
+        if 'facecolor' not in param_dict.keys():
+            param_dict['facecolor'] = {'black'}
+        if 'alpha' not in param_dict.keys():
+            param_dict['alpha'] = {0.3}
+        if 'label' not in param_dict.keys():
+            param_dict['label'] = str(r"$\pm$"+"std dev")
+        ax.fill_betweenx(x_std_l[1, :], x_std_l[0, :], x_std_h[0, :], facecolor='black', alpha=0.2,
+                                            label=str("mean"+r"$\pm$"+"std dev"))
     return ax
 
 

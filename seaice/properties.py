@@ -19,9 +19,9 @@ __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 
 si_state_variable = {'temperature': 'temperature', 'temp': 'temperature', 't': 'temperature',
                      'salinity': 'salinity', 's': 'salinity'}
-si_prop_list = {'brine_volume_fraction': 'brine volume fraction', 'brine volume fraction': 'brine volume fraction',
-                'vbf': 'brine_volume_fraction', 'vb': 'brine volume fraction'}
-si_prop_unit = {'salinity': '[PSU]', 'temperature': '[°C]', 'vb': '[-]', 'brine volume fraction': '[-]', 'brine_volume_fraction': '[-]'}
+si_prop_list = {'brine volume fraction': 'brine volume fraction', 'brine volume fraction': 'brine volume fraction',
+                'vbf': 'brine volume fraction', 'vb': 'brine volume fraction'}
+si_prop_unit = {'salinity': '[PSU]', 'temperature': '[°C]', 'vb': '[-]', 'brine volume fraction': '[-]', 'brine volume fraction': '[-]'}
 
 
 def brine_volume_fraction(t, s, rho_si='default', flag_comment='n'):
@@ -957,6 +957,6 @@ def seaice_permeability(t, s, rho_si='default', flag_comment='n'):
             print('rho_si should be the same length as t and s')
             rho_si = np.ones(len(s))[:] * rho_si
 
-    Vf_b = brine_volume_fraction(t, s, rho_si='default', flag_comment='n')
+    Vf_b = brine_volume_fraction(t, s, rho_si=rho_si, flag_comment='n')
     k = 3 * Vf_b ** 2 * 10 ** (-10)
     return k
