@@ -510,7 +510,6 @@ class CoreStack(pd.DataFrame):
         temp_core_processed = []
         ic_prop = seaice.corePanda.CoreStack()
         for f_core in sorted(self.core_name.unique()):
-            # f_core = ics_obs_stack.core_name.unique()[41]
             ic = self[self.core_name == f_core]
             ic_data = seaice.corePanda.CoreStack()
             if comment == 'y':
@@ -2027,8 +2026,8 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
                 # plt.plot(x, ic_data[ic_data.core_name == s_core][ic_data.variable == 'salinity']['y_mid'].tolist(), 'b')
 
             index = ic_data.loc[(ic_data.core_name == s_core) & (ic_data.variable == 'salinity')].index
-            property_frame = pd.DataFrame(x, columns=[property.replace(" ", "_")], index=index)
-            variable_frame = pd.DataFrame(property.replace(" ", "_"), columns=['variable'], index=index)
+            property_frame = pd.DataFrame(x, columns=[property], index=index)
+            variable_frame = pd.DataFrame(property, columns=['variable'], index=index)
             core_frame = ic_data.loc[(ic_data.core_name == s_core) & (ic_data.variable == 'salinity')].drop('salinity',
                                                                                                    axis=1).drop(
                 'variable', axis=1)
