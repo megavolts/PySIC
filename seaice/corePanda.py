@@ -1320,7 +1320,7 @@ def plot_state_variable(profile_stack, ax=None, variables='state variables', col
         var = variables[ii]
 
 
-def import_core(ic_filepath, variables=None, missing_value=float('nan')):
+def import_core(ic_filepath, variables=None, comment='no'):
     """
     :param ic_filepath:
     :param variables:
@@ -1344,7 +1344,8 @@ def import_core(ic_filepath, variables=None, missing_value=float('nan')):
         variables = [variables]
 
     ic_name = ws_summary['C21'].value
-    print(ic_name)
+    if comment == 'yes':
+        print(ic_name)
 
     # date
     temp_cell = ws_summary['C2']
@@ -1751,7 +1752,7 @@ def read_variable(wb, sheet_name, variable_dict):
         return None
 
 
-def import_src(ics_filepath, variables=None):
+def import_src(ics_filepath, variables=None, comment='no'):
     """
     import_src import ice core data which path is listed in the text file found in ics_filepath. File formatting: 1 ice
     core by line, entry beginning with # are ignored
@@ -1760,15 +1761,15 @@ def import_src(ics_filepath, variables=None):
     :param variables:
     :return ic_dict: dictionnaries of ice core ice_core_name:ice_core_data
     """
-
-    print('Ice core data importation in progress ...')
+    if comment == 'yes':
+        print('Ice core data importation in progress ...')
     a = open(ics_filepath)
     filepath = sorted([line.strip() for line in a])
     ic_dict = {}
     for ii in range(0, len(filepath)):
         if not filepath[ii].startswith('#'):
             ic_filepath = filepath[ii]
-            ic_data = import_core(ic_filepath, variables=variables)
+            ic_data = import_core(ic_filepath, variables=variables, comment=comment)
             ic_dict[ic_data.core_name] = ic_data
     print('done')
     return ic_dict
