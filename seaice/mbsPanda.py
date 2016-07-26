@@ -188,7 +188,7 @@ def read(mbs_path, lcomment='n'):
     return np.array(dataout)
 
 
-def import_core(mbs_data, day, location=None, ice_thickness=np.nan, comment = None, overridehi = 'n'):
+def import_core(mbs_data, day, location=None, ice_thickness=np.nan, comment = None, overridehi = 'n', verbose='no'):
     """
     :param mbs_data:
     :param day:
@@ -251,7 +251,8 @@ def import_core(mbs_data, day, location=None, ice_thickness=np.nan, comment = No
                        'sample_name']
             profile = pd.DataFrame(columns=columns)
             core_name = 'mbs-'+ day.strftime('%Y%m%d')
-            print(core_name)
+            if verbose == 'yes' or 'v' in verbose:
+                print(core_name)
             if comment is not '':
                 comment += '; '
             comment += 'temperature profile from mbs'
