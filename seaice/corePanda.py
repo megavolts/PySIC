@@ -385,7 +385,8 @@ class CoreStack(pd.DataFrame):
             grouped_dict[var] = [[] for ii_DD in range(bins_DD.__len__()-1)]
 
         for k1, groups in data_grouped:
-            grouped_dict[k1[1]][int(k1[0])] = groups['core'].unique().tolist()
+            if k1[1] in variables:
+                grouped_dict[k1[1]][int(k1[0])] = groups['core'].unique().tolist()
 
         return CoreStack(temp_all.reset_index(drop=True)), grouped_dict
 
