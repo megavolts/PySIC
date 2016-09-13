@@ -1414,7 +1414,7 @@ def drop_profile(data, core_name, keys):
     return data
 
 
-def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment='n', display_figure='y'):
+def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment='n', display_figure='y', fill_extremity=None):
     """
     :param ic_data:
     :param y_bins:
@@ -1426,7 +1426,10 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
         y_bins = pd.Series(ic_data.y_low.dropna().tolist() + ic_data.y_sup.dropna().tolist()).sort_values().unique()
         y_mid = ic_data.y_mid.dropna().sort_values().unique()
     elif y_mid is None:
-        y_mid = ic_data.y_mid.dropna().sort_values().unique()
+        if y_bins is not None:
+            y_mid = np.diff(y_bins)/2+y_bins[:-1]
+        else:
+            y_mid = ic_data.y_mid.dropna().sort_values().unique()
 
     if variables is None:
         variables = [ii_variable for ii_variable in ic_data.variable.unique().tolist()]
