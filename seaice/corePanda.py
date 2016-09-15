@@ -353,8 +353,9 @@ class CoreStack(pd.DataFrame):
                     temp = pd.DataFrame(stat_var[ii_bin], columns=[ii_variable])
                     temp = temp.join(pd.DataFrame(core_var[ii_bin], columns=['core_collection']))
                     DD_label = 'DD-' + str(bins_DD[ii_bin]) + '_' + str(bins_DD[ii_bin + 1])
-                    data = [str(bins_DD[ii_bin]), str(bins_DD[ii_bin + 1]), DD_label, int(ii_bin), ii_stat, ii_variable]
-                    columns = ['DD_min', 'DD_max', 'DD_label', 'DD_index', 'stats', 'variable']
+                    data = [str(bins_DD[ii_bin]), str(bins_DD[ii_bin + 1]), DD_label, int(ii_bin), ii_stat, ii_variable, self.v_ref.unique()[0]]
+                    # TODO : all columsn, but the one in use
+                    columns = ['DD_min', 'DD_max', 'DD_label', 'DD_index', 'stats', 'variable', 'v_ref']
                     index = np.array(temp.index.tolist())  #[~np.isnan(temp[ii_variable].tolist())]
                     temp = temp.join(pd.DataFrame([data], columns=columns, index=index))
                     temp = temp.join(pd.DataFrame(index, columns=['y_index'], index=index))
@@ -1413,7 +1414,7 @@ def drop_profile(data, core_name, keys):
     return data
 
 
-def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment='n', display_figure='y'):
+def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment='n', display_figure='y', drop=True):
     """
     :param ic_data:
     :param y_bins:
@@ -1421,10 +1422,12 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
     :return:
     """
     # VARIABLES CHECK
-    if y_bins is None and y_mid is None:
-        y_bins = pd.Series(ic_data.y_low.dropna().tolist() + ic_data.y_sup.dropna().tolist()).sort_values().unique()
-        y_mid = ic_data.y_mid.dropna().sort_values().unique()
-    elif y_mid is None:
+    if y_mid is None and y_bins is None:
+            y_bins = pd.Series(ic_data.y_low.dropna().tolist() + ic_data.y_sup.dropna().tolist()).sort_values().unique()
+            y_mid = ic_data.y_mid.dropna().sort_values().unique()
+    elif y_mid is None and y_bins is not None:
+            y_mid = np.diff(y_bins)/2+y_bins[:-1]
+    else:
         y_mid = ic_data.y_mid.dropna().sort_values().unique()
 
     if variables is None:
@@ -1432,6 +1435,8 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
 
     if not isinstance(variables, list):
         variables = [variables]
+
+    data_out = pd.DataFrame()
 
     for ii_variable in variables:
         if comment == 1:
@@ -1556,13 +1561,13 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
         sample_name = [ic_data_prop.core.tolist()[0] + '-' + str('%d' % ii) for ii in range(temp.__len__())]
         temp.update(pd.DataFrame(sample_name, columns=['sample_name'], index=temp.index.tolist()))
 
-        ic_data = ic_data[
-            (ic_data.core_name != ic_data.core_name.unique().tolist()[0]) | (ic_data.variable != ii_variable)]
-        ic_data = ic_data.append(temp)
+        # ic_data = ic_data[(ic_data.core_name != ic_data.core_name.unique().tolist()[0]) | (ic_data.variable != ii_variable)]
+        # ic_data = ic_data.append(temp)
 
-        if 'index' in ic_data.columns:
-            ic_data.drop('index', axis=1)
-    return CoreStack(ic_data)
+        data_out = data_out.append(temp)
+        if 'index' in data_out.columns:
+            data_out.drop('index', axis=1)
+    return CoreStack(data_out)
 
 
 def make_section(core, variables=None, section_thickness=0.05):
