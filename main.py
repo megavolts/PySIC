@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import seaice.coreV2_1
 import seaice.properties
 import seaice.mbs
-import seaice.icdtools
+import seaice.toolbox
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"

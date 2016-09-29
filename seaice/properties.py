@@ -5,7 +5,9 @@ seaice.py: seaice.py is a library providing function to calculate physical prope
 """
 
 import numpy as np
-from seaice import icdtools as icdt
+import warnings
+
+from seaice import toolbox as icdt
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -16,6 +18,8 @@ __email__ = "marc.oggier@gi.alaska.edu"
 __status__ = "development"
 __date__ = "2014/11/25"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
+
+warnings.filterwarnings('ignore')
 
 si_state_variable = {'temperature': 'temperature', 'temp': 'temperature', 't': 'temperature',
                      'salinity': 'salinity', 's': 'salinity'}

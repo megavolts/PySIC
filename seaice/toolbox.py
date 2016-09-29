@@ -1,7 +1,7 @@
 #!/usr/bin/python3.5
 # -*- coding: utf-8 -*-
 """
-icdtools.py: icdtools provide several function use by icecoredata.py and seaice.py.
+toolbox.py: icdtools provide several function use by icecoredata.py and seaice.py.
 """
 
 __author__ = "Marc Oggier"

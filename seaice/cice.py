@@ -1,7 +1,7 @@
 #!/usr/bin/python3.5
 # -*- coding: utf-8 -*-
 """
-cicePanda.py provides function to handle CICE model input and output.
+cice.py provides function to handle CICE model input and output.
 
 Require the following python3 library: pandas, numpy
 Require the following seaice library: corePanda, available at https://github.com/megavolts/sea_ice.git
@@ -10,7 +10,7 @@ Require the following seaice library: corePanda, available at https://github.com
 import pandas as pd
 import numpy as np
 import datetime as dt
-import seaice.corePanda
+import seaice.core
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -76,7 +76,7 @@ def import_ice_core(cice_data, day, location=None, run=None):
         if run is not None:
             comment += '; ' + run
 
-        ic = seaice.corePanda.Core(core_name, coring_day, location, ice_thickness, snow_thickness, comment=comment)
+        ic = seaice.core.Core(core_name, coring_day, location, ice_thickness, snow_thickness, comment=comment)
         variables = ['temperature', 'salinity']
         # columns = ['temperature', 'salinity', 'note', 'core', 'ice_core_length', 'variable', 'y_low', 'y_sup', 'y_mid', 'sample_name']
         # ic_df = pd.DataFrame(columns=columns)

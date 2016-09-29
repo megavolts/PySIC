@@ -1,9 +1,9 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-corePanda.py: ice core data is a toolbox to import ice core data file from xlsx spreadsheet, formatted according to the
+core.py: ice core data is a toolbox to import ice core data file from xlsx spreadsheet, formatted according to the
  template developped by the Sea Ice Group of the Geophysical Institute of the University of Alaska, Fairbanks.
- corePanda.py integrate the module panda into the module core version 2.1 to simplify the operation and decrease
+ core.py integrate the module panda into the module core version 2.1 to simplify the operation and decrease
  computation time. Core profiles are considered as collection of point in depth, time and properties (salinity, temperature or other variable)
 """
 
@@ -19,7 +19,7 @@ import datetime
 from seaice.properties import si_prop_list
 from seaice.properties import si_prop_unit
 from seaice.properties import si_state_variable
-import seaice.icdtools
+import seaice.toolbox
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -43,7 +43,7 @@ nan_value = float('nan')
 import time
 
 from .properties import si_prop_unit
-import seaice.icdtools
+import seaice.toolbox
 
 def timing(f):
     def wrap(*args):
@@ -504,7 +504,7 @@ class CoreStack(pd.DataFrame):
         return ax
 
     def core_set(self):
-        return list(set(seaice.icdtools.flatten_list(self.core_collection.tolist())))
+        return list(set(seaice.toolbox.flatten_list(self.core_collection.tolist())))
 
     def compute_physical_property(self, si_prop, s_profile_shape='linear', comment='n'):
         ## look for all core belonging to a coring event:
@@ -516,7 +516,7 @@ class CoreStack(pd.DataFrame):
             if comment == 'y':
                 print('\n')
             if f_core not in temp_core_processed:
-                for ff_core in list(set(seaice.icdtools.flatten_list(ic.core_collection.tolist()))):
+                for ff_core in list(set(seaice.toolbox.flatten_list(ic.core_collection.tolist()))):
                     if comment == 'y':
                         print(ff_core)
                     ic_data = ic_data.add_profiles(self[self.core_name == ff_core])
@@ -1204,8 +1204,8 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
             x_std_l = x_mean[f_variable] - x_std[f_variable]
             x_std_h = x_mean[f_variable] + x_std[f_variable]
 
-            x_std_l = seaice.icdtools.plt_step(x_std_l.tolist(), y).transpose()
-            x_std_h = seaice.icdtools.plt_step(x_std_h.tolist(), y).transpose()
+            x_std_l = seaice.toolbox.plt_step(x_std_l.tolist(), y).transpose()
+            x_std_h = seaice.toolbox.plt_step(x_std_h.tolist(), y).transpose()
         elif x_mean[x_mean.variable == f_variable].y_low.isnull().all():
             y_std = x_mean['y_mid']
             x_std_l = np.array([x_mean[f_variable] - x_std[f_variable], y_std])
