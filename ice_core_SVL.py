@@ -31,7 +31,7 @@ sys.path.extend(['/home/megavolts/Desktop/working/scripts/python/sea_ice'])
 import seaice.coreV2
 import seaice.properties
 import seaice.mbs
-import seaice.icdtools
+import seaice.toolbox
 import logging
 import datetime as dt
 # =====================================================================================================================#
@@ -184,7 +184,7 @@ ic_year = {}
 for ic in sorted(ic_data.keys()):
     ic_day[ic_data[ic].name] = ic_data[ic].date
     ic_year[ic_data[ic].name] = ic_data[ic].date.year
-ics_years = sorted(seaice.icdtools.unique(ic_year.values()))
+ics_years = sorted(seaice.toolbox.unique(ic_year.values()))
 # DEGREE DAY APPROACyaoulH
 # compute FDD and TDD for years when ice core have been extracted
 # works for year after 1999 (included) as no early freeze-up day are recorded
@@ -210,7 +210,7 @@ else:
 
         T_col = 7
 
-        DD.update(seaice.icdtools.DegreeDayModel(data_weather, T_col, freezup_day, end_of_season_day, Tfreeze=Tfreeze, Tunit='K'))
+        DD.update(seaice.toolbox.DegreeDayModel(data_weather, T_col, freezup_day, end_of_season_day, Tfreeze=Tfreeze, Tunit='K'))
     with open(backup_datapkl+'DD_svl_data.pkl', 'wb') as f:
         pickle.dump(DD, f)
 print('DD computed for the season when ice core have been retrieved')
@@ -219,11 +219,11 @@ ic_FDD = []
 ic_TDD = []
 
 # extract F/TDD for days when ice core have been extracted
-for iiDay in sorted(seaice.icdtools.unique(ic_day.values())):
+for iiDay in sorted(seaice.toolbox.unique(ic_day.values())):
     ic_FDD.append(DD[iiDay][0])
     ic_TDD.append(DD[iiDay][1])
-ic_FDD = seaice.icdtools.unique(ic_FDD)
-ic_TDD = seaice.icdtools.unique(ic_TDD)
+ic_FDD = seaice.toolbox.unique(ic_FDD)
+ic_TDD = seaice.toolbox.unique(ic_TDD)
 
 # create legend and temporal class
 n_period = len(FDD_interval)-1+len(TDD_interval)-1
@@ -296,7 +296,7 @@ while iiCore < len(ic_data):
                     t_length = [ic_data[ii_core_name].lengtht]
 
                 else:
-                    t_data = seaice.icdtools.vmerge2D(t_data, np.atleast_2d(ic_data[ii_core_name].t).transpose())
+                    t_data = seaice.toolbox.vmerge2D(t_data, np.atleast_2d(ic_data[ii_core_name].t).transpose())
                     t_legend.append(ic_data[ii_core_name].name)
                     t_length.append(ic_data[ii_core_name].lengtht)
 
@@ -304,9 +304,9 @@ while iiCore < len(ic_data):
         f_t_mbs = 0
         if 2005 < core_data.date.year:
             if core_data.date.timetuple().tm_yday < core_data.date.timetuple().tm_yday:
-                t_mbs_index = seaice.icdtools.index_from_day(mbs_data[core_data.date.year+1], core_data.date)
+                t_mbs_index = seaice.toolbox.index_from_day(mbs_data[core_data.date.year + 1], core_data.date)
             else:
-                t_mbs_index = seaice.icdtools.index_from_day(mbs_data[core_data.date.year], core_data.date)
+                t_mbs_index = seaice.toolbox.index_from_day(mbs_data[core_data.date.year], core_data.date)
 
             if 0 < len(t_mbs_index):
                 f_t_mbs = 2
@@ -318,7 +318,7 @@ while iiCore < len(ic_data):
                     t_legend = ['MBS-' + core_data.date.strftime("%Y%m%d")]
                     t_length = [core_data.lengths]
                 else:
-                    t_data = seaice.icdtools.vmerge2D(t_data, np.atleast_2d(t_mbs_avg).transpose())
+                    t_data = seaice.toolbox.vmerge2D(t_data, np.atleast_2d(t_mbs_avg).transpose())
                     t_legend.append('MBS-' + core_data.date.strftime("%Y%m%d"))
                     t_length.append(core_data.lengths)
 
@@ -327,7 +327,7 @@ while iiCore < len(ic_data):
         if f_t_obs+f_t_mbs+f_t_lin > 0:
             t_avg = np.atleast_2d(np.nanmean(t_data, axis=1)).transpose()
             if not np.isnan(t_avg).all():
-                t_data = seaice.icdtools.vmerge2D(t_data, t_avg)
+                t_data = seaice.toolbox.vmerge2D(t_data, t_avg)
                 if t_data.shape[1] < 3:
                     t_legend.append(t_legend[-1])
                 else:
@@ -336,9 +336,9 @@ while iiCore < len(ic_data):
 
                 # concatenate S and Tavg in matrix
                 position = [0, int(counter_core_in_interval[core_interval]), core_interval]
-                s_matrix = seaice.icdtools.merge3D(s_data, s_matrix, position)
-                t_matrix = seaice.icdtools.merge3D(t_avg, t_matrix, position)
-                ls_matrix = seaice.icdtools.merge3D(s_length, ls_matrix, position)
+                s_matrix = seaice.toolbox.merge3D(s_data, s_matrix, position)
+                t_matrix = seaice.toolbox.merge3D(t_avg, t_matrix, position)
+                ls_matrix = seaice.toolbox.merge3D(s_length, ls_matrix, position)
 
                 s_legend_matrix[core_interval].append(s_legend)
                 t_legend_matrix[core_interval].append(t_legend[-1])
@@ -358,9 +358,9 @@ print('ice core processing completed')
 
 
 
-s_matrix_stat = seaice.icdtools.make_stat(s_matrix, axis=1)
-t_matrix_stat = seaice.icdtools.make_stat(t_matrix, axis=1)
-ls_matrix_stat = seaice.icdtools.make_stat(ls_matrix, axis =1)
+s_matrix_stat = seaice.toolbox.make_stat(s_matrix, axis=1)
+t_matrix_stat = seaice.toolbox.make_stat(t_matrix, axis=1)
+ls_matrix_stat = seaice.toolbox.make_stat(ls_matrix, axis =1)
 print('stat processing completed')
 
 #----------------------------------------------------------------------------------------------------------------------#

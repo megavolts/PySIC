@@ -16,8 +16,8 @@ __date__ = "2014/11/25"
 import numpy as np
 import datetime
 import logging
-import seaice.icdtools
-import seaice.corePanda
+import seaice.toolbox
+import seaice.core
 import pandas as pd
 
 
@@ -213,7 +213,7 @@ def import_core(mbs_data, day, location=None, ice_thickness=np.nan, comment = No
 
         else:
             # generate ice core
-            import seaice.corePanda
+            import seaice.core
 
             core_name = 'mbs-' + day.strftime('%Y%m%d')
             coring_location = location
@@ -234,8 +234,8 @@ def import_core(mbs_data, day, location=None, ice_thickness=np.nan, comment = No
                 comment = 'ice thickness estimated from temperature profile'
             # TODO: read snow thickness from mbs data file
             snow_thickness = None
-            ic = seaice.corePanda.Core(core_name, coring_date, coring_location, ice_thickness_mbs, snow_thickness,
-                                           comment=comment)
+            ic = seaice.core.Core(core_name, coring_date, coring_location, ice_thickness_mbs, snow_thickness,
+                                  comment=comment)
 
             # import temperature
             comment = ''
@@ -288,7 +288,7 @@ def daily_max(mbs_data, year, ii_col):
     ii_col = 6
     hi_day = []
     while ii_day <= day_end:
-        day_index = seaice.icdtools.index_from_day(mbs_data[year], ii_day)
+        day_index = seaice.toolbox.index_from_day(mbs_data[year], ii_day)
         try:
             hi_mean = np.nanmean(mbs_data[year][day_index, ii_col-1])
         except IndexError:
