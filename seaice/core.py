@@ -29,7 +29,7 @@ __contact__ = "Marc Oggier"
 __email__ = "marc.oggier@gi.alaska.edu"
 __status__ = "development"
 __date__ = "2014/11/25"
-__comment__ = "corePanda integrate the module Panda to simplifiy the operation "
+__comment__ = "core integrate the module Panda to simplifiy the operation "
 __all__ = ['Core', 'CoreSet', 'Profile']
 
 LOG_FILENAME = 'import.log'
@@ -353,8 +353,8 @@ class CoreStack(pd.DataFrame):
                     temp = pd.DataFrame(stat_var[ii_bin], columns=[ii_variable])
                     temp = temp.join(pd.DataFrame(core_var[ii_bin], columns=['core_collection']))
                     DD_label = 'DD-' + str(bins_DD[ii_bin]) + '_' + str(bins_DD[ii_bin + 1])
-                    data = [str(bins_DD[ii_bin]), str(bins_DD[ii_bin + 1]), DD_label, int(ii_bin), ii_stat, ii_variable]
-                    columns = ['DD_min', 'DD_max', 'DD_label', 'DD_index', 'stats', 'variable']
+                    data = [str(bins_DD[ii_bin]), str(bins_DD[ii_bin + 1]), DD_label, int(ii_bin), ii_stat, ii_variable, self.v_ref.unique()[0]]
+                    columns = ['DD_min', 'DD_max', 'DD_label', 'DD_index', 'stats', 'variable', 'v_ref']
                     index = np.array(temp.index.tolist())  #[~np.isnan(temp[ii_variable].tolist())]
                     temp = temp.join(pd.DataFrame([data], columns=columns, index=index))
                     temp = temp.join(pd.DataFrame(index, columns=['y_index'], index=index))
@@ -509,10 +509,10 @@ class CoreStack(pd.DataFrame):
     def compute_physical_property(self, si_prop, s_profile_shape='linear', comment='n'):
         ## look for all core belonging to a coring event:
         temp_core_processed = []
-        ic_prop = seaice.corePanda.CoreStack()
+        ic_prop = seaice.core.CoreStack()
         for f_core in sorted(self.core_name.unique()):
             ic = self[self.core_name == f_core]
-            ic_data = seaice.corePanda.CoreStack()
+            ic_data = seaice.core.CoreStack()
             if comment == 'y':
                 print('\n')
             if f_core not in temp_core_processed:
@@ -520,11 +520,11 @@ class CoreStack(pd.DataFrame):
                     if comment == 'y':
                         print(ff_core)
                     ic_data = ic_data.add_profiles(self[self.core_name == ff_core])
-                ic_prop = ic_prop.append(seaice.corePanda.calc_prop(ic_data, si_prop, s_profile_shape=s_profile_shape))
+                ic_prop = ic_prop.append(seaice.core.calc_prop(ic_data, si_prop, s_profile_shape=s_profile_shape))
                 temp_core_processed.append(ff_core)
 
-        ics_stack = seaice.corePanda.CoreStack(self)
-        ic_prop = seaice.corePanda.CoreStack(ic_prop)
+        ics_stack = seaice.core.CoreStack(self)
+        ic_prop = seaice.core.CoreStack(ic_prop)
 
         ics_stack = ics_stack.add_profiles(ic_prop)
         return(ics_stack)
@@ -1953,7 +1953,7 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
         si_prop = [si_prop]
 
     ## function variable:
-    property_stack = seaice.corePanda.CoreStack()
+    property_stack = seaice.core.CoreStack()
 
     ## look for variable:
     core_variable = {}
