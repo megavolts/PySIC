@@ -29,7 +29,7 @@ __contact__ = "Marc Oggier"
 __email__ = "marc.oggier@gi.alaska.edu"
 __status__ = "development"
 __date__ = "2014/11/25"
-__comment__ = "corePanda integrate the module Panda to simplifiy the operation "
+__comment__ = "core integrate the module Panda to simplifiy the operation "
 __all__ = ['Core', 'CoreSet', 'Profile']
 
 LOG_FILENAME = 'import.log'
@@ -354,7 +354,6 @@ class CoreStack(pd.DataFrame):
                     temp = temp.join(pd.DataFrame(core_var[ii_bin], columns=['core_collection']))
                     DD_label = 'DD-' + str(bins_DD[ii_bin]) + '_' + str(bins_DD[ii_bin + 1])
                     data = [str(bins_DD[ii_bin]), str(bins_DD[ii_bin + 1]), DD_label, int(ii_bin), ii_stat, ii_variable, self.v_ref.unique()[0]]
-                    # TODO : all columsn, but the one in use
                     columns = ['DD_min', 'DD_max', 'DD_label', 'DD_index', 'stats', 'variable', 'v_ref']
                     index = np.array(temp.index.tolist())  #[~np.isnan(temp[ii_variable].tolist())]
                     temp = temp.join(pd.DataFrame([data], columns=columns, index=index))
@@ -386,7 +385,8 @@ class CoreStack(pd.DataFrame):
             grouped_dict[var] = [[] for ii_DD in range(bins_DD.__len__()-1)]
 
         for k1, groups in data_grouped:
-            grouped_dict[k1[1]][int(k1[0])] = groups['core'].unique().tolist()
+            if k1[1] in variables:
+                grouped_dict[k1[1]][int(k1[0])] = groups['core'].unique().tolist()
 
         return CoreStack(temp_all.reset_index(drop=True)), grouped_dict
 
@@ -509,10 +509,10 @@ class CoreStack(pd.DataFrame):
     def compute_physical_property(self, si_prop, s_profile_shape='linear', comment='n'):
         ## look for all core belonging to a coring event:
         temp_core_processed = []
-        ic_prop = seaice.corePanda.CoreStack()
+        ic_prop = seaice.core.CoreStack()
         for f_core in sorted(self.core_name.unique()):
             ic = self[self.core_name == f_core]
-            ic_data = seaice.corePanda.CoreStack()
+            ic_data = seaice.core.CoreStack()
             if comment == 'y':
                 print('\n')
             if f_core not in temp_core_processed:
@@ -520,11 +520,11 @@ class CoreStack(pd.DataFrame):
                     if comment == 'y':
                         print(ff_core)
                     ic_data = ic_data.add_profiles(self[self.core_name == ff_core])
-                ic_prop = ic_prop.append(seaice.corePanda.calc_prop(ic_data, si_prop, s_profile_shape=s_profile_shape))
+                ic_prop = ic_prop.append(seaice.core.calc_prop(ic_data, si_prop, s_profile_shape=s_profile_shape))
                 temp_core_processed.append(ff_core)
 
-        ics_stack = seaice.corePanda.CoreStack(self)
-        ic_prop = seaice.corePanda.CoreStack(ic_prop)
+        ics_stack = seaice.core.CoreStack(self)
+        ic_prop = seaice.core.CoreStack(ic_prop)
 
         ics_stack = ics_stack.add_profiles(ic_prop)
         return(ics_stack)
@@ -1413,8 +1413,24 @@ def drop_profile(data, core_name, keys):
     data = data[(data.core_name != core_name) | (data.variable != keys)]
     return data
 
+def S_nan(yx, ii_yx, fill_gap):
+    if np.isnan(yx[ii_yx, 2]) and fill_gap == True:
+        ii_yx_l = ii_yx - 1
+        while ii_yx_l > 0 and np.isnan(yx[ii_yx_l, 2]):
+            ii_yx_l -= 1
+        S_l = yx[ii_yx_l, 2]
 
-def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment='n', display_figure='y', drop=True):
+        ii_yx_s = ii_yx
+        while ii_yx_s < yx.shape[0]-1 and np.isnan(yx[ii_yx_s, 2]):
+            ii_yx_s += 1
+        S_s = yx[ii_yx_s, 2]
+
+        S = (S_s + S_l) / 2
+    else:
+        S = yx[ii_yx, 2]
+    return S
+
+def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment='n', display_figure='y', fill_extremity=None, fill_gap=False):
     """
     :param ic_data:
     :param y_bins:
@@ -1422,21 +1438,20 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
     :return:
     """
     # VARIABLES CHECK
-    if y_mid is None and y_bins is None:
-            y_bins = pd.Series(ic_data.y_low.dropna().tolist() + ic_data.y_sup.dropna().tolist()).sort_values().unique()
-            y_mid = ic_data.y_mid.dropna().sort_values().unique()
-    elif y_mid is None and y_bins is not None:
-            y_mid = np.diff(y_bins)/2+y_bins[:-1]
-    else:
+    if y_bins is None and y_mid is None:
+        y_bins = pd.Series(ic_data.y_low.dropna().tolist() + ic_data.y_sup.dropna().tolist()).sort_values().unique()
         y_mid = ic_data.y_mid.dropna().sort_values().unique()
+    elif y_mid is None:
+        if y_bins is not None:
+            y_mid = np.diff(y_bins)/2+y_bins[:-1]
+        else:
+            y_mid = ic_data.y_mid.dropna().sort_values().unique()
 
     if variables is None:
         variables = [ii_variable for ii_variable in ic_data.variable.unique().tolist()]
 
     if not isinstance(variables, list):
         variables = [variables]
-
-    data_out = pd.DataFrame()
 
     for ii_variable in variables:
         if comment == 1:
@@ -1468,9 +1483,12 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
 
         # For step profile, like salinity
         elif not ic_data[ic_data.variable == ii_variable].y_low.isnull().any():
-            yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid', drop=False).sort_index().as_matrix(
-                ['y_low', 'y_sup', ii_variable])
-
+            if ic_data.v_ref.unique() == 'bottom':
+                yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid', drop=False).sort_index().as_matrix(
+                    ['y_sup', 'y_low', ii_variable])
+            else:
+                yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid', drop=False).sort_index().as_matrix(
+                    ['y_low', 'y_sup', ii_variable])
             x_step = []
             y_step = []
             ii_bin = 0
@@ -1488,7 +1506,7 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
 
             while ii_bin < y_bins.__len__() - 1:
                 while y_bins[ii_bin + 1] <= yx[ii_yx, 1]:
-                    S = yx[ii_yx, 2]
+                    S = S_nan(yx, ii_yx+1, fill_gap)
                     y_step.append(y_bins[ii_bin])
                     y_step.append(y_bins[ii_bin + 1])
                     x_step.append(S)
@@ -1499,10 +1517,11 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
                         break
 
                 L = (yx[ii_yx, 1] - y_bins[ii_bin])
-                S = (yx[ii_yx, 1] - y_bins[ii_bin]) * yx[ii_yx, 2]
+                S = (yx[ii_yx, 1] - y_bins[ii_bin]) * S_nan(yx, ii_yx, fill_gap)
+
                 while ii_yx < len(yx[:, 1]) - 1 and yx[ii_yx + 1, 1] <= y_bins[ii_bin + 1]:
                     L += (yx[ii_yx + 1, 1] - yx[ii_yx + 1, 0])
-                    S += (yx[ii_yx + 1, 1] - yx[ii_yx + 1, 0]) * yx[ii_yx + 1, 2]
+                    S += (yx[ii_yx + 1, 1] - yx[ii_yx + 1, 0]) * S_nan(yx, ii_yx+1, fill_gap)
                     ii_yx += 1
                     if ii_yx == yx[:, 1].__len__() - 1:
                         break
@@ -1512,7 +1531,7 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
 
                 if yx[ii_yx, 1] <= y_bins[ii_bin + 1] and ii_yx + 1 < yx.__len__():
                     L += (y_bins[ii_bin + 1] - yx[ii_yx + 1, 0])
-                    S += (y_bins[ii_bin + 1] - yx[ii_yx + 1, 0]) * yx[ii_yx + 1, 2]
+                    S += (y_bins[ii_bin + 1] - yx[ii_yx + 1, 0]) * S_nan(yx, ii_yx+1, fill_gap)
                 S = S / L
                 if S != 0:
                     y_step.append(y_bins[ii_bin])
@@ -1540,7 +1559,7 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
                     x.append(yx[ii, 2])
                     x.append(yx[ii, 2])
                 plt.step(x, y)
-
+                plt.step(x_step, y_step, 'r')
             temp = pd.DataFrame(columns=ic_data.columns.tolist(), index=range(y_bins[:-1].__len__()))
             temp.update(pd.DataFrame(np.vstack((y_bins[:-1], y_bins[:-1] + np.diff(y_bins) / 2, y_bins[1:],
                                                 [x_step[2 * ii] for ii in
@@ -1561,13 +1580,13 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
         sample_name = [ic_data_prop.core.tolist()[0] + '-' + str('%d' % ii) for ii in range(temp.__len__())]
         temp.update(pd.DataFrame(sample_name, columns=['sample_name'], index=temp.index.tolist()))
 
-        # ic_data = ic_data[(ic_data.core_name != ic_data.core_name.unique().tolist()[0]) | (ic_data.variable != ii_variable)]
-        # ic_data = ic_data.append(temp)
+        ic_data = ic_data[
+            (ic_data.core_name != ic_data.core_name.unique().tolist()[0]) | (ic_data.variable != ii_variable)]
+        ic_data = ic_data.append(temp)
 
-        data_out = data_out.append(temp)
-        if 'index' in data_out.columns:
-            data_out.drop('index', axis=1)
-    return CoreStack(data_out)
+        if 'index' in ic_data.columns:
+            ic_data.drop('index', axis=1)
+    return CoreStack(ic_data)
 
 
 def make_section(core, variables=None, section_thickness=0.05):
@@ -1954,7 +1973,7 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
         si_prop = [si_prop]
 
     ## function variable:
-    property_stack = seaice.corePanda.CoreStack()
+    property_stack = seaice.core.CoreStack()
 
     ## look for variable:
     core_variable = {}
