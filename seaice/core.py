@@ -1413,8 +1413,24 @@ def drop_profile(data, core_name, keys):
     data = data[(data.core_name != core_name) | (data.variable != keys)]
     return data
 
+def S_nan(yx, ii_yx, fill_gap):
+    if np.isnan(yx[ii_yx, 2]) and fill_gap == True:
+        ii_yx_l = ii_yx - 1
+        while ii_yx_l > 0 and np.isnan(yx[ii_yx_l, 2]):
+            ii_yx_l -= 1
+        S_l = yx[ii_yx_l, 2]
 
-def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment='n', display_figure='y', fill_extremity=None):
+        ii_yx_s = ii_yx
+        while ii_yx_s < yx.shape[0]-1 and np.isnan(yx[ii_yx_s, 2]):
+            ii_yx_s += 1
+        S_s = yx[ii_yx_s, 2]
+
+        S = (S_s + S_l) / 2
+    else:
+        S = yx[ii_yx, 2]
+    return S
+
+def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment='n', display_figure='y', fill_extremity=None, fill_gap=False):
     """
     :param ic_data:
     :param y_bins:
@@ -1467,9 +1483,12 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
 
         # For step profile, like salinity
         elif not ic_data[ic_data.variable == ii_variable].y_low.isnull().any():
-            yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid', drop=False).sort_index().as_matrix(
-                ['y_low', 'y_sup', ii_variable])
-
+            if ic_data.v_ref.unique() == 'bottom':
+                yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid', drop=False).sort_index().as_matrix(
+                    ['y_sup', 'y_low', ii_variable])
+            else:
+                yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid', drop=False).sort_index().as_matrix(
+                    ['y_low', 'y_sup', ii_variable])
             x_step = []
             y_step = []
             ii_bin = 0
@@ -1487,7 +1506,7 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
 
             while ii_bin < y_bins.__len__() - 1:
                 while y_bins[ii_bin + 1] <= yx[ii_yx, 1]:
-                    S = yx[ii_yx, 2]
+                    S = S_nan(yx, ii_yx+1, fill_gap)
                     y_step.append(y_bins[ii_bin])
                     y_step.append(y_bins[ii_bin + 1])
                     x_step.append(S)
@@ -1498,10 +1517,11 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
                         break
 
                 L = (yx[ii_yx, 1] - y_bins[ii_bin])
-                S = (yx[ii_yx, 1] - y_bins[ii_bin]) * yx[ii_yx, 2]
+                S = (yx[ii_yx, 1] - y_bins[ii_bin]) * S_nan(yx, ii_yx, fill_gap)
+
                 while ii_yx < len(yx[:, 1]) - 1 and yx[ii_yx + 1, 1] <= y_bins[ii_bin + 1]:
                     L += (yx[ii_yx + 1, 1] - yx[ii_yx + 1, 0])
-                    S += (yx[ii_yx + 1, 1] - yx[ii_yx + 1, 0]) * yx[ii_yx + 1, 2]
+                    S += (yx[ii_yx + 1, 1] - yx[ii_yx + 1, 0]) * S_nan(yx, ii_yx+1, fill_gap)
                     ii_yx += 1
                     if ii_yx == yx[:, 1].__len__() - 1:
                         break
@@ -1511,7 +1531,7 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
 
                 if yx[ii_yx, 1] <= y_bins[ii_bin + 1] and ii_yx + 1 < yx.__len__():
                     L += (y_bins[ii_bin + 1] - yx[ii_yx + 1, 0])
-                    S += (y_bins[ii_bin + 1] - yx[ii_yx + 1, 0]) * yx[ii_yx + 1, 2]
+                    S += (y_bins[ii_bin + 1] - yx[ii_yx + 1, 0]) * S_nan(yx, ii_yx+1, fill_gap)
                 S = S / L
                 if S != 0:
                     y_step.append(y_bins[ii_bin])
@@ -1539,7 +1559,7 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
                     x.append(yx[ii, 2])
                     x.append(yx[ii, 2])
                 plt.step(x, y)
-
+                plt.step(x_step, y_step, 'r')
             temp = pd.DataFrame(columns=ic_data.columns.tolist(), index=range(y_bins[:-1].__len__()))
             temp.update(pd.DataFrame(np.vstack((y_bins[:-1], y_bins[:-1] + np.diff(y_bins) / 2, y_bins[1:],
                                                 [x_step[2 * ii] for ii in
