@@ -1330,7 +1330,7 @@ def import_core(ic_filepath, variables=None, comment='no'):
 
     column_dict = {'S_ice': ['D', 'AB', 8, 6], 'T_ice': ['B', 'A', 8, 6]}
 
-    wb = openpyxl.load_workbook(filename=ic_filepath, use_iterators=True)  # load the xlsx spreadsheet
+    wb = openpyxl.load_workbook(filename=ic_filepath)  # load the xlsx spreadsheet
     ws_name = wb.get_sheet_names()
     ws_summary = wb.get_sheet_by_name('summary')  # load the data from the summary sheet
 
@@ -1397,9 +1397,9 @@ def import_core(ic_filepath, variables=None, comment='no'):
 
     ii_row = 23
     ii_col = 3
-    while ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)] is not None and \
-                    ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value is not None:
-        imported_core.add_corenames(ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value)
+    while ws_summary[openpyxl.utils.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)] is not None and \
+                    ws_summary[openpyxl.utils.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value is not None:
+        imported_core.add_corenames(ws_summary[openpyxl.utils.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value)
         ii_col += 1
 
     for variable in variables:
@@ -1506,6 +1506,10 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
 
             while ii_bin < y_bins.__len__() - 1:
                 while y_bins[ii_bin + 1] <= yx[ii_yx, 1]:
+                    # january 2017
+                    if ii_yx+1 == yx.__len__():
+                        break
+                    # end january 2017
                     S = S_nan(yx, ii_yx+1, fill_gap)
                     y_step.append(y_bins[ii_bin])
                     y_step.append(y_bins[ii_bin + 1])
@@ -1540,6 +1544,15 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
                     x_step.append(S)
                     ii_bin += 1
                 ii_yx += 1
+                # january 2017
+                if ii_yx == yx.__len__():
+                    while y_bins[ii_bin] < yx[-1, 1]:
+                        y_step.append(y_bins[ii_bin])
+                        y_step.append(y_bins[ii_bin + 1])
+                        x_step.append(S)
+                        x_step.append(S)
+                        ii_bin += 1
+                # end january 2017
                 if y_bins[ii_bin] >= yx[-1, 1]:
                     while ii_bin + 1 < y_bins.__len__():
                         y_step.append(y_bins[ii_bin])
@@ -1547,6 +1560,7 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
                         x_step.append(np.nan)
                         x_step.append(np.nan)
                         ii_bin += 1
+
 
             if display_figure == 'y' or display_figure == 'c':
                 if display_figure != 'c':
@@ -1814,8 +1828,8 @@ def import_list(ics_list, missing_value=float('nan'), log_level='warning', comme
     for ii in range(0, len(ics_list)):
         if comment:
             print(ics_list[ii])
-        ic_data = import_core(ics_list[ii], missing_value, comment=comment)
-        ic_dict[ic_data.name] = ic_data
+        ic_data = import_core(ics_list[ii], comment=comment)
+        ic_dict[ic_data.core_name] = ic_data
 
     logging.info('Ice core importation complete')
     print('done')
