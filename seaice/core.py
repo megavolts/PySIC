@@ -1330,7 +1330,7 @@ def import_core(ic_filepath, variables=None, comment='no'):
 
     column_dict = {'S_ice': ['D', 'AB', 8, 6], 'T_ice': ['B', 'A', 8, 6]}
 
-    wb = openpyxl.load_workbook(filename=ic_filepath, use_iterators=True)  # load the xlsx spreadsheet
+    wb = openpyxl.load_workbook(filename=ic_filepath)  # load the xlsx spreadsheet
     ws_name = wb.get_sheet_names()
     ws_summary = wb.get_sheet_by_name('summary')  # load the data from the summary sheet
 
@@ -1397,9 +1397,9 @@ def import_core(ic_filepath, variables=None, comment='no'):
 
     ii_row = 23
     ii_col = 3
-    while ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)] is not None and \
-                    ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value is not None:
-        imported_core.add_corenames(ws_summary[openpyxl.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value)
+    while ws_summary[openpyxl.utils.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)] is not None and \
+                    ws_summary[openpyxl.utils.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value is not None:
+        imported_core.add_corenames(ws_summary[openpyxl.utils.cell.get_column_letter(ii_col) + str('%.0f' % ii_row)].value)
         ii_col += 1
 
     for variable in variables:
@@ -1413,7 +1413,7 @@ def drop_profile(data, core_name, keys):
     data = data[(data.core_name != core_name) | (data.variable != keys)]
     return data
 
-def S_nan(yx, ii_yx, fill_gap):
+def S_nan(yx, ii_yx, fill_gap=True):
     if np.isnan(yx[ii_yx, 2]) and fill_gap == True:
         ii_yx_l = ii_yx - 1
         while ii_yx_l > 0 and np.isnan(yx[ii_yx_l, 2]):
@@ -1458,7 +1458,7 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
             print(ii_variable)
 
         # For linear profile, like temperature
-        if ic_data[ic_data.variable == ii_variable].y_low.isnull().all():
+        if ic_data[ic_data.variable == ii_variable].y_low.isnull().all() and ic_data[ic_data.variable == ii_variable].y_low.__len__() > 0:
             yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid').sort_index()[[ii_variable]]
             y2x = yx.reindex(y_mid).astype(float)
             y2x.ix[(y2x.index <= max(yx.index)) & (min(yx.index) <= y2x.index)] = y2x.interpolate(method='index')[(y2x.index <= max(yx.index)) & (min(yx.index) <= y2x.index)]
@@ -1476,13 +1476,15 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
                                      index=temp.index.tolist()))
             temp['coring_date'] = temp['coring_date'].astype('datetime64[ns]')
 
-            if display_figure == 'y':
-                plt.close()
+            if display_figure == 'y' or display_figure == 'c':
+                if display_figure == 'c':
+                    plt.close()
+                plt.figure()
                 plt.plot(yx[ii_variable], yx['y_mid'], 'k')
                 plt.plot(temp[ii_variable], temp['y_mid'], 'xr')
 
         # For step profile, like salinity
-        elif not ic_data[ic_data.variable == ii_variable].y_low.isnull().any():
+        elif not ic_data[ic_data.variable == ii_variable].y_low.isnull().any() and ic_data[ic_data.variable == ii_variable].y_low.__len__() > 0:
             if ic_data.v_ref.unique() == 'bottom':
                 yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid', drop=False).sort_index().as_matrix(
                     ['y_sup', 'y_low', ii_variable])
@@ -1504,9 +1506,23 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
                     ii_bin += 1
                     y_bins[ii_bin]
 
+            if display_figure == 'y' or display_figure == 'c':
+                if display_figure == 'c':
+                    plt.close()
+                plt.figure()
+                x = []
+                y = []
+                for ii in range(yx[:, 0].__len__()):
+                    y.append(yx[ii, 0])
+                    y.append(yx[ii, 1])
+                    x.append(yx[ii, 2])
+                    x.append(yx[ii, 2])
+                plt.step(x, y, 'bx')
+                plt.step(x_step, y_step, 'ro')
+
             while ii_bin < y_bins.__len__() - 1:
                 while y_bins[ii_bin + 1] <= yx[ii_yx, 1]:
-                    S = S_nan(yx, ii_yx+1, fill_gap)
+                    S = S_nan(yx, ii_yx, fill_gap)
                     y_step.append(y_bins[ii_bin])
                     y_step.append(y_bins[ii_bin + 1])
                     x_step.append(S)
@@ -1521,7 +1537,7 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
 
                 while ii_yx < len(yx[:, 1]) - 1 and yx[ii_yx + 1, 1] <= y_bins[ii_bin + 1]:
                     L += (yx[ii_yx + 1, 1] - yx[ii_yx + 1, 0])
-                    S += (yx[ii_yx + 1, 1] - yx[ii_yx + 1, 0]) * S_nan(yx, ii_yx+1, fill_gap)
+                    S += (yx[ii_yx + 1, 1] - yx[ii_yx + 1, 0]) * S_nan(yx, ii_yx + 1, fill_gap)
                     ii_yx += 1
                     if ii_yx == yx[:, 1].__len__() - 1:
                         break
@@ -1531,7 +1547,7 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
 
                 if yx[ii_yx, 1] <= y_bins[ii_bin + 1] and ii_yx + 1 < yx.__len__():
                     L += (y_bins[ii_bin + 1] - yx[ii_yx + 1, 0])
-                    S += (y_bins[ii_bin + 1] - yx[ii_yx + 1, 0]) * S_nan(yx, ii_yx+1, fill_gap)
+                    S += (y_bins[ii_bin + 1] - yx[ii_yx + 1, 0]) * S_nan(yx, ii_yx + 1, fill_gap)
                 S = S / L
                 if S != 0:
                     y_step.append(y_bins[ii_bin])
@@ -1549,33 +1565,24 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
                         ii_bin += 1
 
             if display_figure == 'y' or display_figure == 'c':
-                if display_figure != 'c':
-                    plt.close()
-                x = []
-                y = []
-                for ii in range(yx[:, 0].__len__()):
-                    y.append(yx[ii, 0])
-                    y.append(yx[ii, 1])
-                    x.append(yx[ii, 2])
-                    x.append(yx[ii, 2])
-                plt.step(x, y)
-                plt.step(x_step, y_step, 'r')
+                plt.step(x_step, y_step, 'ro')
+
             temp = pd.DataFrame(columns=ic_data.columns.tolist(), index=range(y_bins[:-1].__len__()))
             temp.update(pd.DataFrame(np.vstack((y_bins[:-1], y_bins[:-1] + np.diff(y_bins) / 2, y_bins[1:],
                                                 [x_step[2 * ii] for ii in
                                                  range(int(x_step.__len__() / 2))])).transpose(),
                                      columns=['y_low', 'y_mid', 'y_sup', ii_variable], index=temp.index))
 
-            # properties
-            ic_data_prop = ic_data.head(1)
-            ic_data_prop = ic_data_prop.drop(ii_variable, 1)
-            ic_data_prop = ic_data_prop.drop('y_low', 1)
-            ic_data_prop = ic_data_prop.drop('y_mid', 1)
-            ic_data_prop = ic_data_prop.drop('y_sup', 1)
-            ic_data_prop = ic_data_prop.drop('sample_name', 1)
-            temp.update(pd.DataFrame([ic_data_prop.iloc[0].tolist()], columns=ic_data_prop.columns.tolist(),
-                                     index=temp.index.tolist()))
-            temp['coring_date'] = temp['coring_date'].astype('datetime64[ns]')
+        # properties
+        ic_data_prop = ic_data.head(1)
+        ic_data_prop = ic_data_prop.drop(ii_variable, 1)
+        ic_data_prop = ic_data_prop.drop('y_low', 1)
+        ic_data_prop = ic_data_prop.drop('y_mid', 1)
+        ic_data_prop = ic_data_prop.drop('y_sup', 1)
+        ic_data_prop = ic_data_prop.drop('sample_name', 1)
+        temp.update(pd.DataFrame([ic_data_prop.iloc[0].tolist()], columns=ic_data_prop.columns.tolist(),
+                                 index=temp.index.tolist()))
+        temp['coring_date'] = temp['coring_date'].astype('datetime64[ns]')
 
         sample_name = [ic_data_prop.core.tolist()[0] + '-' + str('%d' % ii) for ii in range(temp.__len__())]
         temp.update(pd.DataFrame(sample_name, columns=['sample_name'], index=temp.index.tolist()))
@@ -1814,8 +1821,8 @@ def import_list(ics_list, missing_value=float('nan'), log_level='warning', comme
     for ii in range(0, len(ics_list)):
         if comment:
             print(ics_list[ii])
-        ic_data = import_core(ics_list[ii], missing_value, comment=comment)
-        ic_dict[ic_data.name] = ic_data
+        ic_data = import_core(ics_list[ii], comment=comment)
+        ic_dict[ic_data.core_name] = ic_data
 
     logging.info('Ice core importation complete')
     print('done')
@@ -1932,10 +1939,10 @@ def bottom_reference(ics_stack, comment = 'n'):
         ic_data = ics_stack[ics_stack.core_name == f_core]
 
         hi = []
-        if not np.isnan(ic_data.ice_core_length.astype(float)).all():
-            hi.append(ic_data.ice_core_length.astype(float).dropna().unique()[0])
         if not np.isnan(ic_data.ice_thickness.astype(float)).all():
             hi.append(ic_data.ice_thickness.astype(float).dropna().unique()[0])
+        elif not np.isnan(ic_data.ice_core_length.astype(float)).all():
+            hi.append(ic_data.ice_core_length.astype(float).dropna().unique()[0])
         else:
             for ff_core in ic_data.core_collection.iloc[0]:
                 if not np.isnan(ics_stack[ics_stack.core_name == ff_core].ice_thickness.astype(float)).all():
@@ -2066,5 +2073,67 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
             #         core_frame.iloc[ii_index]['note'] = property +' computed from ' + s_core + '(S) and ' + t_core + '(T)'
 
             property_stack = property_stack.append(core_frame, ignore_index=True, verify_integrity=False)
+
+    return property_stack
+
+
+
+
+def compute_phys_prop(ic_data, si_prop, S_core_name, T_core_name, si_prop_format='linear'):
+    """
+    :param ic_data:
+    :param si_prop:
+    :param si_prop_format: 'linear' or 'step'
+    :return:
+    """
+
+    if not isinstance(si_prop, list):
+        si_prop = [si_prop]
+
+    ## function variable:
+    property_stack = seaice.core.CoreStack()
+
+    ## check parameters
+    if S_core_name not in ic_data.core_name.unique() or 'salinity' not in ic_data.loc[ic_data.core_name==S_core_name, 'variable'].unique():
+        print("missing salinity core")
+        return property_stack;
+    else:
+        s_data = ic_data.loc[(ic_data.core_name==S_core_name) & (ic_data.variable == 'salinity')]
+    if T_core_name not in ic_data.core_name.unique() or 'salinity' not in ic_data.loc[ic_data.core_name==T_core_name, 'variable'].unique():
+        print("missing temperature core")
+        return property_stack;
+    else:
+        t_data = ic_data.loc[(ic_data.core_name==S_core_name) & (ic_data.variable == 'temperature'), ['y_mid', 'temperature']]
+
+    ## interpolate temperature profile to match salinity profile
+    y_mid = s_data.y_mid.dropna().tolist()
+    if y_mid.__len__() < 1:
+        y_mid = (s_data.y_low/2+s_data.y_sup/2).tolist()
+
+    interp_data = pd.concat([t_data, pd.DataFrame(y_mid, columns=['y_mid'])])
+    interp_data = interp_data.set_index('y_mid').sort_index().interpolate(method='index').reset_index().drop_duplicates(subset='y_mid')
+
+    data = pd.merge(s_data.drop('temperature', axis=1), interp_data)
+
+    for f_prop in si_prop:
+        if f_prop not in seaice.properties.si_prop_list.keys():
+            print('property %s not defined in the ice core property module' % property)
+
+        prop = seaice.properties.si_prop_list[f_prop]
+        function = getattr(seaice.properties, prop.replace(" ", "_"))
+        prop_data = function(data['temperature'], data['salinity'])
+
+        property_frame = pd.DataFrame(np.vstack((prop_data, y_mid)).transpose(), columns=[prop, 'y_mid'])
+        property_frame['core_name'] = list(set(s_data.core_name))[0]
+        property_frame['comment_prop'] = 'physical properties computed from ' + S_core_name + '(S) and ' + T_core_name + '(T)'
+        property_frame['variable'] = prop
+        core_frame = s_data.drop(['salinity', 'temperature', 'sample_name', 'variable', 'core_name', 'core'], axis=1)
+
+        if si_prop_format == 'linear':
+            core_frame = core_frame.drop(['y_sup', 'y_low'], axis=1)
+
+        prop_data = pd.merge(property_frame, core_frame, how='inner', on=['y_mid'])
+
+        property_stack = property_stack.append(prop_data, ignore_index=True, verify_integrity=False)
 
     return property_stack
