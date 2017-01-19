@@ -2077,12 +2077,12 @@ def calc_prop(ic_data, si_prop, s_profile_shape = 'linear'):
     return property_stack
 
 
-
-
-def compute_phys_prop(ic_data, si_prop, S_core_name, T_core_name, si_prop_format='linear'):
+def compute_phys_prop(ics_data, si_prop, S_core_name, T_core_name, si_prop_format='linear'):
     """
     :param ic_data:
+        dict of ice core
     :param si_prop:
+        physical properties or list of physical properties
     :param si_prop_format: 'linear' or 'step'
     :return:
     """
@@ -2091,19 +2091,21 @@ def compute_phys_prop(ic_data, si_prop, S_core_name, T_core_name, si_prop_format
         si_prop = [si_prop]
 
     ## function variable:
-    property_stack = seaice.core.CoreStack()
+    property_stack = pd.DataFrame()
 
     ## check parameters
-    if S_core_name not in ic_data.core_name.unique() or 'salinity' not in ic_data.loc[ic_data.core_name==S_core_name, 'variable'].unique():
+    if S_core_name not in ics_data.keys() or 'salinity' not in ics_data[S_core_name].profiles.variable.unique():
         print("missing salinity core")
         return property_stack;
     else:
-        s_data = ic_data.loc[(ic_data.core_name==S_core_name) & (ic_data.variable == 'salinity')]
-    if T_core_name not in ic_data.core_name.unique() or 'salinity' not in ic_data.loc[ic_data.core_name==T_core_name, 'variable'].unique():
+        s_data = ics_data[S_core_name].profiles
+        s_data = s_data.loc[s_data.variable == 'salinity']
+    if T_core_name not in ics_data.keys() or 'temperature' not in ics_data[T_core_name].profiles.variable.unique():
         print("missing temperature core")
         return property_stack;
     else:
-        t_data = ic_data.loc[(ic_data.core_name==S_core_name) & (ic_data.variable == 'temperature'), ['y_mid', 'temperature']]
+        t_data = ics_data[T_core_name].profiles
+        t_data = t_data.loc[t_data.variable == 'temperature', ['y_mid', 'temperature']]
 
     ## interpolate temperature profile to match salinity profile
     y_mid = s_data.y_mid.dropna().tolist()
@@ -2113,7 +2115,10 @@ def compute_phys_prop(ic_data, si_prop, S_core_name, T_core_name, si_prop_format
     interp_data = pd.concat([t_data, pd.DataFrame(y_mid, columns=['y_mid'])])
     interp_data = interp_data.set_index('y_mid').sort_index().interpolate(method='index').reset_index().drop_duplicates(subset='y_mid')
 
-    data = pd.merge(s_data.drop('temperature', axis=1), interp_data)
+    data = s_data
+    if 'temperature' in s_data.keys():
+        data = s_data.drop('temperature', axis=1)
+    data = pd.merge(data, interp_data, on=['y_mid'])
 
     for f_prop in si_prop:
         if f_prop not in seaice.properties.si_prop_list.keys():
@@ -2127,7 +2132,9 @@ def compute_phys_prop(ic_data, si_prop, S_core_name, T_core_name, si_prop_format
         property_frame['core_name'] = list(set(s_data.core_name))[0]
         property_frame['comment_prop'] = 'physical properties computed from ' + S_core_name + '(S) and ' + T_core_name + '(T)'
         property_frame['variable'] = prop
-        core_frame = s_data.drop(['salinity', 'temperature', 'sample_name', 'variable', 'core_name', 'core'], axis=1)
+
+        var_drop = [var for var in ['salinity', 'temperature', 'sample_name', 'variable', 'core_name', 'core'] if var in s_data.keys()]
+        core_frame = s_data.drop(var_drop, axis=1)
 
         if si_prop_format == 'linear':
             core_frame = core_frame.drop(['y_sup', 'y_low'], axis=1)
