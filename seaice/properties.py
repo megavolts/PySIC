@@ -25,7 +25,7 @@ si_state_variable = {'temperature': 'temperature', 'temp': 'temperature', 't': '
                      'salinity': 'salinity', 's': 'salinity'}
 si_prop_list = {'brine volume fraction': 'brine volume fraction', 'brine volume fraction': 'brine volume fraction',
                 'vbf': 'brine volume fraction', 'vb': 'brine volume fraction'}
-si_prop_unit = {'salinity': '[PSU]', 'temperature': '[°C]', 'vb': '[-]', 'brine volume fraction': '[-]', 'brine volume fraction': '[-]'}
+si_prop_unit = {'salinity': '-', 'temperature': '°C', 'vb': '-', 'brine volume fraction': '-', 'brine volume fraction': '-'}
 si_prop_latex = {'salinity': 'S', 'temperature': 'T', 'brine volume fraction': '\phi_{B}', 'ice thickness': 'h_{i}', 'snow thickness': 'h_{s}'}
 
 def brine_volume_fraction(t, s, rho_si='default', flag_comment='n'):
