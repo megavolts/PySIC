@@ -1437,6 +1437,11 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
     :param y_mid:
     :return:
     """
+
+    if 'v_ref' in ic_data.keys():
+        v_ref = ic_data.v_ref.unique()
+    else:
+        v_ref = 'top'
     # VARIABLES CHECK
     if y_bins is None and y_mid is None:
         y_bins = pd.Series(ic_data.y_low.dropna().tolist() + ic_data.y_sup.dropna().tolist()).sort_values().unique()
@@ -1485,7 +1490,9 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
 
         # For step profile, like salinity
         elif not ic_data[ic_data.variable == ii_variable].y_low.isnull().any() and ic_data[ic_data.variable == ii_variable].y_low.__len__() > 0:
-            if ic_data.v_ref.unique() == 'bottom':
+
+
+            if v_ref == 'bottom':
                 yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid', drop=False).sort_index().as_matrix(
                     ['y_sup', 'y_low', ii_variable])
             else:
@@ -1609,18 +1616,18 @@ def make_section(core, variables=None, section_thickness=0.05):
 
     for ii_profile in variables:
         profile = core.profiles[ii_profile]
-        if core.ice_thickness is not None:
+        if core.ice_thickness is not None and ~np.isnan(core.ice_thickness):
             ice_thickness = core.ice_thickness
         else:
-            ice_thickness = core.profiles[ii_profile].y[-1]
+            ice_thickness = core.profiles.loc[core.profiles.variable=='salinity', 'ice_core_length'].unique()
 
         y_mid_section = np.arange(section_thickness / 2, ice_thickness, section_thickness)
         delta_y = (ice_thickness + len(y_mid_section) * section_thickness) / 2
 
         if delta_y < ice_thickness:
             y_mid_section = np.append(y_mid_section, np.atleast_1d(delta_y))
-        x = core.profiles[ii_profile].x
-        y = np.array(core.profiles[ii_profile].y)
+        x = np.array(core.profiles[ii_profile])
+        y = np.array(core.profiles[ii_profile])
 
         if len(y) is len(x) + 1:
             y = (y[1:] + y[:-1]) / 2
@@ -1629,10 +1636,10 @@ def make_section(core, variables=None, section_thickness=0.05):
 
         profile.x = x_mid_section
         profile.y = y_mid_section
-        profile.add_comment(
+        core.add_comment(
             'artificial section thickness computed with a vertical resolution of ' + str(section_thickness) + 'm')
         core.del_profile(ii_profile)
-        core.add_profile(profile, ii_profile)
+        core.add_profile(profile)
     return core
 
 
@@ -1806,7 +1813,7 @@ def import_src(ics_filepath, variables=None, comment='no'):
     return ic_dict
 
 
-def import_list(ics_list, missing_value=float('nan'), log_level='warning', comment='n'):
+def import_list(ics_list, missing_value=float('nan'), log_level='warning', comment='n', variables=None):
     """
     :param ics_list:
     :param missing_value:
@@ -1816,12 +1823,11 @@ def import_list(ics_list, missing_value=float('nan'), log_level='warning', comme
     print('Ice core data importation in progress ...')
 
     logging.basicConfig(filename=LOG_FILENAME, level=LOG_LEVELS[log_level])
-
     ic_dict = {}
     for ii in range(0, len(ics_list)):
         if comment:
             print(ics_list[ii])
-        ic_data = import_core(ics_list[ii], comment=comment)
+        ic_data = import_core(ics_list[ii], comment=comment, variables=variables)
         ic_dict[ic_data.core_name] = ic_data
 
     logging.info('Ice core importation complete')
@@ -1838,6 +1844,9 @@ def import_variable(ic_path, variable='Salinity', missing_value=float('nan')):
     :param missing_value:
     :return:
     """
+
+    if variable == None:
+        variable = 'salinity'
 
     variable_sheet_name = {'salinity': 'S_ice', 's': 'S_ice',
                            'temperature': 'T_ice', 't': 'T_ice',

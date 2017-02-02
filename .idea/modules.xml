@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../cold_ice_percolation/.idea/cold_ice_percolation.iml" filepath="$PROJECT_DIR$/../cold_ice_percolation/.idea/cold_ice_percolation.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/sea_ice.iml" filepath="$PROJECT_DIR$/.idea/sea_ice.iml" />
     </modules>
   </component>
