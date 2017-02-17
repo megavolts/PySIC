@@ -28,7 +28,7 @@ si_prop_list = {'brine volume fraction': 'brine volume fraction', 'brine volume 
 si_prop_unit = {'salinity': '-', 'temperature': '°C', 'vb': '-', 'brine volume fraction': '-', 'brine volume fraction': '-'}
 si_prop_latex = {'salinity': 'S', 'temperature': 'T', 'brine volume fraction': '\phi_{B}', 'ice thickness': 'h_{i}', 'snow thickness': 'h_{s}'}
 
-
+# updated for array, SI
 def brine_volume_fraction(t, s, rho_si='default', flag_comment='n'):
     """
     Calculate the volume fraction of brine in function of the temperature and salinity
@@ -122,6 +122,7 @@ def brine_volume_fraction(t, s, rho_si='default', flag_comment='n'):
 
     return vf_b
 
+# updated for array, SI
 
 def air_volumefraction(t, s, rho_si=0.9, flag_comment='y'):
     """
