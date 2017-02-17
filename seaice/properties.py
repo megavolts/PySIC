@@ -343,7 +343,7 @@ def seaice_density(t, s, vf_a='default', flag_comment='y'):
     else:
         s = np.array(s)
 
-    if t.ndim != s.ndim:
+    if t.shape != s.shape:
         print('temperature and salinity profile should be same size array')
         return 0
 
@@ -352,7 +352,7 @@ def seaice_density(t, s, vf_a='default', flag_comment='y'):
         warnings.warn('Air volume fraction is set to default value: Vf_a=0.5 ‰', UserWarning)
     else:
         vf_a = np.array(vf_a)
-        if t.ndim != vf_a.ndim:
+        if t.shape != vf_a.shape:
             print('air volume fraction array should be the same size as temperature and salinity')
             return 0
 
@@ -582,7 +582,7 @@ def seaice_thermal_conductivity(t, s, method='pringle', flag_comment='y'):
     else:
         s = np.array(s)
 
-    if t.ndim != s.ndim:
+    if t.shape != s.shape:
         print('t and s profile should be the same size')
 
     lambda_si = np.nan*t
@@ -646,7 +646,7 @@ def seaice_specific_heat_capacity(t, s, method = 'Untersteiner', flag_comment='y
     else:
         s = np.array(s)
 
-    if t.ndim != s.ndim:
+    if t.shape != s.shape:
         print("Salinity and temperature array should be the same size")
 
     # Pysical Constant
@@ -702,7 +702,7 @@ def seaice_thermal_diffusivity(t, s, method='default', flag_comment='y'):
     else:
         s = np.array(s)
 
-    if t.ndim != s.ndim:
+    if t.shape != s.shape:
         print("Salinity and temperature array should be the same size")
 
     sigma_si = seaice_thermal_conductivity(t, s)/(seaice_specific_heat_capacity(t, s)*seaice_density(t, s))
@@ -748,7 +748,7 @@ def seaice_latentheat(t, s, transformation='fusion'):
     else:
         s = np.array(s)
 
-    if t.ndim != s.ndim:
+    if t.shape != s.shape:
         print("Salinity and temperature array should be the same size")
 
     # Pysical Constant
