@@ -28,6 +28,7 @@ si_prop_list = {'brine volume fraction': 'brine volume fraction', 'brine volume 
 si_prop_unit = {'salinity': '-', 'temperature': '°C', 'vb': '-', 'brine volume fraction': '-', 'brine volume fraction': '-'}
 si_prop_latex = {'salinity': 'S', 'temperature': 'T', 'brine volume fraction': '\phi_{B}', 'ice thickness': 'h_{i}', 'snow thickness': 'h_{s}'}
 
+# updated for array, SI
 def brine_volume_fraction(t, s, rho_si='default', flag_comment='n'):
     """
     Calculate the volume fraction of brine in function of the temperature and salinity
@@ -56,37 +57,29 @@ def brine_volume_fraction(t, s, rho_si='default', flag_comment='n'):
     thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
     from equation 5 and 15 in Cox, G. F. N., & Weeks, W. F. (1983). Equations for determining the gas and brine volumes in sea ice samples. Journal of Glaciology (Vol. 29, pp. 306–316).
     """
-    # check array lengths
-    t = icdt.make_array(t)
-    s = icdt.make_array(s)
+    # check parameters
+    if isinstance(t, (int, float)):
+        t = np.array([t])
+    else:
+        t = np.array(t)
+    if isinstance(s, (int, float)):
+        s = np.array([s])
+    else:
+        s = np.array(s)
 
-    # todo improve this method by getting the length of the ice core
-    if len(t) > 1:
-        if len(t) != len(s):
-            if flag_comment == 'y':
-                print('Vb t and s profile should be the same length')
-            delta_t = len(t) - len(s)
-            if delta_t < 0:
-                temp = np.empty((-delta_t))
-                temp[:] = np.nan
-                t = np.append(t, temp)
-            elif delta_t > 0:
-                # todo: interpolation is a good idea, but does not work as I wish it works.
-                lent = len(t)
-                t = t[0:len(s)]
-                t[len(s):lent] = np.nan
-                s[len(s):lent] = np.nan
-        else:
-            t = t[0:len(s)]
+    if t.shape != s.shape:
+        print('temperature and salinity array should be the same dimension')
+        return 0
 
     if rho_si == 'default':
-        rho_si = seaice_density(t, s, flag_comment='n')
+        rho_si = seaice_density(t, s, flag_comment='n')/10**3  # ice density in g cm^{-3}
     else:
-        rho_si = icdt.make_array(rho_si)
-        if len(rho_si) != len(s) or len(rho_si) != 1:
-            if flag_comment == 'y':
-                print('rho_si should be the same length as t and s')
-            rho_si = np.ones(len(s))[:] * rho_si
+        if isinstance(rho_si, (int, float)):
+            rho_si = np.array([rho_si])/10**3  # ice density in g cm^{-3}
+        else:
+            if t.shape != rho_si.shape:
+                print('sea ice density array should be the same dimension as temperature and salinity')
+                return 0
 
     a = np.empty((4, 4, 2))
 
@@ -108,47 +101,28 @@ def brine_volume_fraction(t, s, rho_si='default', flag_comment='n'):
     a[2, 2, :] = [55.27, 0.04518]
     a[2, 3, :] = [0.7160, 5.819 * 10 ** (-4)]
 
-    ii_max = len(t)
-    vf_b = np.empty(ii_max)
-    vf_b[:] = np.nan
+    B = np.empty((3,2))
+    B[0] = [-30, -22.9]
+    B[1] = [-22.9, -2]
+    B[2] = [-2, 0]
 
     vf_a = air_volumefraction(t, s, rho_si, flag_comment='n')
+    rho_i = ice_density(t, 'n')/10**3  # ice density in g cm^{-3}
 
-    for ii in np.arange(0, ii_max):
-        t_temp = t[ii]
-        s_temp = s[ii]
-        vf_a_temp = vf_a[ii]
-        if np.isnan(t_temp):
-            if flag_comment == 'y':
-                print('layer ' + str(ii) + ' : temperature not defined')
-        elif np.isnan(s_temp):
-            if flag_comment == 'y':
-                print('layer ' + str(ii) + ' : salinity not defined')
-        elif t_temp < -30:
-            if flag_comment == 'y':
-                print('layer ' + str(ii) + ' : t=' + str(t_temp) + '<-30 : ice temperature is out of validity')
-        elif 0 <= t_temp:
-            if flag_comment == 'y':
-                print('layer ' + str(ii) + ' : t=' + str(t_temp) + '>0 : ice has alreay melt')
-        else:
-            if (-30 <= t_temp) & (t_temp <= -22.9):
-                mm = 2
-            elif (-22.9 < t_temp) & (t_temp <= -2):
-                mm = 1
-            elif (-2 < t_temp) & (t_temp <= 0):
-                mm = 0
+    F1 = np.nan*t
+    F2 = np.nan*t
+    for mm in np.arange(0, 3):
+        P1 = [a[mm, 3, 0], a[mm, 2, 0], a[mm, 1, 0], a[mm, 0, 0]]
+        P2 = [a[mm, 3, 1], a[mm, 2, 1], a[mm, 1, 1], a[mm, 0, 1]]
 
-            p1 = [a[mm, 3, 0], a[mm, 2, 0], a[mm, 1, 0], a[mm, 0, 0]]
-            p2 = [a[mm, 3, 1], a[mm, 2, 1], a[mm, 1, 1], a[mm, 0, 1]]
+        F1[(B[mm, 0]<=t) & (t<=B[mm, 1])] = np.polyval(P1, t[(B[mm, 0]<=t) & (t<=B[mm, 1])])
+        F2[(B[mm, 0]<=t) & (t<=B[mm, 1])] = np.polyval(P2, t[(B[mm, 0]<=t) & (t<=B[mm, 1])])
 
-            f1 = np.polyval(p1, t_temp)
-            f2 = np.polyval(p2, t_temp)
+    vf_b = ((1 - vf_a) * rho_i * s / (F1 - rho_i * s * F2))
 
-            rho_i = ice_density(t_temp, 'n')  # [0]
-
-            vf_b[ii] = ((1 - vf_a_temp) * rho_i * s_temp / (f1 - rho_i * s_temp * f2))
     return vf_b
 
+# updated for array, SI
 
 def air_volumefraction(t, s, rho_si=0.9, flag_comment='y'):
     """
@@ -181,33 +155,28 @@ def air_volumefraction(t, s, rho_si=0.9, flag_comment='y'):
     import numpy as np
 
     # check array lengths
-    t = icdt.make_array(t)
-    s = icdt.make_array(s)
+    if isinstance(t, (int, float)):
+        t =np.array([t])
+    else:
+        t = np.array(t)
+    if isinstance(s, (int, float)):
+        s =np.array([s])
+    else:
+        s = np.array(s)
 
-    if len(t) > 1:
-        if len(t) != len(s):
-            print('rho sI t and s profile should be the same length')
-            delta_t = len(t) - len(s)
-            if delta_t < 0:
-                delta_t = len(t) - len(s)
-                temp = np.empty((-delta_t))
-                temp[:] = np.nan
-                t = np.append(t, temp)
-            elif delta_t > 0:
-                # todo: interpolation is a good idea, but does not work as I wish it works.
-                lent = len(t)
-                t = t[0:len(s)]
-                t[len(s):lent] = np.nan
-                s[len(s):lent] = np.nan
-
-    rho_si = icdt.make_array(rho_si)
-    if len(rho_si) != len(s) & len(rho_si) != 1:
-        print('rho_si should be the same length as t and s')
+    if t.shape != s.shape:
+        print('temperature and salinity array should be the same shape')
         return 0
 
-    ii_max = len(t)
-    vf_a = np.empty(ii_max)
-    vf_a[:] = np.nan
+    if rho_si == 'default':
+        rho_si = seaice_density(t, s, flag_comment='n')/10**3  # ice density in g cm^{-3}
+    else:
+        if isinstance(rho_si, (int, float)):
+            rho_si = np.array([rho_si])/10**3  # ice density in g cm^{-3}
+        else:
+            if t.shape != rho_si.shape:
+                print('sea ice density array should be the same shape as temperature and salinity')
+                return 0
 
     # Physical constant
     A = np.empty((4, 4, 2))
@@ -230,46 +199,30 @@ def air_volumefraction(t, s, rho_si=0.9, flag_comment='y'):
     A[2, 2, :] = [55.27, 0.04518]
     A[2, 3, :] = [0.7160, 5.819 * 10 ** (-4)]
 
-    rho_i = ice_density(t, 'n')
 
-    for ii in np.arange(0, ii_max):
-        t_temp = t[ii];
-        s_temp = s[ii];
+    B = np.empty((3,2))
+    B[0] = [-30, -22.9]
+    B[1] = [-22.9, -2]
+    B[2] = [-2, 0]
 
-        if len(rho_si) > 1:
-            rho_si_temp = rho_si[ii]
-        else:
-            rho_si_temp = rho_si[0]
+    rho_i = ice_density(t, 'n')/10**3  # ice density in g cm^{-3}
 
-        if np.isnan(t_temp):
-            if flag_comment == 'y':
-                print('layer ' + str(ii) + ' : temperature not defined')
-        elif np.isnan(s_temp):
-            if flag_comment == 'y':
-                print('layer ' + str(ii) + ' : salintiy not defined')
-        elif t_temp < -30:
-            if flag_comment == 'y':
-                print('layer ' + str(ii) + ' : t=' + str(t_temp) + '<-30 : ice temperature is out of validity')
-        elif 0 <= t_temp:
-            if flag_comment == 'y':
-                print('layer ' + str(ii) + ' : t=' + str(t_temp) + '>0 : ice has alreay melt')
-        else:
-            if (-30 <= t_temp) & (t_temp <= -22.9):
-                mm = 2
-            elif (-22.9 < t_temp) & (t_temp <= -2):
-                mm = 1
-            elif (-2 < t_temp) & (t_temp <= 0):
-                mm = 0
-            P1 = [A[mm, 3, 0], A[mm, 2, 0], A[mm, 1, 0], A[mm, 0, 0]]
-            P2 = [A[mm, 3, 1], A[mm, 2, 1], A[mm, 1, 1], A[mm, 0, 1]]
+    F1 = np.nan*t
+    F2 = np.nan*t
+    for mm in range(0, 3):
+        p1 = [A[mm, 3, 0], A[mm, 2, 0], A[mm, 1, 0], A[mm, 0, 0]]
+        p2 = [A[mm, 3, 1], A[mm, 2, 1], A[mm, 1, 1], A[mm, 0, 1]]
 
-            F1 = np.polyval(P1, t_temp)
-            F2 = np.polyval(P2, t_temp)
+        F1[(B[mm, 0] <= t) & (t <= B[mm, 1])] = np.polyval(p1, t[(B[mm, 0] <= t) & (t <= B[mm, 1])])
+        F2[(B[mm, 0] <= t) & (t <= B[mm, 1])] = np.polyval(p2, t[(B[mm, 0] <= t) & (t <= B[mm, 1])])
 
-            vf_a[ii] = ((1 - rho_si_temp / rho_i[ii] + rho_si_temp * s_temp * F2 / F1))
+
+    vf_a = ((1 - rho_si / rho_i + rho_si * s * F2 / F1))
+
     return vf_a
 
 
+# updated for array, SI
 def ice_density(t, flag_comment='y'):
     """
 		Calculate the density of the pure water ice in function of the temperature
@@ -284,7 +237,7 @@ def ice_density(t, flag_comment='y'):
 		Returns
 		----------
 		rho_i: ndarray
-			density of the ice in gram per cubic centimeters [g cm^{-3}]
+			density of the ice in gram per cubic centimeters [kg m^{-3}]
 
 		sources
 		----------
@@ -297,25 +250,22 @@ def ice_density(t, flag_comment='y'):
 
     # Physical constant
     A = [-0.000117, 1]
-    B = 0.917
+    B = 0.917  # density in kg m^{-3}
 
-    t = np.atleast_1d(t)
-    t = icdt.make_array(t)
-    ii_max = len(t)
-    rho_ice = np.empty((ii_max))
-    rho_ice[:] = np.nan
+    if isinstance(t, (int, float)):
+        t =np.array([t])
+    else:
+        t = np.array(t)
+    rho_ice = np.nan*t
 
     rho_ice[np.where(t < 0)] = B * np.polyval(A, t[np.where(t < 0)])
 
     if flag_comment == 'y':
-        if t > 0:
-            print('temperature above 0°C : ice has melt')
-        for ii in np.where(t >= 0)[0]:
-            print('layer ' + str(ii + 1) + ' : t=' + str(t[ii]) + '°C')
+        if np.count_nonzero(np.where(t>0)):
+            print('Element with temperature above 0°C : ice has melt in some case')
+    return rho_ice*10**3
 
-    return rho_ice
-
-
+# updated for array, SI
 def brine_density(t):
     """
 		Calculate the density of the brine in function of the temperature.
@@ -328,7 +278,7 @@ def brine_density(t):
 		Returns
 		----------
 		rho_b: ndarray
-			density of the brine in gram per cubic centimeters [g cm^{-3}]
+			density of the brine in gram per cubic centimeters [kg m^{-3}]
 
 		sources
 		----------
@@ -341,14 +291,17 @@ def brine_density(t):
 	"""
     # Physical constant
     A = [8 * 10 ** (-4), 1]
-    t = icdt.make_array(t)
+    if isinstance(t, (int, float)):
+        t =np.array([t])
+    else:
+        t = np.array(t)
 
     s_b = brine_salinity(t)
     rho_b = (A[1] + A[0] * s_b)
 
-    return rho_b
+    return rho_b*10**3
 
-
+# updated for array, SI
 def seaice_density(t, s, vf_a='default', flag_comment='y'):
     """
 		Calculate the density of seaice in function of the temperature and salinity
@@ -369,7 +322,7 @@ def seaice_density(t, s, vf_a='default', flag_comment='y'):
 		Returns
 		----------
 		rho_si: ndarray
-			density of the brine in gram per cubic centimeters [g cm^{-3}]
+			density of the brine in gram per cubic centimeters [kg m^{-3}]
 
 		sources
 		----------
@@ -381,36 +334,27 @@ def seaice_density(t, s, vf_a='default', flag_comment='y'):
     import warnings
 
     # check parameters
-    t = icdt.make_array(t)
-    s = icdt.make_array(s)
+    if isinstance(t, (int, float)):
+        t =np.array([t])
+    else:
+        t = np.array(t)
+    if isinstance(s, (int, float)):
+        s =np.array([s])
+    else:
+        s = np.array(s)
 
-    if len(t) > 1:
-        if len(t) != len(s):
-            print('rho sI t and s profile should be the same length')
-            delta_t = len(t) - len(s)
-            if delta_t < 0:
-                delta_t = len(t) - len(s)
-                temp = np.empty((-delta_t))
-                temp[:] = np.nan
-                t = np.append(t, temp)
-            elif delta_t > 0:
-                lent = len(t)
-                t = t[0:len(s)]
-                t[len(s):lent] = np.nan
-                s[len(s):lent] = np.nan
+    if t.ndim != s.ndim:
+        print('temperature and salinity profile should be same size array')
+        return 0
 
     if vf_a == 'default':
         vf_a = np.array([0.0005])
         warnings.warn('Air volume fraction is set to default value: Vf_a=0.5 ‰', UserWarning)
     else:
-        vf_a = icdt.make_array(vf_a)
-        if len(vf_a) != len(s) & len(vf_a) != 1:
-            print('Vf_a should be the same length as t and s')
+        vf_a = np.array(vf_a)
+        if t.ndim != vf_a.ndim:
+            print('air volume fraction array should be the same size as temperature and salinity')
             return 0
-
-    ii_max = len(t)
-    rho_seaice = np.empty(ii_max)
-    rho_seaice[:] = np.nan
 
     # Physical constant
     A = np.empty((4, 4, 2))
@@ -433,45 +377,28 @@ def seaice_density(t, s, vf_a='default', flag_comment='y'):
     A[2, 2, :] = [55.27, 0.04518]
     A[2, 3, :] = [0.7160, 5.819 * 10 ** (-4)]
 
-    rho_i = ice_density(t, 'n')
-    rho_seaice = np.empty(ii_max)
-    rho_seaice[:] = np.nan
+    B = np.empty((3,2))
+    B[0] = [-30, -22.9]
+    B[1] = [-22.9, -2]
+    B[2] = [-2, 0]
 
-    for ii in range(0, ii_max):
-        t_temp = t[ii];
-        s_temp = s[ii];
-        if np.isnan(t_temp):
-            if flag_comment == 'y':
-                print('layer ' + str(ii) + ' : temperature not defined')
-            rho_seaice[ii] = (np.nan)
-        elif np.isnan(s_temp):
-            if flag_comment == 'y':
-                print('layer ' + str(ii) + ' : salinity not defined')
-            rho_seaice[ii] = (np.nan)
-        elif t_temp < -30:
-            if flag_comment == 'y':
-                print('layer ' + str(ii) + ' : t=' + str(t_temp) + '<-30 : ice temperature is out of validity')
-        elif 0 <= t_temp:
-            if flag_comment == 'y':
-                print('layer ' + str(ii) + ' : t=' + str(t_temp) + '>0 : ice has alreay melt')
-        else:
-            if (-30 <= t_temp) & (t_temp <= -22.9):
-                mm = 0
-            elif (-22.9 < t_temp) & (t_temp <= -2):
-                mm = 1
-            elif (-2 < t_temp) & (t_temp <= 0):
-                mm = 2
+    rho_i = ice_density(t, 'n')/10**3  # ice density in g cm^{-3}
 
-            P1 = [A[mm, 3, 0], A[mm, 2, 0], A[mm, 1, 0], A[mm, 0, 0]]
-            P2 = [A[mm, 3, 1], A[mm, 2, 1], A[mm, 1, 1], A[mm, 0, 1]]
+    F1 = np.nan*t
+    F2 = np.nan*t
+    for mm in range(0, 3):
+        P1 = [A[mm, 3, 0], A[mm, 2, 0], A[mm, 1, 0], A[mm, 0, 0]]
+        P2 = [A[mm, 3, 1], A[mm, 2, 1], A[mm, 1, 1], A[mm, 0, 1]]
 
-            F1 = np.polyval(P1, t_temp)
-            F2 = np.polyval(P2, t_temp)
-
-            rho_seaice[ii] = ((1 - vf_a) * (rho_i[ii] * F1 / (F1 - rho_i[ii] * s_temp * F2)));
-    return rho_seaice
+        F1[(B[mm,0]<=t) & (t<=B[mm,1])] = np.polyval(P1, t[(B[mm,0]<=t) & (t<=B[mm,1])])
+        F2[(B[mm,0]<=t) & (t<=B[mm,1])] = np.polyval(P2, t[(B[mm,0]<=t) & (t<=B[mm,1])])
 
 
+    rho_seaice = ((1 - vf_a) * (rho_i * F1 / (F1 - rho_i * s * F2)));
+
+    return rho_seaice*10**3
+
+# updated for array
 def brine_salinity(t, method='CW', flag_comment='y'):
     """
     Calculate the salinity of the brine in function of the temperature at equilibrium.
@@ -496,11 +423,12 @@ def brine_salinity(t, method='CW', flag_comment='y'):
 """
     import numpy as np
 
-    t = icdt.make_array(t)
+    if isinstance(t, (int, float)):
+        t =np.array([t])
+    else:
+        t = np.array(t)
 
-    ii_max = len(t)
-    s_b = np.empty(ii_max)
-    s_b[:] = np.nan
+    s_b = np.nan*t
 
     if method == 'As':
         if t.all > -23:
@@ -511,39 +439,25 @@ def brine_salinity(t, method='CW', flag_comment='y'):
     else:
         # Physical constant
         A = np.empty((3, 4))
+        B = np.empty((3, 2))
+
         # coefficient for -54<t<=-44
         A[0, :] = [-4442.1, -277.86, -5.501, -0.03669];
-
+        B[0] = [-54, -44]
         # coefficient for -44<t<=-22.9
         A[1, :] = [206.24, -1.8907, -0.060868, -0.0010247];
-
+        B[1] = [-44, -22.9]
         # coefficient for -22.9<t<=-2
         A[2, :] = [-3.9921, -22.700, -1.0015, -0.019956];
+        B[2] = [-22.9, -2]
 
-        for ii in range(0, ii_max):
-            if np.isnan(t[ii]):
-                if flag_comment == 'y':
-                    print('layer ' + str(ii) + ' : temperature not defined')
-            elif t[ii] < -54:
-                if flag_comment == 'y':
-                    print('layer ' + str(ii) + ' : t=' + str(t[ii]) + '<-54 : ice temperature is out of validity')
-            elif 0 <= t[ii]:
-                if flag_comment == 'y':
-                    print('layer ' + str(ii) + ' : t=' + str(t[ii]) + '>0 : ice has alreay melt')
-            else:
-                if (-54 < t[ii]) & (t[ii] <= -44):
-                    mm = 0
-                elif (-44 < t[ii]) & (t[ii] <= -22.9):
-                    mm = 1
-                elif (-22.9 < t[ii]) & (t[ii] <= 0):
-                    mm = 2
+        for mm in range(0, 3):
+            P1 = [A[mm, 3], A[mm, 2], A[mm, 1], A[mm, 0]]
 
-                P1 = [A[mm, 3], A[mm, 2], A[mm, 1], A[mm, 0]]
-
-                s_b[ii] = (np.polyval(P1, t[ii]))
+            s_b[(B[mm,0]<=t) & (t<=B[mm,1])] = (np.polyval(P1, t[(B[mm, 0]<=t) & (t<=B[mm, 1])]))
     return s_b
 
-
+# updated for array, SI
 def brine_thermal_conductivity(t, flag_comment='y'):
     """
 		Calculate thermal conductivity of brine
@@ -557,7 +471,7 @@ def brine_thermal_conductivity(t, flag_comment='y'):
 		Returns
 		----------
 		lambda_si ndarray
-			Volume fraction of brine in the ice
+			brine thermal conductivity in W m^{-1]K^{-1]
 
 		sources
 		----------
@@ -567,28 +481,27 @@ def brine_thermal_conductivity(t, flag_comment='y'):
 	"""
     import numpy as np
 
+    if isinstance(t, (int, float)):
+        t =np.array([t])
+    else:
+        t = np.array(t)
+
     # Physical constant
     A = [0.00014, 0.030, 1.25]
     B = 0.4184
-    t = icdt.make_array(t)
 
-    ii_max = len(t)
-    lambda_b = np.empty((ii_max))
-    lambda_b[:] = np.nan
+    lambda_b = np.nan*t
 
-    lambda_b[np.where(t < 0)] = B * np.polyval(A, t[np.where(t < 0)])
+    lambda_b[(t < 0)] = B * np.polyval(A, t[(t < 0)])
 
     if flag_comment == 'y':
-        for ii in np.where(t >= 0)[0]:
-            print('layer ' + str(ii + 1) + ' : t=' + str(t[ii]) + '°C, ice has melt')
-    for ii in np.where(lambda_b < 0)[0]:
-        lambda_b[ii] = np.nan
-        if flag_comment == 'y':
-            print('layer ' + str(ii + 1) + ' : conductivity not defined')
+        if np.count_nonzero(np.where(t>0)):
+            print('Element with temperature above 0°C : ice has melt in some case')
+
     return lambda_b
 
-
-def ice_thermalConductivity(t, flag_comment='y'):
+# updated for array, SI
+def ice_thermal_conductivity(t, flag_comment='y'):
     """
 		Calculate thermal conductivity of ice
 
@@ -601,7 +514,7 @@ def ice_thermalConductivity(t, flag_comment='y'):
 		Returns
 		----------
 		lambda_si ndarray
-			Volume fraction of brine in the ice
+			ice thermal conductivity W m^{-1] K^{-1]
 
 		sources
 		----------
@@ -611,25 +524,26 @@ def ice_thermalConductivity(t, flag_comment='y'):
 	"""
     import numpy as np
 
+    if isinstance(t, (int, float)):
+        t =np.array([t])
+    else:
+        t = np.array(t)
+
     # Physical constant
     A = [2.97 * 10 ** (-5), -8.66 * 10 ** (-3), 1.91]
     B = 1.16
 
-    t = icdt.make_array(t)
-
-    ii_max = len(t)
-    lambda_i = np.empty((ii_max))
-    lambda_i[:] = np.nan
+    lambda_i = np.nan*t
 
     lambda_i[np.where(t < 0)] = B * np.polyval(A, t[np.where(t < 0)])
 
     if flag_comment == 'y':
-        for ii in np.where(t >= 0)[0]:
-            print('layer ' + str(ii + 1) + ' : t=' + str(t[ii]) + '°C, ice has melt')
+        if np.count_nonzero(np.where(t>0)):
+            print('Element with temperature above 0°C : ice has melt in some case')
     return lambda_i
 
-
-def seaice_thermalConductivity(t, s, method='Maykut', flag_comment='y'):
+# updated for array, SI
+def seaice_thermal_conductivity(t, s, method='pringle', flag_comment='y'):
     """
 		Calculate bulk thermal conductivity of sea ice
 
@@ -647,7 +561,7 @@ def seaice_thermalConductivity(t, s, method='Maykut', flag_comment='y'):
 		Returns
 		----------
 		lambda_si ndarray
-			Volume fraction of brine in the ice
+		    seaice thermal conductivity W m^{-1] K^{-1]
 
 		sources
 		----------
@@ -659,42 +573,142 @@ def seaice_thermalConductivity(t, s, method='Maykut', flag_comment='y'):
 	"""
     import numpy as np
 
-    t = icdt.make_array(t)
-    s = icdt.make_array(s)
+    if isinstance(t, (int, float)):
+        t =np.array([t])
+    else:
+        t = np.array(t)
+    if isinstance(s, (int, float)):
+        s =np.array([s])
+    else:
+        s = np.array(s)
 
-    if len(t) > 1:
-        if len(t) != len(s):
-            print('t and s profile should be the same length')
-            return 0
+    if t.ndim != s.ndim:
+        print('t and s profile should be the same size')
 
-    ii_max = len(t)
-    lambda_si = np.empty((ii_max))
-    lambda_si[:] = np.nan
+    lambda_si = np.nan*t
 
-    if method == 'Maykut':
+    if method == 'maykut':
         # Physical constant
         A = 0.13
 
         lambda_si[np.where(t < 0)] = (
-            ice_thermalConductivity(t[np.where(t < 0)]) + A * s[np.where(t < 0)] / t[np.where(t < 0)])
+            ice_thermal_conductivity(t[np.where(t < 0)]) + A * s[np.where(t < 0)] / t[np.where(t < 0)])
 
-    elif method == 'Pringle':
-        rho_si = seaice_density(t, s, flag_comment='n')
-        rho_i = ice_density(t, flag_comment='n')
+    elif method == 'pringle':
+        rho_si = seaice_density(t, s, flag_comment='n')/10**3  # density in g cm^{-3}
+        rho_i = ice_density(t, flag_comment='n')/10**3  # density in g cm^{-3}
 
-        lambda_si[np.where(t < 0)] = rho_si[np.where(t < 0)] / rho_i[np.where(t < 0)] * (
-            2.11 - 0.011 * t[np.where(t < 0)] + 0.09 * s[np.where(t < 0)] / t[np.where(t < 0)] - (
-                rho_si[np.where(t < 0)] - rho_i[np.where(t < 0)]) / 1000)
+        lambda_si[(t < 0)] = rho_si[(t < 0)] / rho_i[(t < 0)] * (
+            2.11 - 0.011 * t[(t < 0)] + 0.09 * s[(t < 0)] / t[(t < 0)] - (
+                rho_si[(t < 0)] - rho_i[(t < 0)]) / 1000)
 
     if flag_comment == 'y':
-        for ii in np.where(t >= 0)[0]:
-            print('layer ' + str(ii + 1) + ' : t=' + str(t[ii]) + '°C, ice has melt')
-    for ii in np.where(lambda_si < 0)[0]:
-        lambda_si[ii] = np.nan
         if flag_comment == 'y':
-            print('layer ' + str(ii + 1) + ' : conductivity not defined')
-
+            if np.count_nonzero(np.where(t > 0)):
+                print('Some conductivity value are not define. Temperature above 0°C')
     return lambda_si
+
+# updated for array, SI
+def seaice_specific_heat_capacity(t, s, method = 'Untersteiner', flag_comment='y'):
+    """
+        Calculate specific heat capacity of sea ice
+
+        Parameters
+        ----------
+        t : array_like, number
+            temperature in degree Celsius [°C]
+            If t is an array, s should be an array of the same length
+        s : array_like, number
+            salinity in practical salinity unit [PsU]
+            If s is an array, t should be an array of the same length
+        method : optional, string
+            thermal conductivity could be either calculated with Maykut or Pringle equation
+
+        Returns
+        ----------
+        c_si ndarray
+            sea ice specific heat capacity (J kg^{-1}K^{-1})
+
+        sources
+        ----------
+        Equation 2.18 and 2.19 in Eicken, H. (2003). From the microscopic, to the macroscopic, to the regional scale: growth, microstructure and properties of sea ice. In thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
+
+        Untersteiner method is describe in Understeiner, N. (1961) Natural desalination and equilibrium salinity profile of perennial sea ice. Journal of Geophysical Research, 73, 1251-1257
+
+        Maykut method is describe in Maykut, G. A. (1986). the surface heat and mass balance. In N. Understeiner (Ed.), the geophysics of sea ice (pp. 395–463). Dordrecht (NAtO AsI B146): Martinus Nijhoff Publishers.
+    """
+    if isinstance(t, (int, float)):
+        t =np.array([t])
+    else:
+        t = np.array(t)
+    if isinstance(s, (int, float)):
+        s =np.array([s])
+    else:
+        s = np.array(s)
+
+    if t.ndim != s.ndim:
+        print("Salinity and temperature array should be the same size")
+
+    # Pysical Constant
+    c_i = 2.11  # [kJ kg^{-1}K^{-1}] specific heat capacity of ice @ 0°C
+
+    c_si = np.nan*np.array(t)
+
+    if method == 'Untersteiner':
+        A = 17.2  # [kJ kg^{-1}K^{-1}]
+        c_si[t<0] = c_i + A*s[t<0]/t[t<0]**2
+
+    elif method == 'Ono':
+        beta = 7.5*10**-3  # (kJ kg^{-1}K^{-2})
+        L = 333.4 # (J kg^{-1}) latent heat of fusion of freshwater
+        m_m = -0.05411  # (K)  slope of the liquid
+
+        c_si[t<0] = c_i + beta*t[t<0]-m_m*L*s[t<0]/t[t<0]**2
+
+    return c_si*10**3
+
+
+def seaice_thermal_diffusivity(t, s, method='default', flag_comment='y'):
+    """
+        Calculate specific heat capacity of sea ice
+
+        Parameters
+        ----------
+        t : array_like, number
+            temperature in degree Celsius [°C]
+            If t is an array, s should be an array of the same length
+        s : array_like, number
+            salinity in practical salinity unit [PsU]
+            If s is an array, t should be an array of the same length
+        method : optional, string
+            both sea ice specitic heat capacity and thermal conductivity
+            default use Understeiner method for specific heat capacity and Pringle method for thermal conductivity
+
+        Returns
+        ----------
+        sigma_si ndarray
+            sea ice specific heat capacity m^{2} s^{-1}
+
+        sources
+        ----------
+            material thermal diffusivity is given by sigma = lambda/(rho c_p)
+    """
+    if isinstance(t, (int, float)):
+        t =np.array([t])
+    else:
+        t = np.array(t)
+    if isinstance(s, (int, float)):
+        s =np.array([s])
+    else:
+        s = np.array(s)
+
+    if t.ndim != s.ndim:
+        print("Salinity and temperature array should be the same size")
+
+    sigma_si = seaice_thermal_conductivity(t, s)/(seaice_specific_heat_capacity(t, s)*seaice_density(t, s))
+
+    return sigma_si
+
 
 
 def seaice_latentheat(t, s, transformation='fusion'):
@@ -725,19 +739,23 @@ def seaice_latentheat(t, s, transformation='fusion'):
 		from Equation (16) Ono, N. (1967). specific heat and heat of fusion of sea ice. In Physic of snow and Ice (H. Oura., Vol. 1, pp. 599–610).
 
 	"""
-    t = icdt.make_array(t)
-    s = icdt.make_array(s)
+    if isinstance(t, (int, float)):
+        t =np.array([t])
+    else:
+        t = np.array(t)
+    if isinstance(s, (int, float)):
+        s =np.array([s])
+    else:
+        s = np.array(s)
 
-    if len(t) > 1:
-        if len(t) != len(s):
-            print('t and s profile should be the same length')
-            return 0
+    if t.ndim != s.ndim:
+        print("Salinity and temperature array should be the same size")
 
     # Pysical Constant
     L = 333.4  # [kJ kg^{-1}] latent heat of fusion of freshwater
     m_m = -0.05411  # [K]  slope of the liquid
-    c_i = 2.11  # [kJ kg^{-1}K^{-1}] specific heat cpacity of ice @ 0°C
-    c_w = 4.179  # [kJ kg^{-1}K^{-1}] specific heat cpacity of freshwater @ 0°C
+    c_i = 2.11  # [kJ kg^{-1}K^{-1}] specific heat capacity of ice @ 0°C
+    c_w = 4.179  # [kJ kg^{-1}K^{-1}] specific heat capacity of freshwater @ 0°C
     s_0 = 35  # [PsU] standard seawater salinity
 
     s00 = 'freezing'
