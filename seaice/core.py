@@ -1101,19 +1101,18 @@ def add_variable(ics_stack, variable_dict, data):
     ics_stack = ics_stack.fillna(data)
     return ics_stack
 
-#
-# def select_profile2(ics_stack, variable_dict):
-#     str_select = '('
-#     ii_var = []
-#     ii = 0
-#     for ii_key in variable_dict.keys():
-#         if ii_key in ics_stack.columns.values:
-#             ii_var.append(variable_dict[ii_key])
-#             str_select = str_select + 'self.' + ii_key + '==ii_var[' + str('%d' % ii) + ']) & ('
-#             ii += 1
-#     str_select = str_select[:-4]
-#     return ics_stack.loc[eval(str_select)], ics_stack.loc[eval(str_select) == 0]
-
+# modify february 2017
+def select_profile_V2(ics_stack, variable_dict):
+    str_select = '('
+    ii_var = []
+    ii = 0
+    for ii_key in variable_dict.keys():
+        if ii_key in ics_stack.columns.values:
+            ii_var.append(variable_dict[ii_key])
+            str_select = str_select + 'ics_stack.' + ii_key + '==ii_var[' + str('%d' % ii) + ']) & ('
+            ii += 1
+    str_select = str_select[:-4]
+    return ics_stack.loc[eval(str_select)]
 
 def DD_fillup(ics_stack, DD, freezup_dates):
     for f_day in ics_stack.coring_date.unique():
@@ -1182,34 +1181,29 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
         print("'a variable should be specified for plotting")
         return 0
 
-    if 'bin_index' not in variable_dict.keys():
-        print("DD index should be specified for plotting")
-        return 0
+    ii_variable = variable_dict['variable']
 
-    f_variable = variable_dict['variable']
-    bin_index = variable_dict['bin_index']
+    x_mean = select_profile_V2(ic_data, {'variable':ii_variable, 'stat':'mean'}).reset_index()
+    x_std = select_profile_V2(ic_data, {'variable':ii_variable, 'stat':'std'}).reset_index()
 
-    x_mean = ic_data.select_profile({'stats': 'mean', 'variable': f_variable, 'DD_index': bin_index})[0].reset_index()
-    x_std = ic_data.select_profile({'stats': 'std', 'variable': f_variable, 'DD_index': bin_index})[0].reset_index()
-
-    if x_mean[f_variable].__len__() !=0:
+    if x_mean.__len__() !=0:
         if x_std.__len__() < x_mean.__len__():
-            index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
-            x_std = x_std.append(pd.DataFrame(np.nan, columns=x_std.columns.tolist(), index=index))
+             index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
+             x_std = x_std.append(pd.DataFrame(np.nan, columns=x_std.columns.tolist(), index=index))
 
-        if not x_mean[x_mean.variable == f_variable].y_low.isnull().all():
+        if not x_mean.y_low.isnull().all():
             y_low = x_mean['y_low']
             y_sup = x_mean['y_sup']
             y = np.concatenate((y_low.tolist(), [y_sup.tolist()[-1]]))
-            x_std_l = x_mean[f_variable] - x_std[f_variable]
-            x_std_h = x_mean[f_variable] + x_std[f_variable]
+            x_std_l = x_mean[ii_variable] - x_std[ii_variable]
+            x_std_h = x_mean[ii_variable] + x_std[ii_variable]
 
             x_std_l = seaice.toolbox.plt_step(x_std_l.tolist(), y).transpose()
             x_std_h = seaice.toolbox.plt_step(x_std_h.tolist(), y).transpose()
-        elif x_mean[x_mean.variable == f_variable].y_low.isnull().all():
+        elif x_mean.y_low.isnull().all():
             y_std = x_mean['y_mid']
-            x_std_l = np.array([x_mean[f_variable] - x_std[f_variable], y_std])
-            x_std_h = np.array([x_mean[f_variable] + x_std[f_variable], y_std])
+            x_std_l = np.array([x_mean[ii_variable] - x_std[ii_variable], y_std][ii_variable])
+            x_std_h = np.array([x_mean[ii_variable] + x_std[ii_variable], y_std][ii_variable])
 
         if 'facecolor' not in param_dict.keys():
             param_dict['facecolor'] = {'black'}
@@ -1219,6 +1213,37 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
             param_dict['label'] = str(r"$\pm$"+"std dev")
         ax.fill_betweenx(x_std_l[1, :], x_std_l[0, :], x_std_h[0, :], facecolor='black', alpha=0.2,
                                             label=str("mean"+r"$\pm$"+"std dev"))
+    return ax
+
+def plot_number(ic_data, variable_dict, ax=None, param_dict=None, position='right', x_delta=0.1, z_delta=0.05, every=1):
+
+    if ax is None:
+        plt.figure()
+        ax = plt.subplot(1, 1, 1)
+
+    if param_dict is None:
+        param_dict = {}
+
+    if 'variable' not in variable_dict.keys():
+        print("'a variable should be specified for plotting")
+        return 0
+
+    ii_variable = variable_dict['variable']
+
+    if position =='left':
+        stat = 'min'
+    elif position == 'center':
+        stat = 'mean'
+    else:
+        stat = 'max'
+
+    pos = select_profile_V2(ic_data, {'variable':ii_variable, 'stat':stat}).reset_index()['salinity'].values
+    depth = select_profile_V2(ic_data, {'variable':ii_variable, 'stat':stat}).reset_index()['y_mid'].values
+    n = select_profile_V2(ic_data, {'variable':ii_variable, 'stat':stat}).reset_index()['n'].values
+
+    for ii in np.arange(0, pos.__len__(), every):
+        ax.text(pos[ii]+x_delta, depth[ii]+z_delta, str('(%.0f)' % n[ii]))
+
     return ax
 
 
@@ -1234,7 +1259,7 @@ def plot_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
         print("'a variable should be specified for plotting")
         return 0
 
-    profile = ic_data.select_profile(variable_dict)[0]
+    profile = select_profile_V2(ic_data, variable_dict)
     ax = plot_profile(profile, variable_dict['variable'], ax=ax, param_dict=param_dict)
     return ax
 
