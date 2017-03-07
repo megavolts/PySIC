@@ -1202,8 +1202,8 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
             x_std_h = seaice.toolbox.plt_step(x_std_h.tolist(), y).transpose()
         elif x_mean.y_low.isnull().all():
             y_std = x_mean['y_mid']
-            x_std_l = np.array([x_mean[ii_variable] - x_std[ii_variable], y_std][ii_variable])
-            x_std_h = np.array([x_mean[ii_variable] + x_std[ii_variable], y_std][ii_variable])
+            x_std_l = np.array([x_mean[ii_variable] - np.nan_to_num(x_std[ii_variable]), y_std]) #np.array([x_mean[ii_variable] - x_std[ii_variable], y_std][ii_variable])
+            x_std_h = np.array([x_mean[ii_variable] + np.nan_to_num(x_std[ii_variable]), y_std])
 
         if 'facecolor' not in param_dict.keys():
             param_dict['facecolor'] = {'black'}
@@ -1215,7 +1215,9 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
                                             label=str("mean"+r"$\pm$"+"std dev"))
     return ax
 
-def plot_number(ic_data, variable_dict, ax=None, param_dict=None, position='right', x_delta=0.1, z_delta=0.05, every=1):
+import matplotlib as mp
+
+def plot_number(ic_data, variable_dict, ax=None, param_dict=None, position='right', x_delta=0.1, z_delta=0.05, every=1, fontsize=mp.rcParams['font.size']):
 
     if ax is None:
         plt.figure()
@@ -1237,12 +1239,12 @@ def plot_number(ic_data, variable_dict, ax=None, param_dict=None, position='righ
     else:
         stat = 'max'
 
-    pos = select_profile_V2(ic_data, {'variable':ii_variable, 'stat':stat}).reset_index()['salinity'].values
+    pos = select_profile_V2(ic_data, {'variable':ii_variable, 'stat':stat}).reset_index()[ii_variable].values
     depth = select_profile_V2(ic_data, {'variable':ii_variable, 'stat':stat}).reset_index()['y_mid'].values
     n = select_profile_V2(ic_data, {'variable':ii_variable, 'stat':stat}).reset_index()['n'].values
 
     for ii in np.arange(0, pos.__len__(), every):
-        ax.text(pos[ii]+x_delta, depth[ii]+z_delta, str('(%.0f)' % n[ii]))
+        ax.text(pos[ii]+x_delta, depth[ii]+z_delta, str('(%.0f)' % n[ii]), fontsize=fontsize)
 
     return ax
 
@@ -1490,8 +1492,14 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
         # For linear profile, like temperature
         if ic_data[ic_data.variable == ii_variable].y_low.isnull().all() and ic_data[ic_data.variable == ii_variable].y_low.__len__() > 0:
             yx = ic_data[ic_data.variable == ii_variable].set_index('y_mid').sort_index()[[ii_variable]]
-            y2x = yx.reindex(y_mid).astype(float)
-            y2x.ix[(y2x.index <= max(yx.index)) & (min(yx.index) <= y2x.index)] = y2x.interpolate(method='index')[(y2x.index <= max(yx.index)) & (min(yx.index) <= y2x.index)]
+            y2x = yx.reindex(y_mid)
+            for index in yx.index:
+                y2x.loc[abs(y2x.index-index)<1e-6, 'temperature'] = yx.loc[yx.index==index, 'temperature'].values
+            if np.isnan(y2x.temperature).all():
+                dat_temp = np.interp(y2x.index, yx.index, yx.temperature, left=np.nan, right=np.nan)
+                y2x = pd.DataFrame(dat_temp, index=y2x.index, columns=['temperature'])
+            else:
+                y2x.ix[(y2x.index <= max(yx.index)) & (min(yx.index) <= y2x.index)] = y2x.interpolate(method='index')[(y2x.index <= max(yx.index)) & (min(yx.index) <= y2x.index)]
             temp = pd.DataFrame(columns=ic_data.columns.tolist(), index=range(y_mid.__len__()))
             temp.update(y2x.reset_index('y_mid'))
             yx = yx.reset_index(level='y_mid')
@@ -1605,19 +1613,19 @@ def discretize_profile(ic_data, y_bins=None, y_mid=None, variables=None, comment
                                                  range(int(x_step.__len__() / 2))])).transpose(),
                                      columns=['y_low', 'y_mid', 'y_sup', ii_variable], index=temp.index))
 
-        # properties
-        ic_data_prop = ic_data.head(1)
-        ic_data_prop = ic_data_prop.drop(ii_variable, 1)
-        ic_data_prop = ic_data_prop.drop('y_low', 1)
-        ic_data_prop = ic_data_prop.drop('y_mid', 1)
-        ic_data_prop = ic_data_prop.drop('y_sup', 1)
-        ic_data_prop = ic_data_prop.drop('sample_name', 1)
-        temp.update(pd.DataFrame([ic_data_prop.iloc[0].tolist()], columns=ic_data_prop.columns.tolist(),
-                                 index=temp.index.tolist()))
-        temp['coring_date'] = temp['coring_date'].astype('datetime64[ns]')
+            # properties
+            ic_data_prop = ic_data.head(1)
+            ic_data_prop = ic_data_prop.drop(ii_variable, 1)
+            ic_data_prop = ic_data_prop.drop('y_low', 1)
+            ic_data_prop = ic_data_prop.drop('y_mid', 1)
+            ic_data_prop = ic_data_prop.drop('y_sup', 1)
+            ic_data_prop = ic_data_prop.drop('sample_name', 1)
+            temp.update(pd.DataFrame([ic_data_prop.iloc[0].tolist()], columns=ic_data_prop.columns.tolist(),
+                                     index=temp.index.tolist()))
+            temp['coring_date'] = temp['coring_date'].astype('datetime64[ns]')
 
-        sample_name = [ic_data_prop.core.tolist()[0] + '-' + str('%d' % ii) for ii in range(temp.__len__())]
-        temp.update(pd.DataFrame(sample_name, columns=['sample_name'], index=temp.index.tolist()))
+            sample_name = [ic_data_prop.core.tolist()[0] + '-' + str('%d' % ii) for ii in range(temp.__len__())]
+            temp.update(pd.DataFrame(sample_name, columns=['sample_name'], index=temp.index.tolist()))
 
         ic_data = ic_data[
             (ic_data.core_name != ic_data.core_name.unique().tolist()[0]) | (ic_data.variable != ii_variable)]
