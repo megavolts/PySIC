@@ -7,15 +7,23 @@ core.py: ice core data is a toolbox to import ice core data file from xlsx sprea
  computation time. Core profiles are considered as collection of point in depth, time and properties (salinity, temperature or other variable)
 """
 
-## TODO:take in account the timezone
-
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import pandas as pd
+import sys
+import os
 import logging
+
 import openpyxl
 import datetime
+import time
+
+import numpy as np
+import pandas as pd
+
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+
+from .properties import si_prop_unit
+import seaice.toolbox
+sys.path.append('../sea_ice')
 from seaice.properties import si_prop_list
 from seaice.properties import si_prop_unit
 from seaice.properties import si_state_variable
@@ -23,12 +31,12 @@ import seaice.toolbox
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
-__version__ = "3.0.0"
+__version__ = "0.9.0"
 __maintainer__ = "Marc Oggier"
 __contact__ = "Marc Oggier"
-__email__ = "marc.oggier@gi.alaska.edu"
+__email__ = "moggier@alaska.edu"
 __status__ = "development"
-__date__ = "2014/11/25"
+__date__ = "2017/03/06"
 __comment__ = "core integrate the module Panda to simplifiy the operation "
 __all__ = ['Core', 'CoreSet', 'Profile']
 
@@ -40,10 +48,6 @@ LOG_LEVELS = {'debug': logging.DEBUG,
               'critical': logging.CRITICAL}
 nan_value = float('nan')
 
-import time
-
-from .properties import si_prop_unit
-import seaice.toolbox
 
 def timing(f):
     def wrap(*args):
@@ -1853,16 +1857,16 @@ def import_list(ics_list, missing_value=float('nan'), log_level='warning', comme
     :param log_level:
     :param comment:
     """
-    print('Ice core data importation in progress ...')
-
+    logging.info('Ice core data importation in progress ...')
     logging.basicConfig(filename=LOG_FILENAME, level=LOG_LEVELS[log_level])
     ic_dict = {}
     for ii in range(0, len(ics_list)):
         if comment:
             print(ics_list[ii])
+        logging.debug("Importing "+ics_list[ii]+" ...")
         ic_data = import_core(ics_list[ii], comment=comment, variables=variables)
         ic_dict[ic_data.core_name] = ic_data
-
+        logging.debug("done")
     logging.info('Ice core importation complete')
     print('done')
 
@@ -2186,3 +2190,59 @@ def compute_phys_prop(ics_data, si_prop, S_core_name, T_core_name, si_prop_forma
         property_stack = property_stack.append(prop_data, ignore_index=True, verify_integrity=False)
 
     return property_stack
+
+def scale_profile(profile, h_ice_f):
+    """
+    :param profile:
+        CoreStack, ice core profile to scale to a target ice thickness
+    :param h_ice_f:
+        scalar, target ice thickness
+    :return:
+    """
+
+    if profile.ice_core_length.unique().size and ~np.isnan(profile.ice_core_length.unique()[0]):
+        h_ice = profile.ice_core_length.unique()[0]
+    elif profile.ice_thickness.unique().size and ~np.isnan(profile.ice_thickness.unique()[0]):
+        h_ice = profile.ice_thickness.unique()[0]
+    else:
+        logging.error("Scale: no core length or ice thickness given for %s" % profile.core_name.unique()[0])
+        return 0
+
+    r = h_ice_f / h_ice
+    if r == 1:
+        return profile
+    profile[['y_low', 'y_mid', 'y_sup']] = r * profile[['y_low', 'y_mid', 'y_sup']]
+    profile.ice_core_length = h_ice_f
+    return profile
+#
+#
+# def scale_profile(profile, h_ice_f):
+#     """
+#     :param profile:
+#         CoreStack, ice core profile to scale to a target ice thickness
+#     :param h_ice_f:
+#         scalar, target ice thickness
+#     :return:
+#     """
+#
+#     scaled_profile = CoreStack
+#
+#     for ic in profile.core_name.unique():
+#         ic_profile = profile[profile.core_name == ic]
+#
+#         if ic_profile.ice_core_length.unique().size and ~np.isnan(ic_profile.ice_core_length.unique()[0]):
+#             h_ice = ic_profile.ice_core_length.unique()[0]
+#         elif ic_profile.ice_thickness.unique().size and ~np.isnan(ic_profile.ice_thickness.unique()[0]):
+#             h_ice = ic_profile.ice_thickness.unique()[0]
+#         else:
+#             logging.error("Scale: no core length or ice thickness given for %s" % ic_profile.core_name.unique()[0])
+#             return 0
+#
+#         r = h_ice_f / h_ice
+#         if r == 1:
+#             return scaled_profile.append(ic_profile)
+#         ic_profile[['y_low', 'y_mid', 'y_sup']] = r * ic_profile[['y_low', 'y_mid', 'y_sup']]
+#         ic_profile.ice_core_length = h_ice_f
+#         scaled_profile.add_profiles(ic_profile)
+#
+#     return scale_profile
