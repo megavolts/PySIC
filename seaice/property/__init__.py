@@ -1,13 +1,6 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
-from .core import *
-from .properties import *
-from .toolbox import *
-from .oil_in_ice import *
-from .climatology import *
-from .property import *
-
 __author__ = "Marc Oggier"
 __license__ = "GPL"
 __version__ = "1.1"
@@ -19,3 +12,7 @@ __date__ = "2017/09/13"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 __name__ = "seaice"
 
+from .air import *
+from .brine import *
+from .ice import *
+from .seaice import *
