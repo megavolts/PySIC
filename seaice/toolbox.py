@@ -369,6 +369,67 @@ def vstack_mat(A, B, index_period, n_core):
     return B
 
 
+def DegreeDayModel_DF(data, temperature_name, freezup_day, end_day, Tfreeze=0, T_data_unit='C'):
+    """
+    Calculate the number of freezing degree days between the freezup day until a certain day (end_day)
+    Number of thawing degree day (FDD) for the day 'day' is given by the following code
+        import datetime as dt
+        PDD=(day-freezup_day).days-FDD[day]+1
+
+    Parameters
+    ----------
+    data :
+        File path, included filename, to the file containing the data to import
+    feezup_day :
+        File path, included filename, to the file containing the data to import
+    end_day :
+        File path, included filename, to the file containing the data to import
+    Tfreeze: float, optional
+        File path, included filename, to the file containing the data to import
+    Hdawn: int, optional
+        File path, included filename, to the file containing the data to import
+    Hdusk: int, optional
+        File path, included filename, to the file containing the data to import
+
+    Returns
+    ----------
+    DD: dict
+        contains day and numbers of freezing and thawing degree days until this day
+        day : [FDD, TDD]
+    """
+
+    import datetime
+
+    current_day = freezup_day
+    DD = {}
+    n_FDD = 0
+    n_TDD = 0
+    if T_data_unit == 'K':
+        T_offset = -273
+    elif T_data_unit == 'C':
+        T_offset = 0
+    elif T_data_unit == 'F':
+        print("You're kidding, just use scientific unit!")
+
+    while current_day <= end_day:
+        day_index = index_from_day(data, current_day)
+        T_current_day = []
+        for ii in day_index:
+            T_current_day.append(data[ii, T_col - 1] + T_offset)
+        T_mean_current_day = np.nanmean(T_current_day)
+        DD_value = (Tfreeze - T_mean_current_day)
+        if 0 < DD_value:
+            n_FDD += DD_value
+        else:
+            if Pday is not None:
+                if current_day < datetime.datetime(freezup_day.year+1, Pday.month, Pday.day):
+                    DD_value = 0
+            n_TDD += DD_value
+        DD[current_day] = [n_FDD, n_TDD]
+        current_day += datetime.timedelta(1)
+    return DD
+
+
 def DegreeDayModel(data, T_col, freezup_day, end_day, Tfreeze=0, T_data_unit='C', Pday=None):
     """
     Calculate the number of freezing degree days between the freezup day until a certain day (end_day)

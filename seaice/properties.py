@@ -4,8 +4,9 @@
 seaice.py: seaice.py is a library providing function to calculate physical properties of sea ice.
 """
 
-import numpy as np
 import warnings
+
+import numpy as np
 
 from seaice import toolbox as icdt
 
@@ -17,16 +18,26 @@ __contact__ = "Marc Oggier"
 __email__ = "marc.oggier@gi.alaska.edu"
 __status__ = "development"
 __date__ = "2014/11/25"
-__credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
+__credits__ = ["Hajo Eicken", "Andy Mahoney"]
 
 warnings.filterwarnings('ignore')
 
 si_state_variable = {'temperature': 'temperature', 'temp': 'temperature', 't': 'temperature',
                      'salinity': 'salinity', 's': 'salinity'}
 si_prop_list = {'brine volume fraction': 'brine volume fraction', 'brine volume fraction': 'brine volume fraction',
-                'vbf': 'brine volume fraction', 'vb': 'brine volume fraction'}
-si_prop_unit = {'salinity': '-', 'temperature': '°C', 'vb': '-', 'brine volume fraction': '-', 'brine volume fraction': '-'}
-si_prop_latex = {'salinity': 'S', 'temperature': 'T', 'brine volume fraction': '\phi_{B}', 'ice thickness': 'h_{i}', 'snow thickness': 'h_{s}'}
+                'vbf': 'brine volume fraction', 'vb': 'brine volume fraction',
+                'seaice permeability': 'seaice permeability', 'k': 'seaice permeability'}
+si_prop_unit = {'salinity': '-',
+                'temperature': '°C',
+                'vb': '-', 'brine volume fraction': '-', 'brine volume fraction': '-',
+                'seaice permeability': 'm$^{-2}$'}
+si_prop_latex = {'salinity': 'S',
+                 'temperature': 'T',
+                 'brine volume fraction': '\phi_{B}',
+                 'ice thickness': 'h_{i}',
+                 'snow thickness': 'h_{s}',
+                 'seaice permeability': '\kappa'
+                 }
 
 # updated for array, SI
 def brine_volume_fraction(t, s, rho_si='default', flag_comment='n'):
@@ -42,7 +53,7 @@ def brine_volume_fraction(t, s, rho_si='default', flag_comment='n'):
         salinity in practical salinity unit [PsU]
         If s is an array, t should be an array of the same length
     rho_si : optional, array_like, number
-        density of the ice in gram per cubic centimeter [g cm^{-3}]. Defautl is calculated for t,s value with a default air volume fraction set to 0.5‰.
+        density of the ice in gram per cubic centimeter [g cm^{-3}]. Default is calculated for t,s value with a default air volume fraction set to 0.5‰.
         If rho_si is an array, t should be an array of the same length
     flag_comment : option, string
         toggle comment on/off
@@ -50,7 +61,7 @@ def brine_volume_fraction(t, s, rho_si='default', flag_comment='n'):
     Returns
     ----------
     vf_b: ndarray
-        Volume fraction of brine in the ice
+        Volume fraction of brine in the ice [-]
 
     sources
     ----------
@@ -81,30 +92,30 @@ def brine_volume_fraction(t, s, rho_si='default', flag_comment='n'):
                 print('sea ice density array should be the same dimension as temperature and salinity')
                 return 0
 
-    a = np.empty((4, 4, 2))
+    A = np.empty((4, 4, 2))
 
-    # coefficient for -2<t<=0
-    a[0, 0, :] = [-0.041221, 0.090312]
-    a[0, 1, :] = [-18.407, -0.016111]
-    a[0, 2, :] = [0.58402, 1.2291 * 10 ** (-4)]
-    a[0, 3, :] = [0.21454, 1.3603 * 10 ** (-4)]
+    # coefficient for -2t<=0
+    A[0, 0, :] = [-0.041221, 0.090312]
+    A[0, 1, :] = [-18.407, -0.016111]
+    A[0, 2, :] = [0.58402, 1.2291 * 10 ** (-4)]
+    A[0, 3, :] = [0.21454, 1.3603 * 10 ** (-4)]
 
     # coefficient for -22.9<t<=-2
-    a[1, 0, :] = [-4.732, 0.08903]
-    a[1, 1, :] = [-22.45, -0.01763]
-    a[1, 2, :] = [-0.6397, -5.330 * 10 ** (-4)]
-    a[1, 3, :] = [-0.01074, -8.801 * 10 ** (-6)]
+    A[1, 0, :] = [-4.732, 0.08903]
+    A[1, 1, :] = [-22.45, -0.01763]
+    A[1, 2, :] = [-0.6397, -5.330 * 10 ** (-4)]
+    A[1, 3, :] = [-0.01074, -8.801 * 10 ** (-6)]
 
-    # coefficient for t<=-22.9
-    a[2, 0, :] = [9899, 8.547]
-    a[2, 1, :] = [1309, 1.089]
-    a[2, 2, :] = [55.27, 0.04518]
-    a[2, 3, :] = [0.7160, 5.819 * 10 ** (-4)]
+    # coefficient for -30<t<=-22.9
+    A[2, 0, :] = [9899, 8.547]
+    A[2, 1, :] = [1309, 1.089]
+    A[2, 2, :] = [55.27, 0.04518]
+    A[2, 3, :] = [0.7160, 5.819 * 10 ** (-4)]
 
-    B = np.empty((3,2))
-    B[0] = [-30, -22.9]
+    B = np.empty((3, 2))
+    B[0] = [-2, 0]
     B[1] = [-22.9, -2]
-    B[2] = [-2, 0]
+    B[2] = [-30, -22.9]
 
     vf_a = air_volumefraction(t, s, rho_si, flag_comment='n')
     rho_i = ice_density(t, 'n')/10**3  # ice density in g cm^{-3}
@@ -112,19 +123,18 @@ def brine_volume_fraction(t, s, rho_si='default', flag_comment='n'):
     F1 = np.nan*t
     F2 = np.nan*t
     for mm in np.arange(0, 3):
-        P1 = [a[mm, 3, 0], a[mm, 2, 0], a[mm, 1, 0], a[mm, 0, 0]]
-        P2 = [a[mm, 3, 1], a[mm, 2, 1], a[mm, 1, 1], a[mm, 0, 1]]
+        P1 = [A[mm, 3, 0], A[mm, 2, 0], A[mm, 1, 0], A[mm, 0, 0]]
+        P2 = [A[mm, 3, 1], A[mm, 2, 1], A[mm, 1, 1], A[mm, 0, 1]]
 
         F1[(B[mm, 0]<=t) & (t<=B[mm, 1])] = np.polyval(P1, t[(B[mm, 0]<=t) & (t<=B[mm, 1])])
         F2[(B[mm, 0]<=t) & (t<=B[mm, 1])] = np.polyval(P2, t[(B[mm, 0]<=t) & (t<=B[mm, 1])])
 
     vf_b = ((1 - vf_a) * rho_i * s / (F1 - rho_i * s * F2))
-
     return vf_b
 
 # updated for array, SI
 
-def air_volumefraction(t, s, rho_si=0.9, flag_comment='y'):
+def air_volumefraction(t, s, rho_si='Default', flag_comment='y'):
     """
     Calculate the volume fraction of air in function of the temperature and salinity
 
@@ -168,20 +178,19 @@ def air_volumefraction(t, s, rho_si=0.9, flag_comment='y'):
         print('temperature and salinity array should be the same shape')
         return 0
 
-    if rho_si == 'default':
+    if isinstance(rho_si, (int, float)):
+        rho_si = np.array([rho_si]) / 10 ** 3  # ice density in g cm^{-3}
+    elif isinstance(rho_si, str) and rho_si == 'Default':
+        print('default rho si')
         rho_si = seaice_density(t, s, flag_comment='n')/10**3  # ice density in g cm^{-3}
-    else:
-        if isinstance(rho_si, (int, float)):
-            rho_si = np.array([rho_si])/10**3  # ice density in g cm^{-3}
-        else:
-            if t.shape != rho_si.shape:
-                print('sea ice density array should be the same shape as temperature and salinity')
-                return 0
+    elif rho_si.__len__() > 2 and t.shape != rho_si.shape:
+        print('sea ice density array should be the same shape as temperature and salinity')
+        return 0
 
     # Physical constant
     A = np.empty((4, 4, 2))
 
-    # coefficient for -2<t<=0
+    # coefficient for -2t<=0
     A[0, 0, :] = [-0.041221, 0.090312]
     A[0, 1, :] = [-18.407, -0.016111]
     A[0, 2, :] = [0.58402, 1.2291 * 10 ** (-4)]
@@ -193,17 +202,16 @@ def air_volumefraction(t, s, rho_si=0.9, flag_comment='y'):
     A[1, 2, :] = [-0.6397, -5.330 * 10 ** (-4)]
     A[1, 3, :] = [-0.01074, -8.801 * 10 ** (-6)]
 
-    # coefficient for t<=-22.9
+    # coefficient for -30<t<=-22.9
     A[2, 0, :] = [9899, 8.547]
     A[2, 1, :] = [1309, 1.089]
     A[2, 2, :] = [55.27, 0.04518]
     A[2, 3, :] = [0.7160, 5.819 * 10 ** (-4)]
 
-
-    B = np.empty((3,2))
-    B[0] = [-30, -22.9]
+    B = np.empty((3, 2))
+    B[0] = [-2, 0]
     B[1] = [-22.9, -2]
-    B[2] = [-2, 0]
+    B[2] = [-30, -22.9]
 
     rho_i = ice_density(t, 'n')/10**3  # ice density in g cm^{-3}
 
@@ -264,6 +272,7 @@ def ice_density(t, flag_comment='y'):
         if np.count_nonzero(np.where(t>0)):
             print('Element with temperature above 0°C : ice has melt in some case')
     return rho_ice*10**3
+
 
 # updated for array, SI
 def brine_density(t):
@@ -359,7 +368,7 @@ def seaice_density(t, s, vf_a='default', flag_comment='y'):
     # Physical constant
     A = np.empty((4, 4, 2))
 
-    # coefficient for t<=-22.9
+    # coefficient for -2t<=0
     A[0, 0, :] = [-0.041221, 0.090312]
     A[0, 1, :] = [-18.407, -0.016111]
     A[0, 2, :] = [0.58402, 1.2291 * 10 ** (-4)]
@@ -371,16 +380,17 @@ def seaice_density(t, s, vf_a='default', flag_comment='y'):
     A[1, 2, :] = [-0.6397, -5.330 * 10 ** (-4)]
     A[1, 3, :] = [-0.01074, -8.801 * 10 ** (-6)]
 
-    # coefficient for -2<t<=0
+    # coefficient for -30<t<=-22.9
     A[2, 0, :] = [9899, 8.547]
     A[2, 1, :] = [1309, 1.089]
     A[2, 2, :] = [55.27, 0.04518]
     A[2, 3, :] = [0.7160, 5.819 * 10 ** (-4)]
 
-    B = np.empty((3,2))
-    B[0] = [-30, -22.9]
+    B = np.empty((3, 2))
+    B[0] = [-2, 0]
     B[1] = [-22.9, -2]
-    B[2] = [-2, 0]
+    B[2] = [-30, -22.9]
+
 
     rho_i = ice_density(t, 'n')/10**3  # ice density in g cm^{-3}
 
@@ -397,6 +407,7 @@ def seaice_density(t, s, vf_a='default', flag_comment='y'):
     rho_seaice = ((1 - vf_a) * (rho_i * F1 / (F1 - rho_i * s * F2)));
 
     return rho_seaice*10**3
+
 
 # updated for array
 def brine_salinity(t, method='CW', flag_comment='y'):
@@ -710,7 +721,6 @@ def seaice_thermal_diffusivity(t, s, method='default', flag_comment='y'):
     return sigma_si
 
 
-
 def seaice_latentheat(t, s, transformation='fusion'):
     """
 		Calculate bulk latent heat from temperature and salinity during freezing ('f') or melting ('m')
@@ -917,7 +927,7 @@ def seaice_resistivity(t, s, rho_si=0.917):
 
 def seaice_permeability(t, s, rho_si='default', flag_comment='n'):
     """
-		Calculate the volume fraction of brine in function of the temperature and salinity
+		Calculate the sea ice permeability in function of the temperature and salinity
 
 		Parameters
 		----------
@@ -928,7 +938,7 @@ def seaice_permeability(t, s, rho_si='default', flag_comment='n'):
 			salinity in practical salinity unit [PsU]
 			If s is an array, t should be an array of the same length
 		rho_si : optional, array_like, number
-			density of the ice in gram per cubic centimeter [g cm^{-3}]. Defautl is calculated for t,s value with a default air volume fraction set to 0.5‰.
+			density of the ice in kilogram per cubic meter [kg m^{-3}]. Defautl is calculated for t,s value with a default air volume fraction set to 0.5‰.
 			If rho_si is an array, t should be an array of the same length
 		flag_comment : option, string
 			toggle comment on/off
@@ -940,8 +950,7 @@ def seaice_permeability(t, s, rho_si='default', flag_comment='n'):
 
 		sources
 		----------
-		thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
-		from equation 5 and 15 in Cox, G. F. N., & Weeks, W. F. (1983). Equations for determining the gas and brine volumes in sea ice samples. Journal of Glaciology (Vol. 29, pp. 306–316).
+		from equation 5  in K. Golden, H. Eicken, A.L. Heaton, J.Miner, D.J. Pringle, J. Zhu (2007) Thermal Evolution of Permeability, Geophysical Research Letters, 34, doi:10.1029/2007GL030447
 
 	"""
     # check array lengths
@@ -971,14 +980,73 @@ def seaice_permeability(t, s, rho_si='default', flag_comment='n'):
         else:
             t = t[0:len(s)]
 
-    if rho_si == 'default':
-        rho_si = seaice_density(t, s, flag_comment='n')
-    else:
-        rho_si = icdt.make_array(rho_si)
-        if len(rho_si) != len(s) or len(rho_si) != 1:
-            print('rho_si should be the same length as t and s')
-            rho_si = np.ones(len(s))[:] * rho_si
-
-    Vf_b = brine_volume_fraction(t, s, rho_si=rho_si, flag_comment='n')
-    k = 3 * Vf_b ** 2 * 10 ** (-10)
+    k = 3*brine_volume_fraction(t, s, rho_si, flag_comment='n')**3*1e-8
     return k
+
+#TODO: update array to SI
+def seawater_salinity_from_conductivity(t, c):
+    """   
+    Calculate the specifc conductance of sea water from temperature and conductivity measurement
+    :param t: array_like, number
+        temperature in degree Celsius [°C]
+        If t is an array, c should be an array of same dimension
+    :param c: array_like, number
+        conductivity in microSievert by centimeters [uS/cm]
+        If c is an array, t should be an array of same dimension
+    :return sigma_sw: ndarray
+        sea water salinity
+        
+    Reference
+    http://www.chemiasoft.com/chemd/salinity_calculator
+    Standard Methods for the Examination of Water and Wastewater, 20th edition, 1999.
+    """
+
+    if isinstance(t, (int, float)):
+        t =np.array([t])
+    else:
+        t = np.array(t)
+    if isinstance(c, (int, float)):
+        c =np.array([c])
+    else:
+        c = np.array(c)
+
+
+    # Physical constant
+    A = np.empty((6, 2))
+    A[0, :] = [0.0080, 0.0005]
+    A[1, :] = [-0.1692, -0.0056]
+    A[2, :] = [25.3851, -0.0066]
+    A[3, :] = [14.0941, -0.0375]
+    A[4, :] = [-7.0261, 0.0636]
+    A[5, :] = [2.7081, -0.0144]
+
+    B = [-0.0267243, 4.6636947, 861.3027640, 29035.1640851]
+
+    cKCL = np.polyval(B, t)  # in uS/cm
+    R = c/cKCL
+
+    Rx = np.sqrt(R)
+
+    dS = (t-15)/(1+0.0162*(t-15))*np.polyval(A[:, 1], Rx)
+    S = np.polyval(A[:, 0], Rx) + dS
+
+    return S
+
+
+# def seawater_salinity_from_conductance(sigma):
+#     """
+#     Calculate the specifc conductance of sea water from temperature and conductivity measurement
+#     :param sigma: array_like, number
+#         specific conductance in degree Celsius []
+#     :return S_sw: ndarray
+#         sea water salinity
+#     """
+#
+#     if isinstance(sigma, (int, float)):
+#         sigma = np.array([sigma])
+#     else:
+#         sigma = np.array(sigma)
+#
+#
+#     return S
+
