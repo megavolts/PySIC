@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
 seaice.py: seaice.py is a library providing function to calculate physical properties of sea ice.
@@ -12,13 +12,15 @@ from seaice import toolbox as icdt
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
-__version__ = "1.0.1"
+__version__ = "1.1"
 __maintainer__ = "Marc Oggier"
 __contact__ = "Marc Oggier"
-__email__ = "marc.oggier@gi.alaska.edu"
+__email__ = "moggier@alaska.edu"
 __status__ = "development"
-__date__ = "2014/11/25"
-__credits__ = ["Hajo Eicken", "Andy Mahoney"]
+__date__ = "2017/09/13"
+__credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
+__name__ = "seaice"
+
 
 warnings.filterwarnings('ignore')
 

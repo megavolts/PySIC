@@ -1,4 +1,4 @@
-#!/usr/bin/python3.5
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
 toolbox.py: icdtools provide several function use by icecoredata.py and seaice.py.
@@ -6,13 +6,15 @@ toolbox.py: icdtools provide several function use by icecoredata.py and seaice.p
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
-__version__ = "1.0.1"
+__version__ = "1.1"
 __maintainer__ = "Marc Oggier"
 __contact__ = "Marc Oggier"
-__email__ = "marc.oggier@gi.alaska.edu"
+__email__ = "moggier@alaska.edu"
 __status__ = "development"
-__date__ = "2014/11/25"
+__date__ = "2017/09/13"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
+__name__ = "seaice"
+
 
 import numpy as np
 

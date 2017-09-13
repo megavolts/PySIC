@@ -1,3 +1,13 @@
+__author__ = "Marc Oggier"
+__license__ = "GPL"
+__version__ = "0.1"
+__maintainer__ = "Marc Oggier"
+__contact__ = "Marc Oggier"
+__email__ = "moggier@alaska.edu"
+__status__ = "development"
+__date__ = "2017/09/13"
+__name__ = "climatology"
+
 import pandas as pd
 import numpy as np
 import seaice.core
