@@ -16,6 +16,8 @@ __status__ = "release candidate"
 __date__ = "2017/09/16"
 __name__ = "ice"
 
+__all__ = ["density", "thermal_conductivity"]
+
 si_state_variable = {'temperature': 'temperature', 'temp': 'temperature', 't': 'temperature',
                      'salinity': 'salinity', 's': 'salinity'}
 si_prop_list = {'brine volume fraction': 'brine volume fraction',

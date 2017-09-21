@@ -4,7 +4,6 @@
 property/brine.py contains function to compute physical property relative to the brine
 """
 
-import seaice.property
 import numpy as np
 import logging
 
@@ -17,7 +16,9 @@ __email__ = "moggier@alaska.edu"
 __status__ = "development"
 __date__ = "2017/09/13"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
-__name__ = "seaice"
+__name__ = "brine"
+
+__all__ = ["density", "electric_conductivity", "salinity_from_conductivity", "salinity", "thermal_conductivity"]
 
 si_state_variable = {'temperature': 'temperature', 'temp': 'temperature', 't': 'temperature',
                      'salinity': 'salinity', 's': 'salinity'}
@@ -65,7 +66,7 @@ def density(t):
     # Physical constant
     a = [8 * 10 ** (-4), 1]
 
-    s_b = seaice.property.brine.salinity(t)
+    s_b = salinity(t)
     rho_b = (a[1] + a[0] * s_b)
 
     return rho_b * 10 ** 3

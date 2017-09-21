@@ -16,6 +16,8 @@ __status__ = "final"
 __date__ = "2017/09/13"
 __name__ = "sw"
 
+__all__ = ["freezingtemp", "salinity_from_conductivity"]
+
 module_logger = logging.getLogger(__name__)
 
 

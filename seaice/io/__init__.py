@@ -1,19 +1,6 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
-from .io.excel import *
-
-from .property.brine import *
-from .property.si import *
-from .property.sw import *
-from .property.ice import *
-
-
-import logging
-
-module_logger = logging.getLogger(__name__)
-TOL = 1e-6
-
 __author__ = "Marc Oggier"
 __license__ = "GPL"
 __version__ = "1.1"
@@ -23,6 +10,4 @@ __email__ = "moggier@alaska.edu"
 __status__ = "development"
 __date__ = "2017/09/13"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
-__name__ = "seaice"
-
-
+__name__ = "property"

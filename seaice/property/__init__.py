@@ -11,15 +11,3 @@
 # __date__ = "2017/09/13"
 # __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 # __name__ = "property"
-#
-# # from .air import *
-# # from .brine import *
-# # from .ice import *
-# # from .si import *
-# # from .sw import *
-#
-
-from . import brine
-from . import ice
-from . import si
-from . import sw

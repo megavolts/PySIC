@@ -1,7 +1,10 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-seaice.load.py : function to import single ice core, ice core lists, ice core in a directory.
+seaice.io.py : function to import single ice core, ice core lists, ice core in a directory.
+
+Module parse to/from ice core formatted excel data spreadsheet
+
 """
 import datetime
 import logging
@@ -24,6 +27,7 @@ __date__ = "2017/09/13"
 __comment__ = "core.py contained classes and function destinated to analyezed sea ice core data "
 __CoreVersion__ = 1.1
 
+__all__ = ["import_ic", "import_ic_list", "import_ic_path"]
 
 # create logger
 module_logger = logging.getLogger(__name__)
@@ -46,7 +50,7 @@ variable_2_sheet = {'temperature': 'T_ice',
                     }
 
 
-def icecore(ic_path, variables=None, v_ref='top', verbose=logging.WARNING):
+def import_ic(ic_path, variables=None, v_ref='top', verbose=logging.WARNING):
     """
     :param ic_path:
         string, path to the xlsx ice core spreadsheet
@@ -246,7 +250,7 @@ def icecore(ic_path, variables=None, v_ref='top', verbose=logging.WARNING):
     return core
 
 
-def ic_list(ics_list, variables=None, v_ref='top', verbose=logging.WARNING):
+def import_ic_list(ics_list, variables=None, v_ref='top', verbose=logging.WARNING):
     """
     :param ics_list:
             array, array contains absolute filepath for the cores
@@ -265,7 +269,7 @@ def ic_list(ics_list, variables=None, v_ref='top', verbose=logging.WARNING):
             module_logger.warning("%s does not exists in core directory" % ic_path.split('/')[-1])
             inexisting_ics_list.append(ic_path.split('/')[-1].split('.')[0])
         else:
-            ic_data = icecore(ic_path, variables=variables, v_ref=v_ref)
+            ic_data = import_ic(ic_path, variables=variables, v_ref=v_ref)
             if ic_data.variables is None:
                 inexisting_ics_list.append(ic_path.split('/')[-1].split('.')[0])
                 module_logger.warning("%s have no profile" % ic_data.name)
@@ -284,7 +288,7 @@ def ic_list(ics_list, variables=None, v_ref='top', verbose=logging.WARNING):
     return ic_dict
 
 
-def ic_source(filepath, variables=None, v_ref='top', verbose=logging.WARNING):
+def import_ic_path(filepath, variables=None, v_ref='top', verbose=logging.WARNING):
     """
     :param filepath:
             string, absolute path to the file containing either the absolute path of the cores (1 path by line) or the
@@ -304,7 +308,7 @@ def ic_source(filepath, variables=None, v_ref='top', verbose=logging.WARNING):
     with open(filepath) as f:
         ics = sorted([line.strip() for line in f])
 
-    return ic_list(ics, variables=variables, v_ref=v_ref, verbose=verbose)
+    return import_ic_list(ics, variables=variables, v_ref=v_ref, verbose=verbose)
 
 
 # read variable

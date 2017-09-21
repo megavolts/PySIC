@@ -20,7 +20,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import openpyxl
 import pandas as pd
-import seaice.properties
+
+import old_script.properties
 
 __name__ = "core"
 __author__ = "Marc Oggier"
@@ -1533,11 +1534,11 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
 
     # compute properties
     for f_prop in si_prop_dict.keys():
-        if f_prop not in seaice.properties.si_prop_list.keys():
+        if f_prop not in old_script.properties.si_prop_list.keys():
             print('property %s not defined in the ice core property module' % property)
 
-        prop = seaice.properties.si_prop_list[f_prop]
-        function = getattr(seaice.properties, prop.replace(" ", "_"))
+        prop = old_script.properties.si_prop_list[f_prop]
+        function = getattr(old_script.properties, prop.replace(" ", "_"))
         prop_data = function(t_profile['temperature'], s_profile['salinity'])
 
         prop_data = pd.DataFrame(np.vstack((prop_data, s_profile['y_mid'])).transpose(), columns=[prop, 'y_mid'])
@@ -2694,11 +2695,11 @@ def compute_phys_prop(ics_data, si_prop, S_core_name, T_core_name, si_prop_forma
 
 
     for f_prop in si_prop:
-        if f_prop not in seaice.properties.si_prop_list.keys():
+        if f_prop not in old_script.properties.si_prop_list.keys():
             print('property %s not defined in the ice core property module' % property)
 
-        prop = seaice.properties.si_prop_list[f_prop]
-        function = getattr(seaice.properties, prop.replace(" ", "_"))
+        prop = old_script.properties.si_prop_list[f_prop]
+        function = getattr(old_script.properties, prop.replace(" ", "_"))
         prop_data = function(data['temperature'], data['salinity'])
 
         property_frame = pd.DataFrame(np.vstack((prop_data, y_mid)).transpose(), columns=[prop, 'y_mid'])

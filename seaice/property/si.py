@@ -5,7 +5,8 @@ property.seaice.py contains function to compute physical property relative to th
 """
 import numpy as np
 import logging
-import seaice.property
+from seaice.property import ice
+from seaice.property import brine
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -37,7 +38,8 @@ si_prop_latex = {'salinity': 'S',
 
 module_logger = logging.getLogger(__name__)
 
-
+__all__ = ["air_volume_fraction", 'brine_volume_fraction', "density", "electric_conductivity", "latentheat",
+           "permeability", "resistivity", "specific_heat_capacity", "thermal_conductivity", "thermal_diffusivity"]
 
 def air_volume_fraction(t, s, rho_si='default'):
     """
@@ -77,7 +79,7 @@ def air_volume_fraction(t, s, rho_si='default'):
 
     if rho_si is 'default':
         module_logger.info('rho_si computed from t and s')
-        rho_si = seaice.property.si.density(t, s)
+        rho_si = density(t, s)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
     if rho_si.size == 1:
@@ -113,7 +115,7 @@ def air_volume_fraction(t, s, rho_si='default'):
     b[1] = [-22.9, -2]
     b[2] = [-30, -22.9]
 
-    rho_i = seaice.property.ice.density(t)
+    rho_i = ice.density(t)
 
     f1 = np.nan * t
     f2 = np.nan * t
@@ -174,7 +176,7 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005):
 
     if rho_si is 'default':
         module_logger.info('rho_si computed from t and s')
-        rho_si = seaice.property.si.density(t, s)
+        rho_si = density(t, s)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d([rho_si]).astype(float)
     if rho_si.size == 1:
@@ -211,8 +213,8 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005):
     b[1] = [-22.9, -2]
     b[2] = [-30, -22.9]
 
-    vf_a = seaice.property.air_volume_fraction(t, s, rho_si)
-    rho_i = seaice.property.ice.density(t)
+    vf_a = air_volume_fraction(t, s, rho_si)
+    rho_i = ice.density(t)
 
     f1 = np.nan * t
     f2 = np.nan * t
@@ -299,7 +301,7 @@ def density(t, s, vf_a=0.005):
     b[1] = [-22.9, -2]
     b[2] = [-30, -22.9]
 
-    rho_i = seaice.property.ice.density(t)*1e-3
+    rho_i = ice.density(t)*1e-3
 
     f1 = np.nan * t
     f2 = np.nan * t
@@ -351,7 +353,7 @@ def electric_conductivity(t, s, rho_si='default', vf_a=0.005):
 
     if rho_si is 'default':
         module_logger.info('rho_si computed from t and s')
-        rho_si = seaice.property.si.density(t, s)
+        rho_si = density(t, s)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
     if rho_si.size == 1:
@@ -367,8 +369,8 @@ def electric_conductivity(t, s, rho_si='default', vf_a=0.005):
         module_logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
         return 0
 
-    sigma_b = seaice.property.brine.electric_conductivity(t)
-    vf_b = seaice.property.bine_volume_fraction(t, s, rho_si=rho_si, vf=vf_a)
+    sigma_b = brine.electric_conductivity(t)
+    vf_b = bine_volume_fraction(t, s, rho_si=rho_si, vf=vf_a)
 
     sigma_si = sigma_b*vf_b**2.88
 
@@ -470,7 +472,7 @@ def permeability(t, s, rho_si='default', vf_a=0.005):
 
     if rho_si is 'default':
         module_logger.info('rho_si computed from t and s')
-        rho_si = seaice.property.si.density(t, s)
+        rho_si = density(t, s)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
     if rho_si.size == 1:
@@ -486,7 +488,7 @@ def permeability(t, s, rho_si='default', vf_a=0.005):
         module_logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
         return 0
 
-    k = 3 * seaice.property.bine_volume_fraction(t, s, rho_si, vf_a=vf_a)**3*1e-8
+    k = 3 * bine_volume_fraction(t, s, rho_si, vf_a=vf_a)**3*1e-8
 
     return k
 
@@ -528,7 +530,7 @@ def resistivity(t, s, rho_si='default', vf_a=0.005):
 
     if rho_si is 'default':
         module_logger.info('rho_si computed from t and s')
-        rho_si = seaice.property.si.density(t, s)
+        rho_si = density(t, s)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
     if rho_si.size == 1:
@@ -662,11 +664,11 @@ def thermal_conductivity(t, s, method='pringle', vf_a=0.005):
     if method == 'maykut':
         # Physical constant
         a = 0.13
-        lambda_si = seaice.property.ice.thermal_conductivity(t) + a*s/t
+        lambda_si = ice.thermal_conductivity(t) + a*s/t
 
     elif method == 'pringle':
-        rho_si = seaice.property.si.density(t, s, vf_a=vf_a)
-        rho_i = seaice.property.ice.density(t)
+        rho_si = density(t, s, vf_a=vf_a)
+        rho_i = ice.density(t)
 
         lambda_si = rho_si / rho_i * (2.11 - 0.011*t + 0.09*s/t - (rho_si - rho_i)*1e-3)
 
@@ -714,7 +716,7 @@ def thermal_diffusivity(t, s, method_l='prindle', method_cp='untersteiner', rho_
 
     if rho_si is 'default':
         module_logger.info('rho_si computed from t and s')
-        rho_si = seaice.property.si.density(t, s)
+        rho_si = density(t, s)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
     if rho_si.size == 1:
@@ -730,9 +732,8 @@ def thermal_diffusivity(t, s, method_l='prindle', method_cp='untersteiner', rho_
         module_logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
         return 0
 
-    sigma_si = seaice.property.si.thermal_conductivity(t, s, method=method_l, vf_a=vf_a) /\
-               (seaice.property.si.specific_heat_capacity(t, s, method=method_cp) *
-                seaice.property.si.density(t, s, vf_a=vf_a))
+    sigma_si = thermal_conductivity(t, s, method=method_l, vf_a=vf_a) /\
+               (specific_heat_capacity(t, s, method=method_cp) *density(t, s, vf_a=vf_a))
 
     return sigma_si
 
