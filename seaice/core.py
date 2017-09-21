@@ -34,7 +34,6 @@ __date__ = "2017/05/06"
 __comment__ = "core.py contained classes and function destinated to analyezed sea ice core data "
 __CoreVersion__ = 1.1
 
-
 # create logger
 module_logger = logging.getLogger(__name__)
 TOL =1e-6
@@ -2622,19 +2621,6 @@ def get_filepath(data_dir, data_ext, subdir='no'):
     return filepath
 
 
-def generate_source(data_dir, data_ext):
-    """
-    :param data_dir:
-    :param data_ext:
-    """
-    import glob
-
-    files = []
-    for root, dirnames, filenames in os.walk(data_dir):
-        files.extend(glob.glob(root + "/*."+data_ext))
-    with open(data_dir + '/ic_list.txt', 'w') as f:
-        for f_file in files:
-            f.write(f_file + "\n")
 
 
 def scale_profile(profile, h_ice_f):

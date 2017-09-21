@@ -4,11 +4,9 @@
 property/brine.py contains function to compute physical property relative to the brine
 """
 
-import warnings
-
+import seaice.property
 import numpy as np
-
-from seaice import toolbox as icdt
+import logging
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -21,16 +19,14 @@ __date__ = "2017/09/13"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 __name__ = "seaice"
 
-warnings.filterwarnings('ignore')
-
 si_state_variable = {'temperature': 'temperature', 'temp': 'temperature', 't': 'temperature',
                      'salinity': 'salinity', 's': 'salinity'}
-si_prop_list = {'brine volume fraction': 'brine volume fraction', 'brine volume fraction': 'brine volume fraction',
+si_prop_list = {'brine volume fraction': 'brine volume fraction',
                 'vbf': 'brine volume fraction', 'vb': 'brine volume fraction',
                 'seaice permeability': 'seaice permeability', 'k': 'seaice permeability'}
 si_prop_unit = {'salinity': '-',
                 'temperature': '°C',
-                'vb': '-', 'brine volume fraction': '-', 'brine volume fraction': '-',
+                'vb': '-', 'brine volume fraction': '-',
                 'seaice permeability': 'm$^{-2}$'}
 si_prop_latex = {'salinity': 'S',
                  'temperature': 'T',
@@ -40,265 +36,210 @@ si_prop_latex = {'salinity': 'S',
                  'seaice permeability': '\kappa'
                  }
 
-
-def volume_fraction(t, s, rho_si='default', flag_comment='n'):
-    """
-    Calculate the volume fraction of brine in function of the temperature and salinity
-
-    Parameters
-    ----------
-    t : array_like, number
-        temperature in degree Celsius [°C]
-        If t is an array, s should be an array of the same length
-    s : array_like, number
-        salinity in practical salinity unit [PsU]
-        If s is an array, t should be an array of the same length
-    rho_si : optional, array_like, number
-        density of the ice in gram per cubic centimeter [g cm^{-3}]. Default is calculated for t,s value with a default air volume fraction set to 0.5‰.
-        If rho_si is an array, t should be an array of the same length
-    flag_comment : option, string
-        toggle comment on/off
-
-    Returns
-    ----------
-    vf_b: ndarray
-        Volume fraction of brine in the ice [-]
-
-    sources
-    ----------
-    thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
-    from equation 5 and 15 in Cox, G. F. N., & Weeks, W. F. (1983). Equations for determining the gas and brine volumes in sea ice samples. Journal of Glaciology (Vol. 29, pp. 306–316).
-    """
-    # check parameters
-    if isinstance(t, (int, float)):
-        t = np.array([t])
-    else:
-        t = np.array(t)
-    if isinstance(s, (int, float)):
-        s = np.array([s])
-    else:
-        s = np.array(s)
-
-    if t.shape != s.shape:
-        print('temperature and salinity array should be the same dimension')
-        return 0
-
-    if rho_si == 'default':
-        rho_si = seaice_density(t, s, flag_comment='n') / 10 ** 3  # ice density in g cm^{-3}
-    else:
-        if isinstance(rho_si, (int, float)):
-            rho_si = np.array([rho_si]) / 10 ** 3  # ice density in g cm^{-3}
-        else:
-            if t.shape != rho_si.shape:
-                print('sea ice density array should be the same dimension as temperature and salinity')
-                return 0
-
-    A = np.empty((4, 4, 2))
-
-    # coefficient for -2t<=0
-    A[0, 0, :] = [-0.041221, 0.090312]
-    A[0, 1, :] = [-18.407, -0.016111]
-    A[0, 2, :] = [0.58402, 1.2291 * 10 ** (-4)]
-    A[0, 3, :] = [0.21454, 1.3603 * 10 ** (-4)]
-
-    # coefficient for -22.9<t<=-2
-    A[1, 0, :] = [-4.732, 0.08903]
-    A[1, 1, :] = [-22.45, -0.01763]
-    A[1, 2, :] = [-0.6397, -5.330 * 10 ** (-4)]
-    A[1, 3, :] = [-0.01074, -8.801 * 10 ** (-6)]
-
-    # coefficient for -30<t<=-22.9
-    A[2, 0, :] = [9899, 8.547]
-    A[2, 1, :] = [1309, 1.089]
-    A[2, 2, :] = [55.27, 0.04518]
-    A[2, 3, :] = [0.7160, 5.819 * 10 ** (-4)]
-
-    B = np.empty((3, 2))
-    B[0] = [-2, 0]
-    B[1] = [-22.9, -2]
-    B[2] = [-30, -22.9]
-
-    vf_a = air_volumefraction(t, s, rho_si, flag_comment='n')
-    rho_i = ice_density(t, 'n') / 10 ** 3  # ice density in g cm^{-3}
-
-    F1 = np.nan * t
-    F2 = np.nan * t
-    for mm in np.arange(0, 3):
-        P1 = [A[mm, 3, 0], A[mm, 2, 0], A[mm, 1, 0], A[mm, 0, 0]]
-        P2 = [A[mm, 3, 1], A[mm, 2, 1], A[mm, 1, 1], A[mm, 0, 1]]
-
-        F1[(B[mm, 0] <= t) & (t <= B[mm, 1])] = np.polyval(P1, t[(B[mm, 0] <= t) & (t <= B[mm, 1])])
-        F2[(B[mm, 0] <= t) & (t <= B[mm, 1])] = np.polyval(P2, t[(B[mm, 0] <= t) & (t <= B[mm, 1])])
-
-    vf_b = ((1 - vf_a) * rho_i * s / (F1 - rho_i * s * F2))
-    return vf_b
+module_logger = logging.getLogger(__name__)
 
 
 def density(t):
     """
-		Calculate the density of the brine in function of the temperature.
+        Calculates the density of the brine in [kg/m3]
 
-		Parameters
-		----------
-		t : array_like, number
-			temperature in degree Celsius [°C]
+        :param t : array_like, float
+            Temperature [degree C]
 
-		Returns
-		----------
-		rho_b: ndarray
-			density of the brine in gram per cubic centimeters [kg m^{-3}]
+        :return rho_b: ndarray
+            The calculated density of the brine [kg/m3]
 
-		sources
-		----------
-		Equation 2.9 in thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
+        :source:
+        Equation 2.9 in thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
+        Equation (3) in Cox, G. F. N., & Weeks, W. F. (1986). Changes in the salinity and porosity of sea-ice
+        samples during shipping and storage. J. Glaciol, 32(112)
+        Zubov, N.N. (1945), L'dy Arktiki [Arctic ice]. Moscow, Izdatel'stvo Glavsevmorputi.
 
-		from equation (3) in Cox, G. F. N., & Weeks, W. F. (1986). Changes in the salinity and porosity of sea-ice samples during shipping and storage. J. Glaciol, 32(112)
+    """
+    if isinstance(t, (int, float, list)):
+        t = np.atleast_1d(t).astype(float)
+    if (t > 0).any():
+        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        t[t > 0] = np.nan
 
-		from Zubov, N.N. (1945), L'dy Arktiki [Arctic ice]. Moscow, Izdatel'stvo Glavsevmorputi.
-
-	"""
     # Physical constant
-    A = [8 * 10 ** (-4), 1]
-    if isinstance(t, (int, float)):
-        t = np.array([t])
-    else:
-        t = np.array(t)
+    a = [8 * 10 ** (-4), 1]
 
-    s_b = brine_salinity(t)
-    rho_b = (A[1] + A[0] * s_b)
+    s_b = seaice.property.brine.salinity(t)
+    rho_b = (a[1] + a[0] * s_b)
 
     return rho_b * 10 ** 3
 
 
-def salinity(t, method='CW', flag_comment='y'):
+def electric_conductivity(t):
     """
-    Calculate the salinity of the brine in function of the temperature at equilibrium.
+        Calculates the electric conductivity of brine
 
-    Parameters
-    ----------
-    t : array_like, number
-        temperature in degree Celsius [°C]
-    method : {'As','CW'}, optional
-        Whether to calculate the salinity with Assur model ('As') or with the equation of Cox & Weeks (1983) ('CW'). Default is 'CW'
-    flag_comment:
+        :param t : array_like, float
+            Temperature in degree Celsius [°C]
 
-    Returns
-    ----------
-    s_b: ndarray
-        salinity of the brine in Practical salinity Unit [PsU]
+        :return sigma: ndarray
+            The conductivity of the brine in [S/m]
 
-    sources
-    ----------
-    'As' : Equation 2.8 in thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
-    'CW' : Equation 25 in Cox, G. F. N., & Weeks, W. F. (1986). Changes in the salinity and porosity of sea-ice samples during shipping and storage. J. Glaciol, 32(112), 371–375
-"""
-    import numpy as np
-
-    if isinstance(t, (int, float)):
-        t = np.array([t])
-    else:
-        t = np.array(t)
-
-    s_b = np.nan * t
-
-    if method == 'As':
-        if t.all > -23:
-            s_b = ((1 - 54.11 / t) ** (-1)) * 1000
-        else:
-            print('At least one temperature is inferior to -23[°C]. Cox & Weeks equation is used instead')
-            brine_salinity(t, 'CW')
-    else:
-        # Physical constant
-        A = np.empty((3, 4))
-        B = np.empty((3, 2))
-
-        # coefficient for -54<t<=-44
-        A[0, :] = [-4442.1, -277.86, -5.501, -0.03669];
-        B[0] = [-54, -44]
-        # coefficient for -44<t<=-22.9
-        A[1, :] = [206.24, -1.8907, -0.060868, -0.0010247];
-        B[1] = [-44, -22.9]
-        # coefficient for -22.9<t<=-2
-        A[2, :] = [-3.9921, -22.700, -1.0015, -0.019956];
-        B[2] = [-22.9, -2]
-
-        for mm in range(0, 3):
-            P1 = [A[mm, 3], A[mm, 2], A[mm, 1], A[mm, 0]]
-
-            s_b[(B[mm, 0] <= t) & (t <= B[mm, 1])] = (np.polyval(P1, t[(B[mm, 0] <= t) & (t <= B[mm, 1])]))
-    return s_b
-
-
-def thermal_conductivity(t, flag_comment='y'):
+        :source :
+        Fofonoff, Nick P., and Robert C. Millard. "Algorithms for computation of fundamental properties of seawater."
+        (1983).
     """
-		Calculate thermal conductivity of brine
-
-		Parameters
-		----------
-		t : array_like, number
-			temperature in degree Celsius [°C]
-			If t is an array, s should be an array of the same length
-
-		Returns
-		----------
-		lambda_si ndarray
-			brine thermal conductivity in W m^{-1]K^{-1]
-
-		sources
-		----------
-		Equation 2.12 in Eicken, H. (2003). From the microscopic, to the macroscopic, to the regional scale: growth, microstructure and properties of sea ice. In thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
-
-		From Yen, Y. C., Cheng, K. C., and Fukusako, s. (1991) Review of intrinsic thermophysical properties of snow, ice, sea ice, and frost. In: Proceedings 3rd International symposium on Cold Regions Heat transfer, Fairbanks, AK, June 11-14, 1991. (Ed. by J. P. Zarling & s. L. Faussett), pp. 187-218, University of Alaska, Fairbanks
-	"""
-    import numpy as np
-
-    if isinstance(t, (int, float)):
-        t = np.array([t])
-    else:
-        t = np.array(t)
+    if isinstance(t, (int, float, list)):
+        t = np.atleast_1d(t).astype(float)
+    if (t > 0).any():
+        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        t[t > 0] = np.nan
 
     # Physical constant
-    A = [0.00014, 0.030, 1.25]
-    B = 0.4184
+    a = [0.08755, 0.5193]
 
-    lambda_b = np.nan * t
+    sigma_b = -t * np.exp(np.polyval(a, t))
 
-    lambda_b[(t < 0)] = B * np.polyval(A, t[(t < 0)])
+    return sigma_b
 
-    if flag_comment == 'y':
-        if np.count_nonzero(np.where(t > 0)):
-            print('Element with temperature above 0°C : ice has melt in some case')
+
+def thermal_conductivity(t):
+    """
+        Calculates thermal conductivity of brine/sea water [W/mK]
+
+       :param t : array_like, float
+            Temperature [degree C]
+            If t is an array, s should be an array of the same length
+
+        :return lambda_b: ndarray
+            The calculated brine thermal conductivity in [W/mK]
+
+        :sources :
+        Equation 2.12 in Eicken, H. (2003). From the microscopic, to the macroscopic, to the regional scale: growth,
+        microstructure and properties of sea ice. In thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London:
+        Wiley-Blackwell
+        Yen, Y. C., Cheng, K. C., and Fukusako, s. (1991) Review of intrinsic thermophysical properties of snow,
+        ice, sea ice, and frost. In: Proceedings 3rd International symposium on Cold Regions Heat transfer, Fairbanks,
+        AK, June 11-14, 1991. (Ed. by J. P. Zarling & s. L. Faussett), pp. 187-218, University of Alaska, Fairbanks
+    """
+    if isinstance(t, (int, float, list)):
+        t = np.atleast_1d(t).astype(float)
+    if (t > 0).any():
+        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        t[t > 0] = np.nan
+
+    # Physical constant
+    a = [0.00014, 0.030, 1.25]
+    b = 0.4184
+
+    lambda_b = b * np.polyval(a, t)
 
     return lambda_b
 
 
-def electricconductivity(t, flag_comment='n'):
+def salinity(t, method='cw'):
     """
-		Calculate the electric conductivity of brine for a given temperature
+    Calculates the salinity of the brine according to either Assur's model or Cox & Weeks equation.
 
-		Parameters
-		----------
-		t : array_like, number
-			temperature in degree Celsius [°C]
+    :param t : array_like, float
+        Temperature [degree C]
+    :param method : {'as','cw'}
+        * 'cw' : calculate with the equation of Cox & Weeks (1983)
+        * 'as' : calculate with Assur's model, valid if t => -23 [degree C]. If t < -23, 'cw' is used by default
+        Default is 'cw'
 
-		Returns
-		----------
-		sigma: ndarray
-			conductivity of the brine in microsiemens/meter [ms/m]
+    :return s_b: ndarray
+        The computed salinity of the brine [PsU]
 
-		Equation
-		_________
-			Fofonoff, Nick P., and Robert C. Millard. "Algorithms for computation of fundamental properties of seawater." (1983).
-	"""
-    import numpy as np
+    :sources:
+    'as' : Equation 2.8 in thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
+    'cw' : Equation 25 in Cox, G. F. N., & Weeks, W. F. (1986). Changes in the salinity and porosity of sea-ice samples
+    during shipping and storage. J. Glaciol, 32(112), 371–375
+    """
 
-    t = icdt.make_array(t)
-    ii_max = len(t)
+    if isinstance(t, (int, float, list)):
+        t = np.atleast_1d(t).astype(float)
+    if (t > 0).any():
+        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        t[t > 0] = np.nan
+
+    if method == 'as':
+        if (t >= -23).all():
+            s_b = ((1 - 54.11 / t) ** (-1)) * 1000
+        else:
+            module_logger.warning('t must be superior to -23[°C]. Using Cox & Weeks equesiton instead')
+            return 0
+    elif method == 'cw':
+        # physical constant
+        a = np.empty((3, 4))
+        b = np.empty((3, 2))
+
+        # coefficient for -54<t<=-44
+        a[0, :] = [-4442.1, -277.86, -5.501, -0.03669]
+        b[0] = [-54, -44]
+        # coefficient for -44<t<=-22.9
+        a[1, :] = [206.24, -1.8907, -0.060868, -0.0010247]
+        b[1] = [-44, -22.9]
+        # coefficient for -22.9<t<=-2
+        a[2, :] = [-3.9921, -22.700, -1.0015, -0.019956]
+        b[2] = [-22.9, -2]
+
+        s_b = np.nan*np.ones(t)
+        for mm in range(0, 3):
+            p1 = [a[mm, 3], a[mm, 2], a[mm, 1], a[mm, 0]]
+            s_b[(b[mm, 0] <= t) & (t <= b[mm, 1])] = (np.polyval(p1, t[(b[mm, 0] <= t) & (t <= b[mm, 1])]))
+    else:
+        module_logger.warning("%s method unknown" % method)
+        return 0
+    return s_b
+
+
+def salinity_from_conductivity(t, c):
+    """
+    Calculates the salinity of brine from specifc conductance
+
+    :param t: array_like, float
+        Temperature [degree C]
+        If t is an array, c should be an array of same dimension
+    :param c: array_like, float
+        conductivity in microSievert by centimeters [S/m]
+        If c is an array, t should be an array of same dimension
+
+    :return sigma_sw: ndarray
+        Brine salinity [PSU]
+
+    :source :
+    Standard Methods for the Examination of Water and Wastewater, 20th edition, 1999.
+    http://www.chemiasoft.com/chemd/salinity_calculator
+
+    """
+    if isinstance(t, (int, float, list)):
+        t = np.atleast_1d(t).astype(float)
+    if (t > 0).any():
+        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        t[t > 0] = np.nan
+
+    if isinstance(c, (int, float, list)):
+        t = np.atleast_1d(t).astype(float)*1e-4   # from S/m in uS/cm
+
+    if t.shape != c.shape:
+        module_logger.warning('t, c must all have the same dimensions')
+        return 0
 
     # Physical constant
-    A = [0.08755, 0.5193]
+    a = np.empty((6, 2))
+    a[0, :] = [0.0080, 0.0005]
+    a[1, :] = [-0.1692, -0.0056]
+    a[2, :] = [25.3851, -0.0066]
+    a[3, :] = [14.0941, -0.0375]
+    a[4, :] = [-7.0261, 0.0636]
+    a[5, :] = [2.7081, -0.0144]
 
-    sigma_b = []
-    for ii in range(0, ii_max):
-        sigma_b.append(-t[ii] * np.exp(np.polyval(A, t[ii])))
-    return np.array(sigma_b)
+    b = [-0.0267243, 4.6636947, 861.3027640, 29035.1640851]
+
+    c_kcl = np.polyval(b, t)
+    rc = c / c_kcl
+
+    rc_x = np.sqrt(rc)
+
+    ds = (t - 15) / (1 + 0.0162 * (t - 15)) * np.polyval(a[:, 1], rc_x)
+    s = np.polyval(a[:, 0], rc_x)
+
+    return s+ds
+
