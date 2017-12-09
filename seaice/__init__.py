@@ -5,6 +5,9 @@ import logging
 
 from .io.excel import *
 
+from seaice.core.core import *
+from seaice.core.corestack import *
+
 module_logger = logging.getLogger(__name__)
 TOL = 1e-6
 

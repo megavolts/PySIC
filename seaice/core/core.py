@@ -1,14 +1,12 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-seaice.core.core.py : Core and CoreStack class
+seaice.core.core.py : Core class
 
 """
 import logging
-
 import numpy as np
 import pandas as pd
-from seaice.core.corestack import CoreStack
 
 __name__ = "load"
 __author__ = "Marc Oggier"
@@ -320,16 +318,3 @@ class Core:
         # def rescale(self, variable=None, section_thickness=0.05):
         #     return make_section(self, variable, section_thickness)
 
-
-# Ice core operation
-def stack_cores(ics_dict):
-    """"
-    :param ics_dict:
-        dictionnary of core
-    :return ics_stack:
-        panda.DataFrame()
-    """
-    ics_stack = CoreStack()
-    for key in ics_dict.keys():
-        ics_stack = ics_stack.add_profiles(ics_dict[key])
-    return CoreStack(ics_stack)

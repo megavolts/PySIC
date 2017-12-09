@@ -15,7 +15,7 @@ import numpy as np
 import openpyxl
 import pandas as pd
 
-import seaice
+from seaice.core.core import Core
 
 __name__ = "load"
 __author__ = "Marc Oggier"
@@ -160,7 +160,7 @@ def import_ic(ic_path, variables=None, v_ref='top', verbose=logging.WARNING):
     else:
         ice_thickness = np.array([np.nan])
 
-    core = seaice.core.Core(name, date, origin, lat, lon, ice_thickness, freeboard, snow_depth)
+    core = Core(name, date, origin, lat, lon, ice_thickness, freeboard, snow_depth)
 
     # temperature
     if ws_summary['C15'].value:
