@@ -1,15 +1,9 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 
-from .io.excel import *
-
-from .property.brine import *
-from .property.si import *
-from .property.sw import *
-from .property.ice import *
-
-
 import logging
+
+from .io.excel import *
 
 module_logger = logging.getLogger(__name__)
 TOL = 1e-6

@@ -9,5 +9,4 @@ __contact__ = "Marc Oggier"
 __email__ = "moggier@alaska.edu"
 __status__ = "development"
 __date__ = "2017/09/13"
-__credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 __name__ = "property"

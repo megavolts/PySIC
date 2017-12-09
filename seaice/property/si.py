@@ -3,10 +3,11 @@
 """
 property.seaice.py contains function to compute physical property relative to the seaice
 """
-import numpy as np
 import logging
-from seaice.property import ice
+
+import numpy as np
 from seaice.property import brine
+from seaice.property import ice
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -17,7 +18,7 @@ __email__ = "moggier@alaska.edu"
 __status__ = "development"
 __date__ = "2017/09/13"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
-__name__ = "seaice"
+__name__ = "si"
 
 si_state_variable = {'temperature': 'temperature', 'temp': 'temperature', 't': 'temperature',
                      'salinity': 'salinity', 's': 'salinity'}
@@ -301,7 +302,7 @@ def density(t, s, vf_a=0.005):
     b[1] = [-22.9, -2]
     b[2] = [-30, -22.9]
 
-    rho_i = ice.density(t)*1e-3
+    rho_i = ice.density(t) * 1e-3
 
     f1 = np.nan * t
     f2 = np.nan * t
@@ -664,7 +665,7 @@ def thermal_conductivity(t, s, method='pringle', vf_a=0.005):
     if method == 'maykut':
         # Physical constant
         a = 0.13
-        lambda_si = ice.thermal_conductivity(t) + a*s/t
+        lambda_si = ice.thermal_conductivity(t) + a * s / t
 
     elif method == 'pringle':
         rho_si = density(t, s, vf_a=vf_a)

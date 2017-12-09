@@ -9,10 +9,12 @@ Module parse to/from ice core formatted excel data spreadsheet
 import datetime
 import logging
 import os
+
 import dateutil
 import numpy as np
 import openpyxl
 import pandas as pd
+
 import seaice
 
 __name__ = "load"
@@ -27,7 +29,7 @@ __date__ = "2017/09/13"
 __comment__ = "core.py contained classes and function destinated to analyezed sea ice core data "
 __CoreVersion__ = 1.1
 
-__all__ = ["import_ic", "import_ic_list", "import_ic_path"]
+__all__ = ["import_ic", "import_ic_list", "import_ic_path", "generate_list", "generate_source"]
 
 # create logger
 module_logger = logging.getLogger(__name__)
@@ -191,9 +193,9 @@ def import_ic(ic_path, variables=None, v_ref='top', verbose=logging.WARNING):
     if variables is None:
         sheets = [sheet for sheet in ws_name if (sheet not in ['summary', 'abreviation', 'locations', 'lists', 'Vf_oil_calculation']) and
                      (sheet.lower().find('fig') == -1)]
+        core_flag = []
         for sheet in sheets:
             ws_variable = wb.get_sheet_by_name(sheet)
-            core_flag = 0
             profile = read_variable(ws_variable, variables=None, version=version, v_ref=v_ref)
             for variable in profile.keys():
                 if not profile[variable][1] == core.name:
@@ -202,15 +204,16 @@ def import_ic(ic_path, variables=None, v_ref='top', verbose=logging.WARNING):
                 else:
                     core.add_profile(profile[variable][0])
                     core.add_variable(variable)
-                    if core_flag == 0 and ~np.isnan(profile[variable][3]):
-                        core.add_ice_core_length(profile[variable][3])
-                        core_flag = 1
+                    if core.name not in core_flag and profile[variable][3] is not None and ~np.isnan(
+                            profile[variable][3]):
+                        core.add_length(profile[variable][3])
+                        core_flag.append(core.name)
                     core.add_comment(profile[variable][2])
 
         if core.variables is None:
-            module_logger.info('(%s) no variable to import' %(name))
+            module_logger.info('(%s) no variable to import' % name)
         elif core.variables.__len__() > 1:
-            module_logger.info('(%s) variables %s imported with success' %(name, ", ".join(core.variables)))
+            module_logger.info('(%s) variables %s imported with success' % (name, ", ".join(core.variables)))
         else:
             module_logger.info('(%s) variable %s imported with success' % (name, ", ".join(core.variables)))
     else:
@@ -234,8 +237,9 @@ def import_ic(ic_path, variables=None, v_ref='top', verbose=logging.WARNING):
                 else:
                     core.add_profile(profile[variable][0])
                     core.add_variable(variable)
-                    if core.name not in core_flag and profile[variable][3] is not None and not np.isnan(profile[variable][3]):
-                        core.add_ice_core_length(profile[variable][3])
+                    if core.name not in core_flag and profile[variable][3] is not None and ~np.isnan(
+                            profile[variable][3]):
+                        core.length(profile[variable][3])
                         core_flag.append(core.name)
                     core.add_comment(profile[variable][2])
             else:
