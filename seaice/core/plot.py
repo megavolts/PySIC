@@ -7,7 +7,7 @@ seaice.core.plot.py : Core and CoreStack class
 import logging
 import matplotlib.pyplot as plt
 from seaice.core.corestack import CoreStack
-
+from seaice.core.profile import *
 __name__ = "plot"
 __author__ = "Marc Oggier"
 __license__ = "GPL"

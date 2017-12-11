@@ -4,21 +4,21 @@
 # openpyxl, numpy, pandas, matplotlib
 #
 #
-import logging
 import numpy as np
 import seaice
+from seaice.core.tool import indices
+
 
 dirpath = '/mnt/data/UAF-data/seaice/core/BRW-EL-winter/'
 fileext = '.xlsx'
 
 source_fp = seaice.generate_source(dirpath, fileext)
 
-ics_dict = seaice.import_ic_path(source_fp, verbose=logging.DEBUG, v_ref='top')
+ics_dict = seaice.import_ic_path(source_fp, v_ref='top')
 
 ics_stack = seaice.stack_cores(ics_dict)
 
 ics_stack = ics_stack.discretize(display_figure=False, y_bins=np.arange(0, max(ics_stack.length)+0.05, 0.05))
-
 
 stats = ['min', 'mean', 'max', 'std']
 groups = {'length': [0, 0.77, 1.27, 1.77]}
@@ -32,30 +32,14 @@ if bin_value.__len__() == 1:
     bin_value = bin_value[0]
     bins_max_value = [max(bin_value)+1]
 
-def indices(dim):
-    """
-    :param dim:
-    :return:
-    """
-    for d in range(dim[0]):
-        if dim.__len__() == 1:
-            yield (d,)
-        else:
-            for n in indices(dim[1:]):
-                yield (d,) + n
 
 figure_number = 0
 
 import seaice.core.plot as pltc
 import matplotlib.pyplot as plt
 
-vmin = {}
-vmax = {}
-vmin['salinity'] = 0
-vmax['salinity'] = 10
-vmax['temperature'] = 0
-vmin['temperature'] = -20
-
+vmin = {'temperature': -20, 'salinity': 0}
+vmax = {'temperature': 0, 'salinity': 10}
 
 for index in indices(bins_max_value):
     print(index)
