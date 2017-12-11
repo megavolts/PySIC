@@ -27,7 +27,7 @@ module_logger = logging.getLogger(__name__)
 TOL = 1e-6
 
 
-def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display_figure='y', fill_gap=True):
+def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display_figure=False, fill_gap=True):
     """
     :param profile:
     :param y_bins:
@@ -59,6 +59,16 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
             y_mid = np.diff(y_bins) / 2 + y_bins[:-1]
         else:
             y_mid = profile.y_mid.dropna().sort_values().unique()
+
+    # check integrity of y_bins and y_mid:
+    if min(y_mid) - min(y_bins) < TOL:
+        y_bin_min = min(y_mid)-(min(y_bins)-min(y_mid))/2
+        if y_bin_min >= 0:
+            y_bins = np.concatenate(([y_bin_min], y_bins))
+        else:
+            y_bins = np.concatenate(([min(profile.y_mid)], y_bins))
+    if max(profile.y_mid) - max(y_bins) <= TOL:
+        y_bins = np.concatenate(([max(y_mid)+(max(y_bins)-max(y_mid))/2], y_bins))
 
     y_bins = np.array(y_bins)
     y_mid = np.array(y_mid)
@@ -110,9 +120,7 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                                      index=temp.index.tolist()))
             temp['date'] = temp['date'].astype('datetime64[ns]')
 
-            if display_figure == 'y' or display_figure == 'c':
-                if display_figure == 'c':
-                    plt.close()
+            if display_figure:
                 plt.figure()
                 yx = yx.reset_index()
                 plt.plot(yx[variable], yx['y_mid'], 'k')
@@ -234,9 +242,7 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                                      index=temp.index.tolist()))
             temp['date'] = temp['date'].astype('datetime64[ns]')
 
-            if display_figure == 'y' or display_figure == 'c':
-                if display_figure == 'c':
-                    plt.close()
+            if display_figure:
                 plt.figure()
                 x = []
                 y = []
@@ -252,13 +258,6 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                 # profile = profile[(profile.name != profile.name.unique().tolist()[0]) | (profile.variable != variable)]
         discretized_profile = discretized_profile.append(temp)
 
-        # if temp.empty:
-        #    print(profile.name.unique())
-        # else:
-        #    profile = profile.append(temp)
-
-        # if 'index' in discretized_profile.columns:
-        #    discretized_profile.drop('index', axis=1)
     return discretized_profile
 
 
@@ -298,6 +297,7 @@ def set_vertical_reference(profile, h_ref=0, new_v_ref=None):
         profile['y_sup'] = profile['y_sup'] - h_ref
 
 
+# Helper function
 def s_nan(yx, ii_yx, fill_gap=True):
     """
     :param yx:
@@ -321,79 +321,3 @@ def s_nan(yx, ii_yx, fill_gap=True):
         s = yx[ii_yx, 2]
     return s
 
-
-def profile_stat(ics_stack, variables, stats, comment=False):
-    """"
-    """
-    ics_stack = ics_stack.reset_index(drop=True)
-    bins_y = sorted(pd.concat([ics_stack.y_low, ics_stack.y_sup]).dropna().unique())
-    y_cuts = pd.cut(ics_stack.y_mid, bins_y, labels=False)
-
-    if not isinstance(variables, list):
-        variables = [variables]
-    if not isinstance(stats, list):
-        stats = [stats]
-
-    temp_all = pd.DataFrame()
-    for variable in variables:
-        if comment:
-            print('\ncomputing %s' % variable)
-        data = ics_stack[ics_stack.variable == variable]
-        data_grouped = data.groupby(y_cuts)
-
-        for stat in stats:
-            if comment:
-                print('\tcomputing %s' % stat)
-            func = "groups['" + variable + "']." + stat + "()"
-            stat_var = np.nan * np.ones(bins_y.__len__() - 1)
-            core_var = [[None] for x in range(bins_y.__len__())]
-            for k1, groups in data_grouped:
-                stat_var[int(k1)] = eval(func)
-                core_var[int(k1)] = list(groups.dropna(subset=[variable])['name'].unique())
-
-            for ii_bin in range(stat_var.__len__()):
-                temp = pd.DataFrame(stat_var[ii_bin], columns=[variable])
-                temp = temp.join(pd.DataFrame(core_var[ii_bin], columns=['core collection']))
-                data = [stat, variable, ics_stack.v_ref.unique()[0]]
-                columns = ['stats', 'variable', 'v_ref']
-                index = np.array(temp.index.tolist())  # [~np.isnan(temp[ii_variable].tolist())]
-                temp = temp.join(pd.DataFrame([data], columns=columns, index=index))
-                temp = temp.join(pd.DataFrame(index, columns=['y_index'], index=index))
-                for row in temp.index.tolist():
-                    # temp.loc[temp.index == row, 'n'] = temp.loc[temp.index == row, 'core collection'].__len__()
-                    if temp.loc[temp.index == row, 'core collection'][row] is not None:
-                        temp.loc[temp.index == row, 'n'] = temp.loc[temp.index == row, 'core collection'][row].__len__()
-                    else:
-                        temp.loc[temp.index == row, 'n'] = 0
-                columns = ['y_low', 'y_sup', 'y_mid']
-                t2 = pd.DataFrame(columns=columns)
-                # For step profile, like salinity
-                # if ii_variable in ['salinity']:
-                if not ics_stack[ics_stack.variable == ii_variable].y_low.isnull().any():
-                    for ii_layer in index:
-                        data = [bins_y[ii_layer], bins_y[ii_layer + 1],
-                                (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2]
-                        t2 = t2.append(pd.DataFrame([data], columns=columns, index=[ii_layer]))
-                # For linear profile, like temperature
-                # if ii_variable in ['temperature']:
-                elif ics_stack[ics_stack.variable == ii_variable].y_low.isnull().all():
-                    for ii_layer in index:
-                        data = [np.nan, np.nan, (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2]
-                        t2 = t2.append(pd.DataFrame([data], columns=columns, index=[ii_layer]))
-
-                if temp_all.empty:
-                    temp_all = temp.join(t2)
-                else:
-                    temp_all = temp_all.append(temp.join(t2), ignore_index=True)
-
-    data_grouped = ics_stack.groupby([t_cuts, ics_stack['variable']])
-
-    grouped_dict = {}
-    for var in variables:
-        grouped_dict[var] = [[] for ii_DD in range(bins_DD.__len__() - 1)]
-
-    for k1, groups in data_grouped:
-        if k1[1] in variables:
-            grouped_dict[k1[1]][int(k1[0])] = groups['name'].unique().tolist()
-
-    return seaice.core.CoreStack(temp_all.reset_index(drop=True)), grouped_dict

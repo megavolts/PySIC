@@ -7,7 +7,7 @@ seaice.core.coreset.py : CoreStack class
 import logging
 import numpy as np
 import pandas as pd
-from seaice.core.tool import discretize_profile
+from seaice.core.tool import *
 
 TOL = 1e-6
 
@@ -115,95 +115,29 @@ class CoreStack(pd.DataFrame):
             temp = self[(self.name != core) & (self.variable != variable)]
         return CoreStack(temp)
 
-    def grouped_stat(self, variables, stats, bins_DD, bins_y, comment='n'):
+    def section_stat(self, groups=None, variables=None, stats=['min', 'mean', 'max', 'std']):
         """
 
         :param variables:
         :param stats:
-        :param bins_DD:
-        :param bins_y:
-        :param comment:
+        :param groups:
         :return:
         """
-        y_cuts = pd.cut(self.y_mid, bins_y, labels=False)
-        t_cuts = pd.cut(self.DD, bins_DD, labels=False)
+        if groups is None:
+            groups = {'y_mid': sorted(pd.concat([self.y_low, self.y_sup]).dropna().unique())}
+        if 'y_mid' not in groups:
+            groups['y_mid'] = sorted(pd.concat([self.y_low, self.y_sup]).dropna().unique())
 
-        if not isinstance(variables, list):
-            variables = [variables]
-        if not isinstance(stats, list):
-            stats = [stats]
+        return CoreStack(grouped_stat(self, groups, variables=None, stats=['min', 'mean', 'max', 'std']))
 
-        temp_all = pd.DataFrame()
-        for ii_variable in variables:
-            if comment == 'y':
-                print('\ncomputing %s' % ii_variable)
-            data = self[self.variable == ii_variable]
-            data_grouped = data.groupby([t_cuts, y_cuts])
-
-            for ii_stat in stats:
-                if comment == 'y':
-                    print('computing %s' % ii_stat)
-                func = "groups['" + ii_variable + "']." + ii_stat + "()"
-                stat_var = np.nan * np.ones((bins_DD.__len__() - 1, bins_y.__len__()))
-                core_var = [[[None] for x in range(bins_y.__len__())] for y in range(bins_DD.__len__() - 1)]
-                for k1, groups in data_grouped:
-                    stat_var[int(k1[0]), int(k1[1])] = eval(func)
-                    core_var[int(k1[0])][int(k1[1])] = [list(groups.dropna(subset=[ii_variable])
-                                                             ['core_name'].unique())]
-                for ii_bin in range(stat_var.__len__()):
-                    temp = pd.DataFrame(stat_var[ii_bin], columns=[ii_variable])
-                    temp = temp.join(pd.DataFrame(core_var[ii_bin], columns=['core_collection']))
-                    DD_label = 'DD-' + str(bins_DD[ii_bin]) + '_' + str(bins_DD[ii_bin + 1])
-                    data = [str(bins_DD[ii_bin]), str(bins_DD[ii_bin + 1]), DD_label, int(ii_bin), ii_stat,
-                            ii_variable, self.v_ref.unique()[0]]
-                    columns = ['DD_min', 'DD_max', 'DD_label', 'DD_index', 'stats', 'variable', 'v_ref']
-                    index = np.array(temp.index.tolist())  # [~np.isnan(temp[ii_variable].tolist())]
-                    temp = temp.join(pd.DataFrame([data], columns=columns, index=index))
-                    temp = temp.join(pd.DataFrame(index, columns=['y_index'], index=index))
-                    for row in temp.index.tolist():
-                        print('test')
-                        temp.loc[temp.index == row, 'n'] = temp.loc[temp.index == row, 'core collection'].__len__()
-                    columns = ['y_low', 'y_sup', 'y_mid']
-                    t2 = pd.DataFrame(columns=columns)
-                    # For step profile, like salinity
-                    # if ii_variable in ['salinity']:
-                    if not self[self.variable == ii_variable].y_low.isnull().any():
-                        for ii_layer in index[:-1]:
-                            data = [bins_y[ii_layer], bins_y[ii_layer + 1],
-                                    (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2, DD_label + str('-%03d' % ii_layer)]
-                            t2 = t2.append(pd.DataFrame([data], columns=columns, index=[ii_layer]))
-                    # For linear profile, like temperature
-                    # if ii_variable in ['temperature']:
-                    elif self[self.variable == ii_variable].y_low.isnull().all():
-                        for ii_layer in index[:-1]:
-                            data = [np.nan, np.nan, (bins_y[ii_layer] + bins_y[ii_layer + 1]) / 2,
-                                    DD_label + str('-%03d' % ii_layer)]
-                            t2 = t2.append(pd.DataFrame([data], columns=columns, index=[ii_layer]))
-
-                    if temp_all.empty:
-                        temp_all = temp.join(t2)
-                    else:
-                        temp_all = temp_all.append(temp.join(t2), ignore_index=True)
-
-        data_grouped = self.groupby([t_cuts, self['variable']])
-
-        grouped_dict = {}
-        for var in variables:
-            grouped_dict[var] = [[] for ii_DD in range(bins_DD.__len__() - 1)]
-
-        for k1, groups in data_grouped:
-            if k1[1] in variables:
-                grouped_dict[k1[1]][int(k1[0])] = groups['core'].unique().tolist()
-
-        return CoreStack(temp_all.reset_index(drop=True)), grouped_dict
-
-    def discretize(self, y_bins=None, y_mid=None, variables=None, display_figure='n'):
+    def discretize(self, y_bins=None, y_mid=None, variables=None, display_figure=False, inplace=True):
         """
 
         :param y_bins:
         :param y_mid:
         :param variables:
         :param display_figure:
+        :param inplace :
         :return:
         """
         if variables is None:
@@ -214,6 +148,7 @@ class CoreStack(pd.DataFrame):
             data_binned = data_binned.append(
                 discretize_profile(self[self.name == core], y_bins=y_bins, y_mid=y_mid, variables=variables,
                                    display_figure=display_figure))
+        data_binned.reset_index(drop=True, inplace=True)
         return CoreStack(data_binned)
 
     def compute_phys_prop(self, inplace=True):
@@ -467,3 +402,95 @@ def stack_cores(ics_dict):
     for key in ics_dict.keys():
         ics_stack = ics_stack.add_profiles(ics_dict[key])
     return CoreStack(ics_stack)
+
+
+def indices(dim):
+    """
+    :param dim:
+    :return:
+    """
+    for d in range(dim[0]):
+        if dim.__len__() == 1:
+            yield (d,)
+        else:
+            for n in indices(dim[1:]):
+                yield (d,) + n
+
+
+def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max', 'std']):
+    """
+
+    :param ics_stack:
+    :param variables:
+    :param groups:
+    :param stats:
+    :param comment:
+    :return:
+    """
+    if variables is None:
+        variables = ics_stack.variable.unique().tolist()
+    if not isinstance(variables, list):
+        variables = [variables]
+    if not isinstance(stats, list):
+        stats = [stats]
+    if 'y_mid' not in groups:
+        print("error: no vertical section")
+    else:
+        groups_order = list(groups.keys())
+        groups_order.remove('y_mid')
+        groups_order.append('y_mid')
+
+    cuts = []
+    dim = []
+    for group in groups_order:
+        cuts.append(pd.cut(ics_stack[group], groups[group], labels=False))
+        dim.append(groups[group].__len__()-1)
+
+    temp_all = pd.DataFrame()
+    for variable in variables:
+        #  module_logger.debug("")
+        print('\ncomputing %s' %variable)
+        data = ics_stack[ics_stack.variable == variable]
+
+        data_grouped = data.groupby(cuts)
+
+        for stat in stats:
+            # module_logger.debug("")
+            print('\tcomputing %s' % stat)
+            func = "kgroups['" + variable + "']." + stat + "()"
+            stat_var = np.nan * np.ones(dim)
+            core_var = [None for i in range(np.prod(dim))]
+            for k1, kgroups in data_grouped:
+                stat_var[tuple(np.array(k1, dtype=int))] = eval(func)
+                core_var[int(np.prod(np.array(k1)+1)-1)] = list(kgroups['name'].unique())
+            core_var = np.reshape(core_var, dim)
+
+        # run over ndim, minus the ice thickness
+        for index in indices(dim[:-1]):
+            temp = pd.DataFrame(stat_var[index], columns=[variable])
+            temp = temp.join(pd.DataFrame(core_var[index], columns=['core collection']))
+            data = [x for x in index]+[stat, variable, ics_stack.v_ref.unique()[0]]
+            columns = ['bin_'+x for x in groups_order[:-1]] + ['stats', 'variable', 'v_ref']
+            rows = np.array(temp.index.tolist())
+            temp = temp.join(pd.DataFrame([data], columns=columns, index=rows))
+            for row in temp.index.tolist():
+                temp.loc[temp.index == row, 'n'] = int(temp.loc[temp.index == row, 'core collection'].__len__())
+            columns = ['y_low', 'y_sup', 'y_mid']
+            t2 = pd.DataFrame(columns=columns)
+            # For step profile, like salinity
+            if not ics_stack[ics_stack.variable == variable].y_low.isnull().any():
+                for ii_layer in rows:
+                    data = [groups['y_mid'][row], groups['y_mid'][row + 1],
+                            (groups['y_mid'][row] + groups['y_mid'][row + 1]) / 2]
+                    t2 = t2.append(pd.DataFrame([data], columns=columns, index=[row]))
+            # For linear profile, like temperature
+            elif ics_stack[ics_stack.variable == variable].y_low.isnull().all():
+                for row in rows:
+                    data = [np.nan, np.nan, (groups['y_mid'][row] + groups['y_mid'][row + 1]) / 2]
+                    t2 = t2.append(pd.DataFrame([data], columns=columns, index=[row]))
+
+            if temp_all.empty:
+                temp_all = temp.join(t2)
+            else:
+                temp_all = temp_all.append(temp.join(t2), ignore_index=True)
+    return CoreStack(temp_all)
