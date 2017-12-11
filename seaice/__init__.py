@@ -5,6 +5,7 @@ import logging
 
 from .io.excel import *
 
+from seaice.core.plot import *
 from seaice.core.core import *
 from seaice.core.corestack import *
 

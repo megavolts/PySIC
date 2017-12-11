@@ -47,6 +47,7 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
     if y_bins is None and y_mid is None:
         y_bins = pd.Series(profile.y_low.dropna().tolist() + profile.y_sup.dropna().tolist()).sort_values().unique()
         y_mid = profile.y_mid.dropna().sort_values().unique()
+
     elif y_bins is None:
         if y_mid is not None:
             y_mid = y_mid.sort_values().values
@@ -59,16 +60,6 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
             y_mid = np.diff(y_bins) / 2 + y_bins[:-1]
         else:
             y_mid = profile.y_mid.dropna().sort_values().unique()
-
-    # check integrity of y_bins and y_mid:
-    if min(y_mid) - min(y_bins) < TOL:
-        y_bin_min = min(y_mid)-(min(y_bins)-min(y_mid))/2
-        if y_bin_min >= 0:
-            y_bins = np.concatenate(([y_bin_min], y_bins))
-        else:
-            y_bins = np.concatenate(([min(profile.y_mid)], y_bins))
-    if max(profile.y_mid) - max(y_bins) <= TOL:
-        y_bins = np.concatenate(([max(y_mid)+(max(y_bins)-max(y_mid))/2], y_bins))
 
     y_bins = np.array(y_bins)
     y_mid = np.array(y_mid)
