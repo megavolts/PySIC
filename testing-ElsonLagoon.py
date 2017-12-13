@@ -4,12 +4,44 @@
 # openpyxl, numpy, pandas, matplotlib
 #
 #
+
+__name__ = "ElsonLagoonTesting"
+
 import numpy as np
 import seaice
 from seaice.core.tool import indices
 
+import logging
+import logging.handlers
+import os
+# Enable logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
-dirpath = '/mnt/data/UAF-data/seaice/core/BRW-EL-winter/'
+# Log everything to the rotating log viles
+if not os.path.exists('logs'):
+    os.mkdir('logs')
+lf = logging.handlers.RotatingFileHandler('logs/args.log', maxBytes=100000, backupCount=5)
+lf.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s](%(name)s:%(funcName)s:%(lineno)d): %(message)s'))
+lf.setLevel(logging.DEBUG)
+logger.addHandler(lf)
+
+# Create console handler and set level to debug
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+ch.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))  # define format
+logger.addHandler(ch)
+
+# 'application' code
+logger.debug('debug message')
+logger.info('info message')
+logger.warning('warn message')
+logger.error('error message')
+logger.critical('critical message')
+
+
+
+dirpath = '/home/megavolts/data/seaice/core/BRW-EL-winter/'
 fileext = '.xlsx'
 
 source_fp = seaice.generate_source(dirpath, fileext)

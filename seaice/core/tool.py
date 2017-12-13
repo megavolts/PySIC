@@ -62,3 +62,12 @@ def indices(dim):
         else:
             for n in indices(dim[1:]):
                 yield (d,) + n
+
+
+def plt_step(x, y):
+    # step function
+    xy = np.array([x[0], y[0]])
+    for ii in range(x.__len__()-1):
+        xy = np.vstack((xy, [x[ii], y[ii+1]]))
+        xy = np.vstack((xy, [x[ii+1], y[ii+1]]))
+    return xy

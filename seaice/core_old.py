@@ -10,12 +10,11 @@ core.py: ice core data is a toolbox to import ice core data file from xlsx sprea
 """
 import datetime
 import logging
-
+import seaice
 import matplotlib as mpl
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
-import old_script.properties
 import pandas as pd
 
 __name__ = "core"
@@ -141,11 +140,11 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
 
     # compute properties
     for f_prop in si_prop_dict.keys():
-        if f_prop not in old_script.properties.si_prop_list.keys():
+        if f_prop not in seaice.property.brine.si_prop_list.keys():
             print('property %s not defined in the ice core property module' % property)
 
-        prop = old_script.properties.si_prop_list[f_prop]
-        function = getattr(old_script.properties, prop.replace(" ", "_"))
+        prop = seaice.property.si.si_prop_list[f_prop]
+        function = getattr(seaice.property.si, prop.replace(" ", "_"))
         prop_data = function(t_profile['temperature'], s_profile['salinity'])
 
         prop_data = pd.DataFrame(np.vstack((prop_data, s_profile['y_mid'])).transpose(), columns=[prop, 'y_mid'])
@@ -171,7 +170,7 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
                 prop_data.loc[prop_data.index == index, 'comment'] = comment_core
 
         if display_figure:
-            ax = plot_profile_variable(prop_data, {'name': S_core_name, 'variable': prop},
+            ax = seaice.core.plot.plot_profile_variable(prop_data, {'name': S_core_name, 'variable': prop},
                                        ax=None, param_dict=None)
             ax.set_xlabel(prop)
             ax.set_ylabel('ice thickness)')
@@ -432,186 +431,11 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
 # OK
 
 # OK
-def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
-    """
 
-    :param ic_data:
-    :param variable_dict:
-    :param ax:
-    :param param_dict:
-    :return:
-    """
-    if ax is None:
-        plt.figure()
-        ax = plt.subplot(1, 1, 1)
-
-    if param_dict is None:
-        param_dict = {}
-
-    if 'variable' not in variable_dict.keys():
-        module_logger.warning("a variable should be specified for plotting")
-        return 0
-
-    ii_variable = variable_dict['variable']
-
-    variable_dict.update({'stats': 'mean'})
-    x_mean = select_profile(ic_data, variable_dict).reset_index()
-    variable_dict.update({'stats': 'std'})
-    x_std = select_profile(ic_data, variable_dict).reset_index()
-
-    if x_mean.__len__() != 0:
-        if x_std.__len__() < x_mean.__len__():
-            index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
-            x_std = x_std.append(pd.DataFrame(np.nan, columns=x_std.columns.tolist(), index=index))
-
-        if not x_mean.y_low.isnull().all():
-            y_low = x_mean['y_low']
-            y_sup = x_mean['y_sup']
-            y = np.concatenate((y_low.tolist(), [y_sup.tolist()[-1]]))
-            x_std_l = x_mean[ii_variable] - x_std[ii_variable]
-            x_std_h = x_mean[ii_variable] + x_std[ii_variable]
-
-            x_std_l = seaice.toolbox.plt_step(x_std_l.tolist(), y).transpose()
-            x_std_h = seaice.toolbox.plt_step(x_std_h.tolist(), y).transpose()
-        elif x_mean.y_low.isnull().all():
-            y_std = x_mean['y_mid']
-            x_std_l = np.array([x_mean[ii_variable] - np.nan_to_num(x_std[ii_variable]), y_std])
-            x_std_h = np.array([x_mean[ii_variable] + np.nan_to_num(x_std[ii_variable]), y_std])
-
-        if 'facecolor' not in param_dict.keys():
-            param_dict['facecolor'] = {'black'}
-        if 'alpha' not in param_dict.keys():
-            param_dict['alpha'] = {0.3}
-        if 'label' not in param_dict.keys():
-            param_dict['label'] = str(r"$\pm$" + "std dev")
-        ax.fill_betweenx(x_std_l[1, :], x_std_l[0, :], x_std_h[0, :], facecolor='black', alpha=0.2,
-                         label=param_dict['label'])
-    return ax
-
-
-def semilogx_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
-    """
-
-    :param ic_data:
-    :param variable_dict:
-    :param ax:
-    :param param_dict:
-    :return:
-    """
-    if ax is None:
-        plt.figure()
-        ax = plt.subplot(1, 1, 1)
-
-    if param_dict is None:
-        param_dict = {}
-
-    if 'variable' not in variable_dict.keys():
-        module_logger.warning("a variable should be specified for plotting")
-        return 0
-
-    ii_variable = variable_dict['variable']
-
-    variable_dict.update({'stats': 'mean'})
-    x_mean = select_profile(ic_data, variable_dict).reset_index()
-    variable_dict.update({'stats': 'std'})
-    x_std = select_profile(ic_data, variable_dict).reset_index()
-
-    if x_mean.__len__() != 0:
-        if x_std.__len__() < x_mean.__len__():
-            index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
-            x_std = x_std.append(pd.DataFrame(np.nan, columns=x_std.columns.tolist(), index=index))
-
-        if not x_mean.y_low.isnull().all():
-            y_low = x_mean['y_low']
-            y_sup = x_mean['y_sup']
-            y = np.concatenate((y_low.tolist(), [y_sup.tolist()[-1]]))
-            x_std_l = x_mean[ii_variable] - x_std[ii_variable]
-            x_std_h = x_mean[ii_variable] + x_std[ii_variable]
-
-            index_outlier = x_std_l[(x_std_l <= 0)].index.tolist()
-            for ii in index_outlier:
-                l = ''
-                for key in variable_dict:
-                    l += key + ': ' + variable_dict[key] + '; '
-                l = l[:-2]
-                module_logger.warning('%s index of %s bin modified lower value for logarithmic scale' % (ii, l))
-
-            ii_outlier = 1
-            if index_outlier.__len__() > 0:
-                variable_dict.update({'stats': 'min'})
-                x_min = select_profile(ic_data, variable_dict).reset_index(drop=True)
-                while index_outlier.__len__() > 0:
-                    # for index in index_outlier:
-                    x_std_l[(x_std_l <= 0)] = x_min.loc[x_min.index.isin(index_outlier), ii_variable] - x_std.loc[
-                                                                                                            x_std.index.isin(
-                                                                                                                index_outlier), ii_variable] / ii_outlier
-                    index_outlier = x_std_l[(x_std_l <= 0)].index.tolist()
-                    ii_outlier += 1
-
-            x_std_l = seaice.toolbox.plt_step(x_std_l.tolist(), y).transpose()
-            x_std_h = seaice.toolbox.plt_step(x_std_h.tolist(), y).transpose()
-        elif x_mean.y_low.isnull().all():
-            y_std = x_mean['y_mid']
-            x_std_l = np.array([x_mean[ii_variable] - np.nan_to_num(x_std[ii_variable]), y_std])
-            x_std_h = np.array([x_mean[ii_variable] + np.nan_to_num(x_std[ii_variable]), y_std])
-
-        if 'facecolor' not in param_dict.keys():
-            param_dict['facecolor'] = {'black'}
-        if 'alpha' not in param_dict.keys():
-            param_dict['alpha'] = {0.3}
-        if 'label' not in param_dict.keys():
-            param_dict['label'] = str(r"$\pm$" + "std dev")
-
-        ax.fill_betweenx(x_std_l[1, :], x_std_l[0, :], x_std_h[0, :], facecolor='black', alpha=0.2,
-                         label=param_dict['label'])
-    return ax
 
 
 # OK
-def plot_number(ic_data, variable_dict, ax=None, position='right', x_delta=0.1, z_delta=0.05, every=1,
-                fontsize=mpl.rcParams['font.size']):
-    """
-    :param ic_data:
-    :param variable_dict:
-    :param ax:
-    :param position:
-    :param x_delta:
-    :param z_delta:
-    :param every:
-    :param fontsize:
-    :return:
-    """
-    if ax is None:
-        plt.figure()
-        ax = plt.subplot(1, 1, 1)
 
-    if 'variable' not in variable_dict.keys():
-        module_logger.warning("a variable should be specified for plotting")
-        return 0
-
-    ii_variable = variable_dict['variable']
-
-    if position == 'left':
-        stat = 'min'
-    elif position == 'center':
-        stat = 'mean'
-    else:
-        stat = 'max'
-
-    depth = select_profile(ic_data, variable_dict).reset_index()['y_mid'].values
-    n = select_profile(ic_data, variable_dict).reset_index()['n'].values
-    variable_dict.update({'stats': stat})
-    pos = select_profile(ic_data, variable_dict).reset_index()[ii_variable].values
-
-    # check for nan value:
-    depth = depth[~np.isnan(pos)]
-    n = n[~np.isnan(pos)]
-    pos = pos[~np.isnan(pos)]
-
-    for ii in np.arange(0, pos.__len__(), every):
-        ax.text(pos[ii] + x_delta, depth[ii] + z_delta, str('(%.0f)' % n[ii]), fontsize=fontsize)
-
-    return ax
 
 
 def ice_core_stat(ics_subset, variables, stats, ic_subset_name='average core'):
@@ -882,11 +706,11 @@ def compute_phys_prop(ics_data, si_prop, S_core_name, T_core_name, si_prop_forma
     data = pd.merge(data, interp_data, on=['y_mid'])
 
     for f_prop in si_prop:
-        if f_prop not in old_script.properties.si_prop_list.keys():
+        if f_prop not in seaice.property.brine.si_prop_list.keys():
             print('property %s not defined in the ice core property module' % property)
 
-        prop = old_script.properties.si_prop_list[f_prop]
-        function = getattr(old_script.properties, prop.replace(" ", "_"))
+        prop = seaice.property.brine.si_prop_list[f_prop]
+        function = getattr(seaice.property.si, prop.replace(" ", "_"))
         prop_data = function(data['temperature'], data['salinity'])
 
         property_frame = pd.DataFrame(np.vstack((prop_data, y_mid)).transpose(), columns=[prop, 'y_mid'])
