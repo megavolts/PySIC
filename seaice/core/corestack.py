@@ -7,7 +7,7 @@ seaice.core.coreset.py : CoreStack class
 import logging
 import numpy as np
 import pandas as pd
-from seaice.core.profile import *
+import seaice.core.profile
 from seaice.core.tool import indices
 
 __name__ = "corestack"
@@ -23,7 +23,7 @@ __comment__ = "corestack.py contained classes to handle ice core data"
 __CoreVersion__ = 1.1
 
 __all__ = ["CoreStack", "stack_cores"]
-module_logger = logging.getLogger(__name__)
+
 TOL = 1e-6
 
 
@@ -46,7 +46,6 @@ class CoreStack(pd.DataFrame):
     def __init__(self, *args, **kwargs):
         super(CoreStack, self).__init__(*args, **kwargs)
         self.logger = logging.getLogger(__name__)
-        self.logger.info('creating an instance of CoreStack')
 
     def add_profile(self, profile):
         """
@@ -136,7 +135,6 @@ class CoreStack(pd.DataFrame):
         :param y_mid:
         :param variables:
         :param display_figure:
-        :param inplace :
         :return:
         """
         if variables is None:
@@ -145,8 +143,10 @@ class CoreStack(pd.DataFrame):
         data_binned = pd.DataFrame()
         for core in self.name.unique():
             data_binned = data_binned.append(
-                discretize_profile(self[self.name == core], y_bins=y_bins, y_mid=y_mid, variables=variables,
-                                   display_figure=display_figure))
+                seaice.core.profile.discretize_profile(self[self.name == core],
+                                                       y_bins=y_bins, y_mid=y_mid,
+                                                       variables=variables,
+                                                       display_figure=display_figure))
         data_binned.reset_index(drop=True, inplace=True)
         return CoreStack(data_binned)
 
@@ -181,6 +181,8 @@ def stack_cores(ics_dict):
     :return ics_stack:
         panda.DataFrame()
     """
+    logger = logging.getLogger(__name__)
+    logger.info("Stacking ice cores:")
     ics_stack = CoreStack()
     for key in ics_dict.keys():
         ics_stack = ics_stack.add_profiles(ics_dict[key])
@@ -194,9 +196,11 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
     :param variables:
     :param groups:
     :param stats:
-    :param comment:
     :return:
     """
+
+    logger = logging.getLogger(__name__)
+
     if variables is None:
         variables = ics_stack.variable.unique().tolist()
     if not isinstance(variables, list):
@@ -204,7 +208,7 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
     if not isinstance(stats, list):
         stats = [stats]
     if 'y_mid' not in groups:
-        print("error: no vertical section")
+        logger.error("No vertical section available")
     else:
         groups_order = list(groups.keys())
         groups_order.remove('y_mid')
@@ -218,15 +222,13 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
 
     temp_all = pd.DataFrame()
     for variable in variables:
-        #  module_logger.debug("")
-        print('\ncomputing %s' %variable)
+        logger.info('computing %s' % variable)
         data = ics_stack[ics_stack.variable == variable]
 
         data_grouped = data.groupby(cuts)
 
         for stat in stats:
-            # module_logger.debug("")
-            print('\tcomputing %s' % stat)
+            logger.info('\tcomputing %s' % stat)
             func = "kgroups['" + variable + "']." + stat + "()"
             stat_var = np.nan * np.ones(dim)
             core_var = [None for i in range(np.prod(dim))]

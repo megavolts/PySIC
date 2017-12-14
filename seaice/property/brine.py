@@ -20,25 +20,7 @@ __name__ = "brine"
 
 __all__ = ["density", "electric_conductivity", "salinity_from_conductivity", "salinity", "thermal_conductivity"]
 
-si_state_variable = {'temperature': 'temperature', 'temp': 'temperature', 't': 'temperature',
-                     'salinity': 'salinity', 's': 'salinity'}
-si_prop_list = {'brine volume fraction': 'brine volume fraction',
-                'vbf': 'brine volume fraction', 'vb': 'brine volume fraction',
-                'seaice permeability': 'seaice permeability', 'k': 'seaice permeability'}
-si_prop_unit = {'salinity': '-',
-                'temperature': '°C',
-                'vb': '-', 'brine volume fraction': '-',
-                'seaice permeability': 'm$^{-2}$'}
-si_prop_latex = {'salinity': 'S',
-                 'temperature': 'T',
-                 'brine volume fraction': '\phi_{B}',
-                 'ice thickness': 'h_{i}',
-                 'snow thickness': 'h_{s}',
-                 'seaice permeability': '\kappa'
-                 }
-
 module_logger = logging.getLogger(__name__)
-
 
 def density(t):
     """

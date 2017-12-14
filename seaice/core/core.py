@@ -60,7 +60,7 @@ class Core:
         :return:
         """
         self.logger = logging.getLogger(__name__)
-        self.logger.info('Creating an instance of Core %s' % name)
+        self.logger.debug('(%s) instance of Core created' % name)
         self.name = name
         self.date = date
         self.origin = origin

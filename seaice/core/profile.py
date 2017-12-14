@@ -23,9 +23,9 @@ __date__ = "2017/09/13"
 __comment__ = "profile.py contained function to handle property profile"
 __CoreVersion__ = 1.1
 
-__all__ = ["discretize_profile", "set_vertical_reference", "select_profile", "set_profile_orientation", "delete_profile"]
+__all__ = ["discretize_profile", "set_vertical_reference", "select_profile", "set_profile_orientation",
+           "delete_profile"]
 
-module_logger = logging.getLogger(__name__)
 TOL = 1e-6
 
 
@@ -39,9 +39,13 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
     :param fill_gap:
     :return:
     """
+    logger = logging.getLogger(__name__)
 
     if profile.empty:
+        logger.warning("Discretization impossible, empty profile")
         return profile
+    else:
+        logger.info("Processing %s" % profile.name.unique()[0])
 
     v_ref = profile.v_ref.unique()[0]
 
@@ -49,9 +53,10 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
     if y_bins is None and y_mid is None:
         y_bins = pd.Series(profile.y_low.dropna().tolist() + profile.y_sup.dropna().tolist()).sort_values().unique()
         y_mid = profile.y_mid.dropna().sort_values().unique()
-
+        logger.info("y_bins and y_mid are empty, creating from profile")
     elif y_bins is None:
         if y_mid is not None:
+            logger.info("y_bins is empty, creating from given y_mid")
             y_mid = y_mid.sort_values().values
             dy = np.diff(y_mid) / 2
             y_bins = np.concatenate([[y_mid[0] - dy[0]], y_mid[:-1] + dy, [y_mid[-1] + dy[-1]]])
@@ -60,8 +65,7 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
     elif y_mid is None:
         if y_bins is not None:
             y_mid = np.diff(y_bins) / 2 + y_bins[:-1]
-        else:
-            y_mid = profile.y_mid.dropna().sort_values().unique()
+            logger.info("y_mid is empty, creating from given y_bins")
 
     y_bins = np.array(y_bins)
     y_mid = np.array(y_mid)
@@ -74,18 +78,14 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
 
     discretized_profile = pd.DataFrame()
 
-    module_logger.debug("Processing %s" % profile.name.unique()[0])
-    # print("Processing %s" %profile.name.unique()[0])
-
     for variable in variables:
-        #        profile[variable] = pd.to_numeric(profile[variable])
         temp = pd.DataFrame()
 
         if profile[profile.variable == variable].empty:
-            module_logger.debug("no %s data" % (variable))
+            logger.debug("\t %s profile is missing" % variable)
         else:
-            module_logger.debug("%s data discretized" % variable)
-            # print("\t%s data discretized" % (variable))
+            logger.debug("\t %s profile is discretized" % variable)
+
         # continuous profile (temperature-like)
         if (profile[profile.variable == variable].y_low.isnull().all() and
                     profile[profile.variable == variable].y_low.__len__() > 0):
@@ -95,11 +95,8 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
             y2x = yx.reindex(y_mid)
             for index in yx.index:
                 y2x.loc[abs(y2x.index - index) < 1e-6, variable] = yx.loc[yx.index == index, variable].values
-            # if np.isnan(y2x[variable].astype(float)).all():
             dat_temp = np.interp(y2x.index, yx.index, yx[variable].astype(float), left=np.nan, right=np.nan)
             y2x = pd.DataFrame(dat_temp, index=y2x.index, columns=[variable])
-            # else:
-            #    y2x.ix[(y2x.index <= max(yx.index)) & (min(yx.index) <= y2x.index)] = y2x.interpolate(method='index')[(y2x.index <= max(yx.index)) & (min(yx.index) <= y2x.index)]
             temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(y_mid.__len__()))
             temp.update(y2x.reset_index())
 
@@ -150,63 +147,37 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
 
             while ii_bin < y_bins.__len__() - 1:
                 while ii_bin + 1 < y_bins.__len__() and y_bins[ii_bin + 1] - yx[ii_yx, 1] <= TOL:
-                    S = s_nan(yx, ii_yx, fill_gap)
+                    sy = s_nan(yx, ii_yx, fill_gap)
                     y_step.append(y_bins[ii_bin])
                     y_step.append(y_bins[ii_bin + 1])
-                    x_step.append(S)
-                    x_step.append(S)
+                    x_step.append(sy)
+                    x_step.append(sy)
                     ii_bin += 1
-                    # plt.step(x_step, y_step, 'ro')
-                    # if ii_bin == y_bins.__len__() - 1:
-                    #    break
 
                 if not yx[-1, 1] - y_bins[ii_bin] <= TOL:
-                    L = 0
-                    S = 0
+                    ly = 0
+                    sy = 0
                     if ii_yx < yx[:, 0].__len__() - 1:
                         while ii_yx < yx[:, 0].__len__() - 1 and yx[ii_yx, 1] - y_bins[ii_bin + 1] <= TOL:
-                            L += (yx[ii_yx, 1] - y_bins[ii_bin])
-                            S += (yx[ii_yx, 1] - y_bins[ii_bin]) * s_nan(yx, ii_yx, fill_gap)
+                            ly += (yx[ii_yx, 1] - y_bins[ii_bin])
+                            sy += (yx[ii_yx, 1] - y_bins[ii_bin]) * s_nan(yx, ii_yx, fill_gap)
                             ii_yx += 1
 
-                            # ABOVE
-                            # while ii_yx < len(yx[:, 1]) - 1 and yx[ii_yx + 1, 1] - y_bins[ii_bin + 1] <= TOL:
-                            #    L += (yx[ii_yx + 1, 1] - yx[ii_yx + 1, 0])
-                            #    S += (yx[ii_yx + 1, 1] - yx[ii_yx + 1, 0]) * s_nan(yx, ii_yx + 1, fill_gap)
-                            #    ii_yx += 1
-                            #    if ii_yx == yx[:, 1].__len__() - 1:
-                            #        break
-                            #   break
                         if yx[ii_yx, 0] - y_bins[ii_bin + 1] <= TOL:
-                            S += (y_bins[ii_bin + 1] - yx[ii_yx, 0]) * s_nan(yx, ii_yx, fill_gap)
-                            L += y_bins[ii_bin + 1] - yx[ii_yx, 0]
-                        if L > TOL:
-                            S = S / L
+                            sy += (y_bins[ii_bin + 1] - yx[ii_yx, 0]) * s_nan(yx, ii_yx, fill_gap)
+                            ly += y_bins[ii_bin + 1] - yx[ii_yx, 0]
+                        if ly > TOL:
+                            sy = sy / ly
                         else:
-                            S = np.nan
+                            sy = np.nan
 
                     else:
-                        S = yx[-1, -1]
-                        # y_step.append(y_bins[ii_bin])
-                        # y_step.append(y_bins[ii_bin + 1])
-                        # x_step.append(S)
-                        # x_step.append(S)
-                        # ii_bin += 1
-                    # ABOVE
-                    # if yx[ii_yx, 1] - y_bins[ii_bin + 1] <= TOL and ii_yx + 1 < yx.__len__():
-                    #     if np.isnan(s_nan(yx, ii_yx + 1, fill_gap)) and not np.isnan(S) and y_bins[ii_bin + 1] - yx[ii_yx+1, 1] < TOL:
-                    #         S += S/L*(y_bins[ii_bin + 1] - yx[ii_yx + 1, 0])
-                    #     else:
-                    #         S += (y_bins[ii_bin + 1] - yx[ii_yx + 1, 0]) * s_nan(yx, ii_yx + 1, fill_gap)
-                    #     L += (y_bins[ii_bin + 1] - yx[ii_yx + 1, 0])
-
-                    # if S != 0 : #and y_bins[ii_bin] - yx[ii_yx, 1] < TOL:
+                        sy = yx[-1, -1]
                     y_step.append(y_bins[ii_bin])
                     y_step.append(y_bins[ii_bin + 1])
-                    x_step.append(S)
-                    x_step.append(S)
+                    x_step.append(sy)
+                    x_step.append(sy)
                     ii_bin += 1
-                    # plt.step(x_step, y_step, 'ro')
 
                 else:
                     while ii_bin + 1 < y_bins.__len__():
@@ -248,7 +219,6 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                 plt.step(x_step, y_step, 'ro')
                 plt.title(profile_prop.name.unique()[0] + ' - ' + variable)
 
-                # profile = profile[(profile.name != profile.name.unique().tolist()[0]) | (profile.variable != variable)]
         discretized_profile = discretized_profile.append(temp)
 
     return discretized_profile
@@ -263,6 +233,9 @@ def set_profile_orientation(profile, v_ref, hi=None, comment=False):
     :param comment:
     :return:
     """
+
+    logger = logging.getLogger(__name__)
+
     for variable in profile.variable.unique():
         data = profile[profile.variable == variable]
         # look for ice thickness:
@@ -272,13 +245,13 @@ def set_profile_orientation(profile, v_ref, hi=None, comment=False):
             elif not np.isnan(profile.length.astype(float)).all():
                 hi = profile.length.astype(float).dropna().unique()
             else:
-                module_logger.error(
+                logger.error(
                     "%s ice core length and ice thickness missing" % profile.name.unique())
                 return pd.DataFrame()
         if comment is True:
             print(profile.name.unique()[0], variable, hi)
         if data.v_ref.unique().__len__() > 1:
-            module_logger.error("vertical reference for profile are not consistent")
+            logger.error("vertical reference for profile are not consistent")
             return pd.DataFrame()
         elif not data.v_ref.unique()[0] == v_ref:
             data['y_low'] = hi - data['y_low']
@@ -298,10 +271,10 @@ def set_vertical_reference(profile, h_ref=0, new_v_ref=None):
     :param new_v_ref: default, same as profile origin
     :return:
     """
-
+    logger = logging.getLogger(__name__)
     if new_v_ref is None:
         if profile.v_ref.unique().__len__() > 1:
-            module_logger.error("vertical reference for profile are not consistent")
+            logger.error("vertical reference for profile are not consistent")
             return pd.DataFrame()
         else:
             new_v_ref = profile.v_ref.unique()[0]
@@ -312,7 +285,7 @@ def set_vertical_reference(profile, h_ref=0, new_v_ref=None):
     elif not np.isnan(profile.length.astype(float)).all():
         hi = profile.length.astype(float).dropna().unique()
     else:
-        module_logger.warning("ice core length and ice thickness not available for the profile")
+        logger.warning("ice core length and ice thickness not available for the profile")
         return pd.DataFrame()
 
     if not new_v_ref == profile.v_ref.unique()[0]:
@@ -363,5 +336,3 @@ def delete_profile(ics_stack, variable_dict):
             ii += 1
     str_select = str_select[:-4]
     return ics_stack.loc[eval(str_select)]
-
-
