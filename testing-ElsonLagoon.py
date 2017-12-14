@@ -10,10 +10,10 @@ import numpy as np
 import seaice
 import json
 import logging.config
-
+import matplotlib.pyplot as plt
 
 # Enable logging
-LOG_CFG = 'logging.json'
+LOG_CFG = 'docs/logging.json'
 if os.path.exists(LOG_CFG):
     with open(LOG_CFG, 'rt') as f:
         config = json.load(f)
@@ -38,52 +38,50 @@ ics_dict = seaice.import_ic_sourcefile(source_fp, v_ref='top')
 ics_stack = seaice.stack_cores(ics_dict)
 
 ics_stack = ics_stack.discretize(display_figure=False, y_bins=np.arange(0, max(ics_stack.length)+0.05, 0.05))
-#
-# stats = ['min', 'mean', 'max', 'std']
-# groups = {'length': [0, 0.77, 1.27, 1.77]}
-#
-# ics_stat = ics_stack.section_stat(groups=groups, stats=stats, variables=['temperature', 'salinity'])
-#
-# bins = [key for key, value in ics_stat.items() if key.lower().startswith('bin_')]
-# bin_value = [ics_stat[b].unique() for b in bins]
-# bins_max_value = [max(v)+1 for v in bin_value]
-# if bin_value.__len__() == 1:
-#     bin_value = bin_value[0]
-#     bins_max_value = [max(bin_value)+1]
-#
-#
-# figure_number = 0
-#
-# import seaice.core.plot as pltc
-# import matplotlib.pyplot as plt
-#
-# vmin = {'temperature': -20, 'salinity': 0}
-# vmax = {'temperature': 0, 'salinity': 10}
-#
-# for index in indices(bins_max_value):
-#     print(index)
-#     func_arg = 'ics_stat['
-#     for i in range(index.__len__()):
-#         print(i)
-#         func_arg += '(ics_stat[bins['+str("%i" %i)+']]==bin_value['+str("%i" % index[i])+']) & '
-#     func_arg = func_arg[:-3]+']'
-#     data = eval(func_arg)
-#
-#     fig, ax = plt.subplots(1, 2, facecolor='white', sharey=True)
-#     n_ax = 0
-#     for variable in data.variable.unique():
-#         pltc.plot_profile_variable(data, {'variable': variable, 'stats': 'min'}, ax = ax[n_ax],
-#                                    param_dict={'linewidth': 1, 'color': 'b', 'label': 'min'})
-#         pltc.plot_profile_variable(data, {'variable': variable, 'stats': 'max'}, ax = ax[n_ax],
-#                                    param_dict={'linewidth': 1, 'color': 'r', 'label': 'max'})
-#         pltc.plot_profile_variable(data, {'variable': variable, 'stats': 'mean'}, ax = ax[n_ax],
-#                                    param_dict={'linewidth': 1, 'color': 'k', 'label': 'mean'})
-#         ax[n_ax].set_xlabel(variable)
-#         ax[n_ax].xaxis.set_label_position('top')
-#         ax[n_ax].get_xaxis().tick_top()
-#         ax[n_ax].spines['bottom'].set_visible(False)
-#         ax[n_ax].spines['right'].set_visible(False)
-#         ax[n_ax].set_xlim([vmin[variable], vmax[variable]])
+
+stats = ['min', 'mean', 'max', 'std']
+groups = {'length': [0, 0.77, 1.27, 1.77]}
+
+ics_stat = ics_stack.section_stat(groups=groups, stats=stats, variables=['temperature', 'salinity'])
+
+bins = [key for key, value in ics_stat.items() if key.lower().startswith('bin_')]
+bin_value = [ics_stat[b].unique() for b in bins]
+bins_max_value = [max(v)+1 for v in bin_value]
+if bin_value.__len__() == 1:
+    bin_value = bin_value[0]
+    bins_max_value = [max(bin_value)+1]
+
+
+figure_number = 0
+
+vmin = {'temperature': -20, 'salinity': 0}
+vmax = {'temperature': 0, 'salinity': 10}
+
+
+for index in seaice.core.tool.indices(bins_max_value):
+    print(index)
+    func_arg = 'ics_stat['
+    for i in range(index.__len__()):
+        print(i)
+        func_arg += '(ics_stat[bins['+str("%i" %i)+']]==bin_value['+str("%i" % index[i])+']) & '
+    func_arg = func_arg[:-3]+']'
+    data = eval(func_arg)
+
+    fig, ax = plt.subplots(1, 2, facecolor='white', sharey=True)
+    n_ax = 0
+    for variable in data.variable.unique():
+        seaice.core.plot.plot_profile_variable(data, {'variable': variable, 'stats': 'min'}, ax = ax[n_ax],
+                                    param_dict={'linewidth': 1, 'color': 'b', 'label': 'min'})
+        seaice.core.plot.plot_profile_variable(data, {'variable': variable, 'stats': 'max'}, ax = ax[n_ax],
+                                    param_dict={'linewidth': 1, 'color': 'r', 'label': 'max'})
+        seaice.core.plot.plot_profile_variable(data, {'variable': variable, 'stats': 'mean'}, ax = ax[n_ax],
+                                    param_dict={'linewidth': 1, 'color': 'k', 'label': 'mean'})
+        ax[n_ax].set_xlabel(variable)
+        ax[n_ax].xaxis.set_label_position('top')
+        ax[n_ax].get_xaxis().tick_top()
+        ax[n_ax].spines['bottom'].set_visible(False)
+        ax[n_ax].spines['right'].set_visible(False)
+        ax[n_ax].set_xlim([vmin[variable], vmax[variable]])
 #
 #         for y in [0.5, 1, 1.5]:
 #             ax[n_ax].plot(np.arange(vmin[variable], vmax[variable]+1),

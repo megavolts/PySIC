@@ -121,10 +121,6 @@ class CoreStack(pd.DataFrame):
         :param groups:
         :return:
         """
-        if groups is None:
-            groups = {'y_mid': sorted(pd.concat([self.y_low, self.y_sup]).dropna().unique())}
-        if 'y_mid' not in groups:
-            groups['y_mid'] = sorted(pd.concat([self.y_low, self.y_sup]).dropna().unique())
 
         return CoreStack(grouped_stat(self, groups, variables=variables, stats=stats))
 
@@ -207,12 +203,24 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
         variables = [variables]
     if not isinstance(stats, list):
         stats = [stats]
-    if 'y_mid' not in groups:
-        logger.error("No vertical section available")
-    else:
-        groups_order = list(groups.keys())
-        groups_order.remove('y_mid')
-        groups_order.append('y_mid')
+
+    if groups is None:
+        logger.error("Grouping option cannot be empty; it should contains at least vertical section y_mid")
+        return 0
+    elif 'y_mid' not in groups:
+        try:
+            groups['y_mid'] = sorted(pd.concat([ics_stack.y_low, ics_stack.y_sup]).dropna().unique())
+        except AttributeError:
+            logger.error("y_mid not in grouping option; y_mid cannot be generated from section horizon")
+            return 0
+        else:
+            logger.info("y_mid not in grouping option; y_mid generated from section horizon")
+
+    groups_order = list(groups.keys())
+
+    # y_mid at the end in order to group first by argument, and then by depth
+    groups_order.remove('y_mid')
+    groups_order.append('y_mid')
 
     cuts = []
     dim = []
@@ -249,6 +257,7 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
                     temp.loc[temp.index == row, 'n'] = int(temp.loc[temp.index == row, 'core collection'].__len__())
                 columns = ['y_low', 'y_sup', 'y_mid']
                 t2 = pd.DataFrame(columns=columns)
+
                 # For step profile, like salinity
                 if not ics_stack[ics_stack.variable == variable].y_low.isnull().any():
                     for row in rows:

@@ -18,7 +18,7 @@ __name__ = "seaice"
 from seaice.io.icxl import *
 from seaice.core.core import Core
 from seaice.core.corestack import *
-# import seaice.core.plot
+import seaice.core.plot
 # import seaice.property
 # import seaice.property.brine
 # import seaice.property.si
