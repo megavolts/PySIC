@@ -7,7 +7,7 @@ seaice.core.coreset.py : CoreStack class
 import logging
 import numpy as np
 import pandas as pd
-import seaice.core.profile
+from seaice.core.profile import *
 from seaice.core.tool import indices
 
 __name__ = "corestack"
@@ -77,7 +77,7 @@ class CoreStack(pd.DataFrame):
                 profile['ice_thickness'] = ic_data.ice_thickness
             else:
                 profile['ice_thickness'] = ic_data.ice_thickness[~np.isnan(ic_data.ice_thickness)].mean()
-                logging.info
+                logging.info("blabla")
 
             if isinstance(ic_data.freeboard, (int, float)):
                 profile['freeboard'] = ic_data.freeboard
@@ -113,7 +113,7 @@ class CoreStack(pd.DataFrame):
             temp = self[(self.name != core) & (self.variable != variable)]
         return CoreStack(temp)
 
-    def section_stat(self, groups=None, variables=None, stats=['min', 'mean', 'max', 'std']):
+    def section_stat(self, groups=None, variables=None, stats=('min', 'mean', 'max', 'std')):
         """
 
         :param variables:
@@ -139,10 +139,8 @@ class CoreStack(pd.DataFrame):
         data_binned = pd.DataFrame()
         for core in self.name.unique():
             data_binned = data_binned.append(
-                seaice.core.profile.discretize_profile(self[self.name == core],
-                                                       y_bins=y_bins, y_mid=y_mid,
-                                                       variables=variables,
-                                                       display_figure=display_figure))
+                discretize_profile(self[self.name == core], y_bins=y_bins, y_mid=y_mid, variables=variables,
+                                   display_figure=display_figure))
         data_binned.reset_index(drop=True, inplace=True)
         return CoreStack(data_binned)
 
@@ -185,7 +183,7 @@ def stack_cores(ics_dict):
     return CoreStack(ics_stack)
 
 
-def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max', 'std']):
+def grouped_stat(ics_stack, groups, variables=None, stats=('min', 'mean', 'max', 'std')):
     """
 
     :param ics_stack:
@@ -274,4 +272,35 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
                     temp_all = temp.join(t2)
                 else:
                     temp_all = temp_all.append(temp.join(t2), ignore_index=True)
+    return CoreStack(temp_all)
+
+
+def grouped_ic(ics_stack, groups):
+    """
+
+    :param ics_stack:
+    :param groups:
+    :return:
+    """
+
+    logger = logging.getLogger(__name__)
+
+    groups_ordered = list(groups.keys())
+
+    cuts = []
+    dim = []
+    for group in groups_ordered:
+        cuts.append(pd.cut(ics_stack[group], groups[group], labels=False))
+        dim.append(groups[group].__len__()-1)
+
+    temp_all = pd.DataFrame()
+    logger.info('grouping ice core by %s' % ", ".join(groups_ordered))
+
+    data_grouped = ics_stack.groupby(cuts)
+
+    core_var = [None for i in range(np.prod(dim))]
+    for k1, kgroups in data_grouped:
+        core_var[int(np.prod(np.array(k1)+1)-1)] = sorted(kgroups['name'].unique())
+    core_var = np.reshape(core_var, dim)
+
     return CoreStack(temp_all)

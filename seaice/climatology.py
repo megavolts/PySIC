@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 import seaice
 
-
 def grouped_stat(ics_stack, variables, stats, bins_DD, bins_y, comment=False):
     ics_stack = ics_stack.reset_index(drop=True)
     y_cuts = pd.cut(ics_stack.y_mid, bins_y, labels=False)
@@ -124,78 +123,77 @@ def compute_climatology(ics_stack, bins_DD, bins_y, variables=None, ice_core_ref
         return ics_climat, ics_climat_dict
 
 
-def plot_envelop(ic_data, variables_dict, ax=None, param_dict={}, flag_number=False):
+def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=False, z_delta=0.01, every=1):
     """
     :param ic_data: 
-    :param variables_dict: 
+    :param variable_dict:
+        contains variable to plot at least
     :param ax: 
     :param param_dict: 
     :return: 
     """
 
-    if variables_dict is None:
-        variables_dict = {}
+    # TODO: check if all stat are present for the variable
 
-    variables_dict.update({'stats': 'min'})
+    variable_dict.update({'stats': 'min'})
     param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
-    ax = seaice.core.plot.plot_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-    variables_dict.update({'stats': 'mean'})
+    ax = seaice.core.plot.plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    variable_dict.update({'stats': 'mean'})
     param_dict.update({'color': 'k'})
-    ax = seaice.core.plot.plot_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-    variables_dict.update({'stats': 'max'})
+    ax = seaice.core.plot.plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    variable_dict.update({'stats': 'max'})
     param_dict.update({'color': 'r'})
-    ax = seaice.core.plot.plot_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-    variables_dict.pop('stats')
-    ax = seaice.core.plot.plot_mean_envelop(ic_data, variables_dict, ax=ax)
+    ax = seaice.core.plot.plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    variable_dict.pop('stats')
+    ax = seaice.core.plot.plot_mean_envelop(ic_data, variable_dict, ax=ax)
     if flag_number:
-        variables_dict.update({'stats': 'mean'})
-        ax = seaice.core.plot.plot_number(ic_data, variable_dict=variables_dict, ax=ax, z_delta=0.01, every=1)
+        variable_dict.update({'stats': 'mean'})
+        ax = seaice.core.plot.plot_number(ic_data, variable_dict=variable_dict, ax=ax, z_delta=0.01, every=1)
     return ax
 
 
-def plot_enveloplog(ic_data, variables_dict, ax=None, param_dict={}, flag_number=False):
+def plot_enveloplog(ic_data, variable_dict, ax=None, param_dict={}, flag_number=False, z_delta=0.01, every=1):
     """
     :param ic_data:
-    :param variables_dict:
+    :param variable_dict:
     :param ax:
     :param param_dict:
     :return:
     """
 
-    if variables_dict is None:
-        variables_dict = {}
-
-    if 'variable' in variables_dict.keys():
-        variable = variables_dict['variable']
+    if 'variable' in variable_dict.keys():
+        variable = variable_dict['variable']
     else:
         variable = [ic_data.variable.unique()[0]]
 
+    # TODO: check if all stat are present for the variable
+
     if variable in ['seaice permeability']:
         # for log scale, replace smallest value by minimum*2
-        variables_dict.update({'stats': 'min'})
+        variable_dict.update({'stats': 'min'})
         param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
-        ax = seaice.core.plot.semilogx_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-        variables_dict.update({'stats': 'mean'})
+        ax = seaice.core.plot.semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+        variable_dict.update({'stats': 'mean'})
         param_dict.update({'color': 'k'})
-        ax = seaice.core.plot.semilogx_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-        variables_dict.update({'stats': 'max'})
+        ax = seaice.core.plot.semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+        variable_dict.update({'stats': 'max'})
         param_dict.update({'color': 'r'})
-        ax = seaice.core.plot.semilogx_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-        variables_dict.pop('stats')
-        ax = seaice.core.plot.semilogx_mean_envelop(ic_data, variables_dict, ax=ax)
+        ax = seaice.core.plot.semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+        variable_dict.pop('stats')
+        ax = seaice.core.plot.semilogx_mean_envelop(ic_data, variable_dict, ax=ax)
     else:
-        variables_dict.update({'stats': 'min'})
+        variable_dict.update({'stats': 'min'})
         param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
-        ax = seaice.core.plot.plot_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-        variables_dict.update({'stats': 'mean'})
+        ax = seaice.core.plot.plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+        variable_dict.update({'stats': 'mean'})
         param_dict.update({'color': 'k'})
-        ax = seaice.core.plot.plot_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-        variables_dict.update({'stats': 'max'})
+        ax = seaice.core.plot.plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+        variable_dict.update({'stats': 'max'})
         param_dict.update({'color': 'r'})
-        ax = seaice.core.plot.plot_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-        variables_dict.pop('stats')
-        ax = seaice.core.plot.plot_mean_envelop(ic_data, variables_dict, ax=ax)
+        ax = seaice.core.plot.plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+        variable_dict.pop('stats')
+        ax = seaice.core.plot.plot_mean_envelop(ic_data, variable_dict, ax=ax)
         if flag_number:
-            variables_dict.update({'stats': 'mean'})
-            ax = seaice.core.plot.plot_number(ic_data, variable_dict=variables_dict, ax=ax, z_delta=0.01, every=1)
+            variable_dict.update({'stats': 'mean'})
+            ax = seaice.core.plot.plot_number(ic_data, variable_dict=variable_dict, ax=ax, z_delta=0.01, every=1)
     return ax

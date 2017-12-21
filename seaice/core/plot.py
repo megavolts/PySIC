@@ -10,9 +10,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-from seaice.core.corestack import CoreStack
+import seaice.core.tool
 from seaice.core.profile import *
-from seaice.core.tool import plt_step
 __name__ = "plot"
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -24,7 +23,8 @@ __status__ = "dev"
 __date__ = "2017/09/13"
 __comment__ = "plot.py contained function to plot physical profile"
 __CoreVersion__ = 1.1
-__all__ = ["plot_profile", "semilogx_profile", "plot_profile_variable", "semilogx_profile_variable", "plot_mean_envelop", "plot_number"]
+__all__ = ["plot_profile", "semilogx_profile", "plot_profile_variable", "semilogx_profile_variable",
+           "plot_mean_envelop", "plot_number"]
 
 module_logger = logging.getLogger(__name__)
 
@@ -123,7 +123,7 @@ def plot_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
         module_logger.warning("a variable should be specified for plotting")
         return 0
 
-    profile = select_profile(ic_data, variable_dict)
+    profile = seaice.core.profile.select_profile(ic_data, variable_dict)
     ax = plot_profile(profile, ax=ax, param_dict=param_dict)
     return ax
 
@@ -186,8 +186,8 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
             x_std_l = x_mean[ii_variable] - x_std[ii_variable]
             x_std_h = x_mean[ii_variable] + x_std[ii_variable]
 
-            x_std_l = plt_step(x_std_l.tolist(), y).transpose()
-            x_std_h = plt_step(x_std_h.tolist(), y).transpose()
+            x_std_l = seaice.core.tool.plt_step(x_std_l.tolist(), y).transpose()
+            x_std_h = seaice.core.tool.plt_step(x_std_h.tolist(), y).transpose()
         elif x_mean.y_low.isnull().all():
             y_std = x_mean['y_mid']
             x_std_l = np.array([x_mean[ii_variable] - np.nan_to_num(x_std[ii_variable]), y_std])
@@ -328,20 +328,3 @@ def plot_number(ic_data, variable_dict, ax=None, position='right', x_delta=0.1, 
     return ax
 
 
-def select_profile(ics_stack, variable_dict):
-    """
-
-    :param ics_stack:
-    :param variable_dict:
-    :return:
-    """
-    str_select = '('
-    ii_var = []
-    ii = 0
-    for ii_key in variable_dict.keys():
-        if ii_key in ics_stack.columns.values:
-            ii_var.append(variable_dict[ii_key])
-            str_select = str_select + 'ics_stack.' + ii_key + '==ii_var[' + str('%d' % ii) + ']) & ('
-            ii += 1
-    str_select = str_select[:-4]
-    return CoreStack(ics_stack.loc[eval(str_select)])
