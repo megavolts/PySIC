@@ -27,28 +27,6 @@ module_logger = logging.getLogger(__name__)
 TOL = 1e-6
 
 
-def s_nan(yx, ii_yx, fill_gap=True):
-    """
-    :param yx:
-    :param ii_yx:
-    :param fill_gap:
-    :return:
-    """
-    if np.isnan(yx[ii_yx, 2]) and fill_gap:
-        ii_yx_l = ii_yx - 1
-        while ii_yx_l > 0 and np.isnan(yx[ii_yx_l, 2]):
-            ii_yx_l -= 1
-        s_l = yx[ii_yx_l, 2]
-
-        ii_yx_s = ii_yx
-        while ii_yx_s < yx.shape[0] - 1 and np.isnan(yx[ii_yx_s, 2]):
-            ii_yx_s += 1
-        s_s = yx[ii_yx_s, 2]
-
-        s = (s_s + s_l) / 2
-    else:
-        s = yx[ii_yx, 2]
-    return s
 
 
 def indices(dim):

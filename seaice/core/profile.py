@@ -9,8 +9,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from seaice.core.tool import s_nan
-
 __name__ = "profile"
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -45,7 +43,10 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
         logger.warning("Discretization impossible, empty profile")
         return profile
     else:
-        logger.info("Processing %s" % profile.name.unique()[0])
+        if 'name' in profile.keys():
+            logger.info("Processing %s" % profile.name.unique()[0])
+        else:
+            logger.info("Processing")
 
     v_ref = profile.v_ref.unique()[0]
 
@@ -108,14 +109,16 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
             profile_prop = profile_prop.drop('y_sup', 1)
             temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
                                      index=temp.index.tolist()))
-            temp['date'] = temp['date'].astype('datetime64[ns]')
+            if 'date' in temp:
+                temp['date'] = temp['date'].astype('datetime64[ns]')
 
             if display_figure:
                 plt.figure()
                 yx = yx.reset_index()
                 plt.plot(yx[variable], yx['y_mid'], 'k')
                 plt.plot(temp[variable], temp['y_mid'], 'xr')
-                plt.title(profile_prop.name.unique()[0] + ' - ' + variable)
+                if 'name' in profile_prop.keys():
+                    plt.title(profile_prop.name.unique()[0] + ' - ' + variable)
 
         # step profile (salinity-like)
         elif (not profile[profile.variable == variable].y_low.isnull().all() and
@@ -129,10 +132,11 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
             else:
                 yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
                     ['y_low', 'y_sup', variable])
+
             x_step = []
             y_step = []
             ii_bin = 0
-            if yx[0, 0] < y_bins[0]:
+            if yx[0, 0] - y_bins[0] <= TOL:
                 ii_yx = np.where(yx[:, 0] - y_bins[0] <= TOL)[0][-1]
             else:
                 ii_bin = np.where(y_bins - yx[0, 0] <= TOL)[0][-1]
@@ -145,14 +149,27 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                     x_step.append(np.nan)
                     ii += 1
 
+            # skip first bin, if value not completely in:
+            if yx[ii_yx, 0] - y_bins[ii_bin] >= TOL:
+                y_step.append(y_bins[ii])
+                y_step.append(y_bins[ii + 1])
+                x_step.append(np.nan)
+                x_step.append(np.nan)
+                ii_bin += 1
+                ii_yx +=1
+                while abs(yx[ii_yx, 0]-y_bins[ii_bin]) >= TOL:
+                    ii_yx +=1
+
             while ii_bin < y_bins.__len__() - 1:
-                while ii_bin + 1 < y_bins.__len__() and y_bins[ii_bin + 1] - yx[ii_yx, 1] <= TOL:
+
+                while ii_bin + 1 < y_bins.__len__() and y_bins[ii_bin + 1] - yx[ii_yx, 1] <= TOL and ii_yx < yx.__len__():
                     sy = s_nan(yx, ii_yx, fill_gap)
                     y_step.append(y_bins[ii_bin])
                     y_step.append(y_bins[ii_bin + 1])
                     x_step.append(sy)
                     x_step.append(sy)
                     ii_bin += 1
+                    ii_yx += 1
 
                 if not yx[-1, 1] - y_bins[ii_bin] <= TOL:
                     ly = 0
@@ -187,36 +204,38 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                         x_step.append(np.nan)
                         ii_bin += 1
 
-            temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(np.unique(y_step).__len__() - 1))
-            temp.update(pd.DataFrame(np.vstack(
-                (np.unique(y_step)[:-1], np.unique(y_step)[:-1] + np.diff(np.unique(y_step)) / 2, np.unique(y_step)[1:],
-                 [x_step[2 * ii] for ii in
-                  range(int(x_step.__len__() / 2))])).transpose(),
-                                     columns=['y_low', 'y_mid', 'y_sup', variable],
-                                     index=temp.index[0:np.unique(y_step).__len__() - 1]))
+        temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(np.unique(y_step).__len__() - 1))
+        temp.update(pd.DataFrame(np.vstack(
+            (np.unique(y_step)[:-1], np.unique(y_step)[:-1] + np.diff(np.unique(y_step)) / 2, np.unique(y_step)[1:],
+             [x_step[2 * ii] for ii in
+              range(int(x_step.__len__() / 2))])).transpose(),
+                                 columns=['y_low', 'y_mid', 'y_sup', variable],
+                                 index=temp.index[0:np.unique(y_step).__len__() - 1]))
 
-            # properties
-            profile_prop = profile.head(1)
-            profile_prop = profile_prop.drop(variable, 1)
-            profile_prop['variable'] = variable
-            profile_prop = profile_prop.drop('y_low', 1)
-            profile_prop = profile_prop.drop('y_mid', 1)
-            profile_prop = profile_prop.drop('y_sup', 1)
-            temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
-                                     index=temp.index.tolist()))
+        # properties
+        profile_prop = profile.head(1)
+        profile_prop = profile_prop.drop(variable, 1)
+        profile_prop['variable'] = variable
+        profile_prop = profile_prop.drop('y_low', 1)
+        profile_prop = profile_prop.drop('y_mid', 1)
+        profile_prop = profile_prop.drop('y_sup', 1)
+        temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
+                                 index=temp.index.tolist()))
+        if 'date' in temp:
             temp['date'] = temp['date'].astype('datetime64[ns]')
 
-            if display_figure:
-                plt.figure()
-                x = []
-                y = []
-                for ii in range(yx[:, 0].__len__()):
-                    y.append(yx[ii, 0])
-                    y.append(yx[ii, 1])
-                    x.append(yx[ii, 2])
-                    x.append(yx[ii, 2])
-                plt.step(x, y, 'bx')
-                plt.step(x_step, y_step, 'ro')
+        if display_figure:
+            plt.figure()
+            x = []
+            y = []
+            for ii in range(yx[:, 0].__len__()):
+                y.append(yx[ii, 0])
+                y.append(yx[ii, 1])
+                x.append(yx[ii, 2])
+                x.append(yx[ii, 2])
+            plt.step(x, y, 'bx')
+            plt.step(x_step, y_step, 'ro')
+            if 'name' in profile_prop.keys():
                 plt.title(profile_prop.name.unique()[0] + ' - ' + variable)
 
         discretized_profile = discretized_profile.append(temp)
@@ -336,3 +355,31 @@ def delete_profile(ics_stack, variable_dict):
             ii += 1
     str_select = str_select[:-4]
     return ics_stack.loc[eval(str_select)]
+
+
+
+def s_nan(yx, ii_yx, fill_gap=True):
+    """
+    :param yx:
+    :param ii_yx:
+    :param fill_gap:
+    :return:
+    """
+    if np.isnan(yx[ii_yx, 2]) and fill_gap:
+        ii_yx_l = ii_yx - 1
+        while ii_yx_l > 0 and np.isnan(yx[ii_yx_l, 2]):
+            ii_yx_l -= 1
+        if ii_yx_l > 0:
+            s_l = yx[ii_yx_l, 2]
+        else:
+            s_l = np.nan
+
+        ii_yx_s = ii_yx
+        while ii_yx_s < yx.shape[0] - 1 and np.isnan(yx[ii_yx_s, 2]):
+            ii_yx_s += 1
+        s_s = yx[ii_yx_s, 2]
+
+        s = (s_s + s_l) / 2
+    else:
+        s = yx[ii_yx, 2]
+    return s

@@ -35,11 +35,14 @@ else:
 
 fileext = '.xlsx'
 source_fp = seaice.make_ic_sourcefile(dirpath, fileext)
+
+
 ics_dict = seaice.import_ic_sourcefile(source_fp, v_ref='top')
 ics_stack = seaice.stack_cores(ics_dict)
 
-ics_stack = ics_stack.discretize(display_figure=False, y_bins=np.arange(0, max(ics_stack.length)+0.05, 0.05))
 
+
+ics_stack = ics_stack.discretize(display_figure=False, y_bins=np.arange(0, max(ics_stack.length)+0.05, 0.05))
 stats = ['min', 'mean', 'max', 'std']
 groups = {'length': [0, 0.77, 1.27, 1.77], 'y_dim': y_bins}
 

@@ -205,10 +205,8 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
 
         if core.variables is None:
             logger.info('(%s) no variable to import' % name)
-        elif core.variables.__len__() > 1:
-            logger.info('\t(%s) variables %s imported with success' % (name, ", ".join(core.variables)))
         else:
-            logger.info('\t(%s)  icxl.py need a new logger message (%s)' % (name, ", ".join(core.variables)))
+            logger.info('\t(%s) variables %s imported with success' % (name, ", ".join(core.variables)))
     else:
         if not isinstance(variables, list):
             if variables.lower().find('state variable')+1:
@@ -232,7 +230,7 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
                     core.add_variable(variable)
                     if core.name not in core_flag and profile[variable][3] is not None and ~np.isnan(
                             profile[variable][3]):
-                        core.length(profile[variable][3])
+                        core.add_length(profile[variable][3])
                         core_flag.append(core.name)
                     core.add_comment(profile[variable][2])
             else:

@@ -73,19 +73,19 @@ class CoreStack(pd.DataFrame):
             profile = ic_data.profile
             profile['name'] = ic_data.name
             profile['length'] = ic_data.length[~np.isnan(ic_data.length)].mean()
-            if isinstance(ic_data.ice_thickness, (int, float)):
-                profile['ice_thickness'] = ic_data.ice_thickness
+            if ic_data.ice_thickness.__len__() == 1 and isinstance(ic_data.ice_thickness[0], (int, float)):
+                profile['ice_thickness'] = ic_data.ice_thickness[0]
             else:
-                profile['ice_thickness'] = ic_data.ice_thickness[~np.isnan(ic_data.ice_thickness)].mean()
-                logging.info("blabla")
+                profile['ice_thickness'] = np.nanmean(ic_data.ice_thickness)
+                logging.info("ice thickness is the mean of all not-nan ice thickness")
 
-            if isinstance(ic_data.freeboard, (int, float)):
-                profile['freeboard'] = ic_data.freeboard
+            if ic_data.freeboard.__len__() == 1 and isinstance(ic_data.freeboard[0], (int, float)):
+                profile['freeboard'] = ic_data.freeboard[0]
             else:
                 profile['freeboard'] = np.nanmean(ic_data.freeboard)
 
-            if isinstance(ic_data.snow_depth, (int, float)):
-                profile['snow_depth'] = ic_data.snow_depth
+            if ic_data.snow_depth.__len__() == 1 and isinstance(ic_data.snow_depth[0], (int, float)):
+                profile['snow_depth'] = ic_data.snow_depth[0]
             else:
                 profile['snow_depth'] = np.nanmean(ic_data.snow_depth)
 
