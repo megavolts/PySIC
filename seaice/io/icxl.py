@@ -11,8 +11,7 @@ import dateutil
 import numpy as np
 import openpyxl
 import pandas as pd
-
-from seaice.core.core import Core
+import seaice
 
 __name__ = "icxl"
 __author__ = "Marc Oggier"
@@ -44,6 +43,7 @@ variable_2_sheet = {'temperature': 'T_ice',
                     # 'chlorophyl a': 'algal_pigment',
                     # 'Phae': 'algal_pigment'
                     }
+
 
 
 def import_ic_path(ic_path, variables=None, v_ref='top'):
@@ -153,7 +153,7 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
     else:
         ice_thickness = np.array([np.nan])
 
-    core = Core(name, date, origin, lat, lon, ice_thickness, freeboard, snow_depth)
+    core = seaice.Core(name, date, origin, lat, lon, ice_thickness, freeboard, snow_depth)
 
     # temperature
     if ws_summary['C15'].value:
