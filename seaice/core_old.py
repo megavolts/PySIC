@@ -51,13 +51,13 @@ variable_2_sheet = {'temperature': 'T_ice',
 
 
 def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='step', resize_core=None,
-                                display_figure=False):
+                                display_figure=True):
     """
     :param s_profile:
     :param t_profile:
     :param si_prop:
     :param si_prop_format: 'linear' or 'step':
-    :param main_core: 'S', 'T', default 'None':
+    :param resize_core: 'S', 'T', default 'None':
     :return:
     """
 
@@ -248,61 +248,6 @@ def compute_phys_prop_from_core_name(ics_stack, S_core_name, T_core_name, si_pro
     else:
         return prop_profile
 
-
-def ice_core_stat(ics_subset, variables, stats, ic_subset_name='average core'):
-    """
-    :param ics_subset:
-    :param variables:
-    :param stats:
-        accept as statistical function all the main function of pandas.
-    :param ic_subset_name:
-    :return:
-    """
-    if 'y_low' not in ics_subset.keys() or np.isnan(ics_subset['y_low'].values.astype(float)).all():
-        y_bins = np.unique(ics_subset.y_mid.values)
-        y_bins = list(y_bins[:-1] - np.diff(y_bins) / 2) + list(y_bins[-2:] + np.diff(y_bins)[-2:] / 2)
-    else:
-        y_bins = np.unique(np.concatenate((ics_subset.y_low.values, ics_subset.y_sup.values)))
-    y_cuts = pd.cut(ics_subset.y_mid, y_bins, labels=False)
-    data_grouped = ics_subset.groupby([y_cuts])
-
-    data = CoreStack()
-    for ii_variable in variables:
-
-        # core data
-        columns = ['y_low', 'y_sup', 'y_mid']
-        if not ics_subset[ics_subset.variable == ii_variable].y_low.isnull().any():
-            data_core = [[y_bins[ii_layer], y_bins[ii_layer + 1], (y_bins[ii_layer] + y_bins[ii_layer + 1]) / 2] for
-                         ii_layer in range(0, y_bins.__len__() - 1)]
-        elif ics_subset[ics_subset.variable == ii_variable].y_low.isnull().all():
-            data_core = [[np.nan, np.nan, (y_bins[ii_layer] + y_bins[ii_layer + 1]) / 2] for ii_layer in
-                         range(0, y_bins.__len__() - 1)]
-        data_core = pd.DataFrame(data_core, columns=columns)
-        data_core['name'] = ic_subset_name
-        data_core['variable'] = ii_variable
-
-        # stat variable
-        for ii_stat in stats:
-            print('computing %s' % ii_stat)
-            func = "groups['" + ii_variable + "']." + ii_stat + "()"
-            data_stat = [[None, None, None] for x in range(y_bins.__len__())]
-            for k1, groups in data_grouped:
-                data_stat[k1][0] = eval(func)
-                temp = list(groups.dropna(subset=[ii_variable])['name'].unique())
-                data_stat[k1][1] = temp.__len__()
-                data_stat[k1][2] = ', '.join(temp)
-
-            data_stat = pd.DataFrame(data_stat[:-1], columns=[ii_variable, 'n', 'core_collection'])
-            data_stat['stat'] = ii_stat
-            if data.empty:
-                data = pd.concat([data_core, data_stat], axis=1)
-            else:
-                print(ii_stat)
-                data = data.append(pd.concat([data_core, data_stat], axis=1), ignore_index=True)
-        data.reset_index()
-    return data
-
-
 def DD_fillup(ics_stack, DD, freezup_dates):
     import datetime
 
@@ -356,44 +301,6 @@ def stack_DD_fud(ics_data, DD, freezup_dates):
         ics_data_stack = ics_data_stack.add_variable(variable_dict, data)
     return ics_data_stack
 
-
-def plot_state_variable(profile_stack, ax=None, variables='state variables', color_map='core'):
-    """
-    :param profile_stack:
-    :param ax:
-    :param variables:
-        default 'state variables' which plot salinity and temperature
-    :param color:
-    :return:
-    """
-    if variables == None:
-        variables = np.unique(profile_stack.variable).tolist()
-    elif not isinstance(variables, list):
-        variables = [variables]
-    elif variables == 'state variables':
-        variables = ['salinity, temperature']
-
-    if ax is None:
-        fig = plt.figure()
-        ax = []
-        for ii in range(len(variables)):
-            ax.append(plt.subplot(1, len(variables), ii + 1))
-    elif len(ax) != len(variables):
-        logging.warning('ax (len %d) and variables (len %d) should be of same size' % (len(ax), len(variables)))
-        return None
-
-    # colors
-    color = {}
-    if color_map is 'core':
-        n_core = np.unique(profile_stack.core_name).__len__()
-        color[ii] = [cm.jet(float(ii) / n_core) for ii in n_core]
-    elif color_map is 'year':
-        n_year = pd.unique([ii.year for ii in profile_stack.date]).__len__()
-        color[ii] = [cm.jet(float(ii) / n_year) for ii in n_year]
-
-    for ii in len(variables):
-        var = variables[ii]
-
 def scale_profile(profile, h_ice_f):
     """
     :param profile:
@@ -417,76 +324,4 @@ def scale_profile(profile, h_ice_f):
     profile[['y_low', 'y_mid', 'y_sup']] = r * profile[['y_low', 'y_mid', 'y_sup']]
     profile.core_length = h_ice_f
     return profile
-
-
-# DEPRECATED
-def compute_phys_prop(ics_data, si_prop, S_core_name, T_core_name, si_prop_format='linear', resize_core=None):
-    """
-    :param ic_data:
-        dict of ice core
-    :param si_prop:
-        physical properties or list of physical properties
-    :param si_prop_format: 'linear' or 'step'
-    :return:
-    """
-    print("comput_phys_prop is deprecated. use compute_phys_from_core_name instead")
-    if not isinstance(si_prop, list):
-        si_prop = [si_prop]
-
-    ## function variable:
-    property_stack = pd.DataFrame()
-
-    ## check parameters
-    if S_core_name not in ics_data.keys() or 'salinity' not in ics_data[S_core_name].profile.variable.unique():
-        print("missing salinity core")
-        return property_stack;
-    else:
-        s_data = ics_data[S_core_name].profile
-        s_data = s_data.loc[s_data.variable == 'salinity']
-    if T_core_name not in ics_data.keys() or 'temperature' not in ics_data[T_core_name].profile.variable.unique():
-        print("missing temperature core")
-        return property_stack;
-    else:
-        t_data = ics_data[T_core_name].profile
-        t_data = t_data.loc[t_data.variable == 'temperature', ['y_mid', 'temperature']]
-
-    # interpolate temperature profile to match salinity profile
-    y_mid = s_data.y_mid.dropna().tolist()
-    if y_mid.__len__() < 1:
-        y_mid = (s_data.y_low / 2 + s_data.y_sup / 2).tolist()
-
-    interp_data = pd.concat([t_data, pd.DataFrame(y_mid, columns=['y_mid'])])
-    interp_data = interp_data.set_index('y_mid').sort_index().interpolate(method='index').reset_index().drop_duplicates(
-        subset='y_mid')
-
-    data = s_data
-    if 'temperature' in s_data.keys():
-        data = s_data.drop('temperature', axis=1)
-    data = pd.merge(data, interp_data, on=['y_mid'])
-
-    for f_prop in si_prop:
-        if f_prop not in seaice.property.brine.si_prop_list.keys():
-            print('property %s not defined in the ice core property module' % property)
-
-        prop = seaice.property.brine.si_prop_list[f_prop]
-        function = getattr(seaice.property.si, prop.replace(" ", "_"))
-        prop_data = function(data['temperature'], data['salinity'])
-
-        property_frame = pd.DataFrame(np.vstack((prop_data, y_mid)).transpose(), columns=[prop, 'y_mid'])
-        property_frame['name'] = list(set(s_data.name))[0]
-        property_frame[
-            'comment_core'] = 'physical properties computed from ' + S_core_name + '(S) and ' + T_core_name + '(T)'
-        property_frame['variable'] = prop
-
-        var_drop = [var for var in ['salinity', 'temperature', 'variable', 'name', 'core'] if var in s_data.keys()]
-        core_frame = s_data.drop(var_drop, axis=1)
-
-        if si_prop_format == 'linear':
-            core_frame = core_frame.drop(['y_sup', 'y_low'], axis=1)
-
-        prop_data = pd.merge(property_frame, core_frame, how='inner', on=['y_mid'])
-
-        property_stack = property_stack.append(prop_data, ignore_index=True, verify_integrity=False)
-
-    return property_stack
 

@@ -44,13 +44,7 @@ ics_stack = seaice.stack_cores(ics_dict)
 
 ics_stack = ics_stack.discretize(display_figure=False, y_bins=np.arange(0, max(ics_stack.length)+0.05, 0.05))
 stats = ['min', 'mean', 'max', 'std']
-groups = {'length': [0, 0.77, 1.27, 1.77], 'y_dim': y_bins}
-
-ics_stack.groups
-
-# group ice core
-
-
+groups = {'length': [0, 0.77, 1.27, 1.77], 'y_mid': y_bins}
 ics_stat = ics_stack.section_stat(groups=groups, stats=stats, variables=['temperature', 'salinity'])
 
 bins = [key for key, value in ics_stat.items() if key.lower().startswith('bin_')]

@@ -21,8 +21,8 @@ from seaice.core.corestack import *
 import seaice.core.tool
 import seaice.core.plot
 import seaice.climatology
-# import seaice.property
-# import seaice.property.brine
-# import seaice.property.si
-# import seaice.climatology
+import seaice.property.brine
+import seaice.property.si
+
+#import seaice.property.si
 TOL = 1e-6

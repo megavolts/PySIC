@@ -27,8 +27,6 @@ module_logger = logging.getLogger(__name__)
 TOL = 1e-6
 
 
-
-
 def indices(dim):
     """
     :param dim:
