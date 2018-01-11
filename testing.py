@@ -52,21 +52,21 @@ ic_path = os.path.join(ic_dir, '2015-B2-OR19.xlsx')
 
 
 display_figure=True
-fill_gap = True
-y_mid= None
-variables='salinity'
-ic_data = seaice.import_ic_path(ic_path, variables=variables, v_ref='top')
-profile1 = ic_data.profile
-y_bins = np.arange(0, max(ic_data.length)+vert_resolution, vert_resolution)
-profile = profile1
-profile2 = discretize_profile(profile, y_bins, display_figure=True)
-profile3 = discretize_profile(profile2, y_bins, display_figure=True)
-ics_stack = seaice.stack_cores(ics_dict)
-
-# ics_dict = seaice.import_ic_sourcefile(seaice.make_ic_sourcefile(ic_dir, '.xlsx'))
+# fill_gap = True
+# y_mid= None
+# variables='salinity'
+# ic_data = seaice.import_ic_path(ic_path, variables=variables, v_ref='top')
+# profile1 = ic_data.profile
+# y_bins = np.arange(0, max(ic_data.length)+vert_resolution, vert_resolution)
+# profile = profile1
+# profile2 = discretize_profile(profile, y_bins, display_figure=True)
+# profile3 = discretize_profile(profile2, y_bins, display_figure=True)
 # ics_stack = seaice.stack_cores(ics_dict)
-# y_bins = np.arange(0, max(max(ics_stack.y_sup), max(ics_stack.length), max(ics_stack.ice_thickness))+vert_resolution, vert_resolution)
-# ics_stack = ics_stack.discretize(display_figure=False, y_bins=y_bins)
+
+ics_dict = seaice.import_ic_sourcefile(seaice.make_ic_sourcefile(ic_dir, '.xlsx'))
+ics_stack = seaice.stack_cores(ics_dict)
+y_bins = np.arange(0, max(max(ics_stack.y_sup), max(ics_stack.length), max(ics_stack.ice_thickness))+vert_resolution, vert_resolution)
+ics_stack = ics_stack.discretize(display_figure=display_figure, y_bins=y_bins)
 
 
 #
