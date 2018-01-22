@@ -21,6 +21,7 @@ import pandas as pd
 
 from seaice.io.icxl import *
 from seaice.core.corestack import *
+import seaice.core.plot
 # import seaice.core.tool
 # import seaice.core.plot
 # import seaice.climatology

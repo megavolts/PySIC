@@ -1,2 +1,4 @@
-/home/megavolts/git/seaice/data_sample/ice_cores/2015-B1-OR19.xlsx
-/home/megavolts/git/seaice/data_sample/ice_cores/2015-B2-OR19.xlsx
+/home/megavolts/git/seaice/data_sample/ice_cores/testing-gap_extremity-TS
+.xlsx
+/home/megavolts/git/seaice/data_sample/ice_cores/testing-nogap_noextremity-TS.xlsx
+/home/megavolts/git/seaice/data_sample/ice_cores/testing-nogap_extremity-TS.xlsx

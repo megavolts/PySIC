@@ -8,7 +8,6 @@ import logging
 import numpy as np
 import pandas as pd
 from seaice.core.profile import *
-from seaice.core.tool import indices
 
 __name__ = "corestack"
 __author__ = "Marc Oggier"
@@ -124,7 +123,7 @@ class CoreStack(pd.DataFrame):
 
         return CoreStack(grouped_stat(self, groups, variables=variables, stats=stats))
 
-    def discretize(self, y_bins=None, y_mid=None, variables=None, display_figure=False):
+    def discretize(self, y_bins=None, y_mid=None, variables=None, display_figure=False, fill_gap=False, fill_extremity=False):
         """
 
         :param y_bins:
@@ -140,7 +139,7 @@ class CoreStack(pd.DataFrame):
         for core in self.name.unique():
             data_binned = data_binned.append(
                 discretize_profile(self[self.name == core], y_bins=y_bins, y_mid=y_mid, variables=variables,
-                                   display_figure=display_figure))
+                                   display_figure=display_figure, fill_gap=fill_gap, fill_extremity=fill_extremity))
         data_binned.reset_index(drop=True, inplace=True)
         return CoreStack(data_binned)
 
@@ -195,12 +194,20 @@ def grouped_stat(ics_stack, groups, variables=None, stats=('min', 'mean', 'max',
 
     logger = logging.getLogger(__name__)
 
+    # function check
     if variables is None:
         variables = ics_stack.variable.unique().tolist()
     if not isinstance(variables, list):
         variables = [variables]
     if not isinstance(stats, list):
         stats = [stats]
+
+    if 'weight' not in ics_stack:
+        ics_stack['weight'] = 1
+        logger.warning('No weight value are defined. Setting weight value to 1')
+    if ics_stack['weight'].isna().any():
+        ics_stack.loc[ics_stack['weight'].isna(), 'weight'] = 1
+        logger.warning('some weight value are not defined. Setting weight value to 1')
 
     if groups is None:
         logger.error("Grouping option cannot be empty; it should contains at least vertical section y_mid")
@@ -231,16 +238,26 @@ def grouped_stat(ics_stack, groups, variables=None, stats=('min', 'mean', 'max',
         logger.info('computing %s' % variable)
         data = ics_stack[ics_stack.variable == variable]
 
+        # apply weight
+        data['_weight_property'] = data['weight'] * data[variable]
+        data['_weight_where_notnull'] = data['weight'] * pd.notnull(data[variable])
+
         data_grouped = data.groupby(cuts)
 
         for stat in stats:
+            if stat in ['sum', 'mean']:
+                func = "kgroups['_weight_property']." + stat + "()" #/kgroups['_weight_where_notnull']." + stat + "()"
+            elif stat in ['min', 'max', 'std']:
+                func = "kgroups['" + variable + "']." + stat + "()"
+            else:
+                logger.error("%s operation not defined. Open a bug report" % stat)
             logger.info('\tcomputing %s' % stat)
-            func = "kgroups['" + variable + "']." + stat + "()"
+
             stat_var = np.nan * np.ones(dim)
             core_var = [None for i in range(np.prod(dim))]
             for k1, kgroups in data_grouped:
                 stat_var[tuple(np.array(k1, dtype=int))] = eval(func)
-                core_var[int(np.prod(np.array(k1)+1)-1)] = list(kgroups['name'].unique())
+                core_var[int(np.prod(np.array(k1)+1)-1)] = ', '.join(list(kgroups['name'].unique()))
             core_var = np.reshape(core_var, dim)
 
             # run over ndim, minus the ice thickness
@@ -251,8 +268,11 @@ def grouped_stat(ics_stack, groups, variables=None, stats=('min', 'mean', 'max',
                 columns = ['bin_'+x for x in groups_order[:-1]] + ['stats', 'variable', 'v_ref']
                 rows = np.array(temp.index.tolist())
                 temp = temp.join(pd.DataFrame([data], columns=columns, index=rows))
-                for row in temp.index.tolist():
-                    temp.loc[temp.index == row, 'n'] = int(temp.loc[temp.index == row, 'core collection'].__len__())
+
+                # number of samples
+                n = [int(temp.iloc[row]['core collection'].split(', ').__len__()) for row in temp.index.tolist()]
+                temp = temp.join(pd.DataFrame(n, columns=['n'], index=rows))
+
                 columns = ['y_low', 'y_sup', 'y_mid']
                 t2 = pd.DataFrame(columns=columns)
 
@@ -272,6 +292,7 @@ def grouped_stat(ics_stack, groups, variables=None, stats=('min', 'mean', 'max',
                     temp_all = temp.join(t2)
                 else:
                     temp_all = temp_all.append(temp.join(t2), ignore_index=True)
+        del data
     return CoreStack(temp_all)
 
 
@@ -304,3 +325,16 @@ def grouped_ic(ics_stack, groups):
     core_var = np.reshape(core_var, dim)
 
     return CoreStack(temp_all)
+
+
+def indices(dim):
+    """
+    :param dim:
+    :return:
+    """
+    for d in range(dim[0]):
+        if dim.__len__() == 1:
+            yield (d,)
+        else:
+            for n in indices(dim[1:]):
+                yield (d,) + n

@@ -10,7 +10,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-import seaice.core.tool
 from seaice.core.profile import *
 __name__ = "plot"
 __author__ = "Marc Oggier"
@@ -24,7 +23,7 @@ __date__ = "2017/09/13"
 __comment__ = "plot.py contained function to plot physical profile"
 __CoreVersion__ = 1.1
 __all__ = ["plot_profile", "semilogx_profile", "plot_profile_variable", "semilogx_profile_variable",
-           "plot_mean_envelop", "plot_number"]
+           "plot_mean_envelop", "plot_number", "plot_envelop", "plot_enveloplog"]
 
 module_logger = logging.getLogger(__name__)
 
@@ -123,9 +122,9 @@ def plot_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
         module_logger.warning("a variable should be specified for plotting")
         return 0
 
-    profile = seaice.core.profile.select_profile(ic_data, variable_dict)
-    ax = plot_profile(profile, ax=ax, param_dict=param_dict)
-    return ax
+    profile = select_profile(ic_data, variable_dict)
+    _ax = plot_profile(profile, ax=ax, param_dict=param_dict)
+    return _ax
 
 
 def semilogx_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
@@ -186,8 +185,8 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
             x_std_l = x_mean[ii_variable] - x_std[ii_variable]
             x_std_h = x_mean[ii_variable] + x_std[ii_variable]
 
-            x_std_l = seaice.core.tool.plt_step(x_std_l.tolist(), y).transpose()
-            x_std_h = seaice.core.tool.plt_step(x_std_h.tolist(), y).transpose()
+            x_std_l = plt_step(x_std_l.tolist(), y).transpose()
+            x_std_h = plt_step(x_std_h.tolist(), y).transpose()
         elif x_mean.y_low.isnull().all():
             y_std = x_mean['y_mid']
             x_std_l = np.array([x_mean[ii_variable] - np.nan_to_num(x_std[ii_variable]), y_std])
@@ -328,3 +327,86 @@ def plot_number(ic_data, variable_dict, ax=None, position='right', x_delta=0.1, 
     return ax
 
 
+def plt_step(x, y):
+    # step function
+    xy = np.array([x[0], y[0]])
+    for ii in range(x.__len__()-1):
+        xy = np.vstack((xy, [x[ii], y[ii+1]]))
+        xy = np.vstack((xy, [x[ii+1], y[ii+1]]))
+    return xy
+
+
+def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=False, z_delta=0.01, every=1):
+    """
+    :param ic_data:
+    :param variable_dict:
+        contains variable to plot at least
+    :param ax:
+    :param param_dict:
+    :return:
+    """
+
+    # TODO: check if all stat are present for the variable
+
+    variable_dict.update({'stats': 'min'})
+    param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
+    ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    variable_dict.update({'stats': 'mean'})
+    param_dict.update({'color': 'k'})
+    ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    variable_dict.update({'stats': 'max'})
+    param_dict.update({'color': 'r'})
+    ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    variable_dict.pop('stats')
+    ax = plot_mean_envelop(ic_data, variable_dict, ax=ax)
+    if flag_number:
+        variable_dict.update({'stats': 'mean'})
+        ax = plot_number(ic_data, variable_dict=variable_dict, ax=ax, z_delta=0.01, every=1)
+    return ax
+
+
+def plot_enveloplog(ic_data, variable_dict, ax=None, param_dict={}, flag_number=False, z_delta=0.01, every=1):
+    """
+    :param ic_data:
+    :param variable_dict:
+    :param ax:
+    :param param_dict:
+    :return:
+    """
+
+    if 'variable' in variable_dict.keys():
+        variable = variable_dict['variable']
+    else:
+        variable = [ic_data.variable.unique()[0]]
+
+    # TODO: check if all stat are present for the variable
+
+    if variable in ['seaice permeability']:
+        # for log scale, replace smallest value by minimum*2
+        variable_dict.update({'stats': 'min'})
+        param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
+        ax = semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+        variable_dict.update({'stats': 'mean'})
+        param_dict.update({'color': 'k'})
+        ax = semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+        variable_dict.update({'stats': 'max'})
+        param_dict.update({'color': 'r'})
+        ax = semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+        variable_dict.pop('stats')
+        ax = semilogx_mean_envelop(ic_data, variable_dict, ax=ax)
+    else:
+        variable_dict.update({'stats': 'min'})
+        param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
+        ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+        variable_dict.update({'stats': 'mean'})
+        param_dict.update({'color': 'k'})
+        ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+        variable_dict.update({'stats': 'max'})
+        param_dict.update({'color': 'r'})
+        ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+        variable_dict.pop('stats')
+        ax = plot_mean_envelop(ic_data, variable_dict, ax=ax)
+        if flag_number:
+            variable_dict.update({'stats': 'mean'})
+            ax = plot_number(ic_data, variable_dict=variable_dict, ax=ax, z_delta=0.01, every=1)
+    return ax

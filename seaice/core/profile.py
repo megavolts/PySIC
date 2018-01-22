@@ -592,6 +592,7 @@ def delete_profile(ics_stack, variable_dict):
     return ics_stack.loc[eval(str_select)]
 
 
+# s_nan is deprecated function
 def s_nan(yx, ii_yx, fill_gap=True):
     """
     :param yx:

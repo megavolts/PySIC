@@ -301,6 +301,7 @@ def stack_DD_fud(ics_data, DD, freezup_dates):
         ics_data_stack = ics_data_stack.add_variable(variable_dict, data)
     return ics_data_stack
 
+
 def scale_profile(profile, h_ice_f):
     """
     :param profile:
