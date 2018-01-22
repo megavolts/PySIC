@@ -356,9 +356,33 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
             # yx = -yx
             # yx = np.vstack(([yx[:, 1]], [yx[:, 0]], [yx[:, 2]])).transpose()
 
+            # if missing section, add an emtpy section with np.nan as property value
+            yx_new = []
+            for row in range(yx[:, 0].__len__()-1):
+                yx_new.append(yx[row])
+                if abs(yx[row, 1]-yx[row+1, 0]) > TOL:
+                    yx_new.append([yx[row, 1], yx[row+1, 0], np.nan])
+            yx_new.append(yx[row+1, :])
+            yx = np.array(yx_new)
+            del yx_new
+
             if fill_gap:
-                #fill gap function
-                yx = yx
+                value = pd.Series(yx[:, 2])
+                value_low = value.fillna(method='ffill')
+                value_sup = value.fillna(method='bfill')
+
+                ymid = pd.Series(yx[:, 0]+(yx[:, 1]-yx[:, 0])/2)
+                ymid2 = pd.Series(None, index=value.index)
+                ymid2[np.isnan(value)] = ymid[np.isnan(value)]
+
+                dy = pd.DataFrame(yx[:, 0:2], columns=['y_low', 'y_sup'])
+                dy2 = pd.DataFrame([[None, None]], index=value.index, columns=['y_low', 'y_sup'])
+                dy2[~np.isnan(value)] = dy[~np.isnan(value)]
+                dy2w = dy2['y_low'].fillna(method='bfill') - dy2['y_sup'].fillna(method='ffill')
+                new_value = value_low + (ymid2 - dy2['y_sup'].fillna(method='ffill'))*(value_sup-value_low)/dy2w
+                value.update(new_value)
+
+                yx[:, 2] = value
 
             x_step = []
             y_step = []
@@ -389,40 +413,64 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                 #print()
 
                 if a.size != 0:
-                    S = 0
+                    S = np.nan
                     L = 0
+                    L_nan = 0
                     a_ii = 0
                     if yx[a[a_ii], 0] - y_bins[ii_bin] < -TOL:
                         S_temp = yx[a[a_ii], 2]*(yx[a[a_ii], 1] - y_bins[ii_bin])
                         if not np.isnan(S_temp):
-                            S += S_temp
+                            if np.isnan(S):
+                                S = S_temp
+                            else:
+                                S += S_temp
                             L += (yx[a[a_ii], 1] - y_bins[ii_bin])
+                        else:
+                            L_nan += (yx[a[a_ii], 1] - y_bins[ii_bin])
                         #print(y_bins[ii_bin], yx[a[a_ii], 1], S_temp)
                         a_ii +=1
-                    while ii_bin+1 < y_bins.shape[0]-1 and a_ii < a.shape[0]-1 and yx[a[a_ii], 1] - y_bins[ii_bin+1] < -TOL:
+                    while ii_bin+1 <= y_bins.shape[0]-1 and a_ii < a.shape[0]-1 and yx[a[a_ii], 1] - y_bins[ii_bin+1] < -TOL:
                         S_temp = yx[a[a_ii], 2] * (yx[a[a_ii], 1]-yx[a[a_ii], 0])
                         if not np.isnan(S_temp):
-                            S += S_temp
+                            if np.isnan(S):
+                                S = S_temp
+                            else:
+                                S += S_temp
                             L += yx[a[a_ii], 1]-yx[a[a_ii], 0]
+                        else:
+                            L_nan += yx[a[a_ii], 1]-yx[a[a_ii], 0]
                         #print(yx[a[a_ii], 0], yx[a[a_ii], 1], S_temp)
                         a_ii += 1
 
                     if yx[a[a_ii], 1] - y_bins[ii_bin+1] > -TOL:
                         S_temp = yx[a[a_ii], 2] * (y_bins[ii_bin+1] -yx[a[a_ii], 0])
                         if not np.isnan(S_temp):
-                            S += S_temp
+                            if np.isnan(S):
+                                S = S_temp
+                            else:
+                                S += S_temp
                             L += (y_bins[ii_bin+1] - yx[a[a_ii], 0])
+                        else:
+                            L_nan += (y_bins[ii_bin+1] - yx[a[a_ii], 0])
                         #print(yx[a[a_ii], 0], y_bins[ii_bin+1], S_temp)
                     elif yx[a[a_ii], 1] - y_bins[ii_bin + 1] < -TOL:
                         S_temp = yx[a[a_ii], 2] * (yx[a[a_ii], 1] -yx[a[a_ii], 0])
                         if not np.isnan(S_temp):
-                            S += S_temp
+                            if np.isnan(S):
+                                S = S_temp
+                            else:
+                                S += S_temp
                             L += (yx[a[a_ii], 1] -yx[a[a_ii], 0])
-                        #print(yx[a[a_ii], 0], yx[a[a_ii], 1], S_temp)
+                        else:
+                            L_nan += (yx[a[a_ii], 1] -yx[a[a_ii], 0])
+                        # print(yx[a[a_ii], 0], yx[a[a_ii], 1], S_temp)
 
                     if L !=0:
                         S = S/L
                         w = L/(y_bins[ii_bin + 1]-y_bins[ii_bin])
+                    elif L_nan != 0:
+                        S = np.nan
+                        w = 0
                     #print(L)
                     #print(S)
                     #print(w)

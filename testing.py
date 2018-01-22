@@ -48,60 +48,58 @@ logger.info('alaph_core.py is run on %s' % os.uname()[1])
 logger.info('Reloading seaice.core.py')
 
 ic_dir = '/home/megavolts/git/seaice/data_sample/ice_cores'
-ic_path = os.path.join(ic_dir, '2015-B2-OR19.xlsx')
+ic_path = os.path.join(ic_dir, 'testing-nogap_extremity-TS.xlsx')
+ic_path = os.path.join(ic_dir, 'testing-nogap_noextremity-TS.xlsx')
+ic_path = os.path.join(ic_dir, 'testing-gap_extremity-TS.xlsx')
+ic_path = os.path.join(ic_dir, 'testing-gap_noextremity-TS.xlsx')
 
 
-# fill_gap = True
-# y_mid= None
-# variables='salinity'
+fill_gap = False
+fill_extremity = False
+display_figure = True
+y_mid = None
+variables ='salinity'
 # ic_data = seaice.import_ic_path(ic_path, variables=variables, v_ref='top')
-# profile1 = ic_data.profile
 # y_bins = np.arange(0, max(ic_data.length)+vert_resolution, vert_resolution)
-# profile = profile1
-# profile2 = discretize_profile(profile, y_bins, display_figure=True)
-# profile3 = discretize_profile(profile2, y_bins, display_figure=True)
-# ics_stack = seaice.stack_cores(ics_dict)
+# profile = ic_data.profile
+# seaice.core.corestack.discretize_profile(profile, y_bins, display_figure=display_figure, fill_gap=fill_gap, fill_extremity=fill_extremity)
+
 
 ics_dict = seaice.import_ic_sourcefile(seaice.make_ic_sourcefile(ic_dir, '.xlsx'))
 ics_stack = seaice.stack_cores(ics_dict)
 y_bins = np.arange(0, max(max(ics_stack.y_sup), max(ics_stack.length), max(ics_stack.ice_thickness))+vert_resolution, vert_resolution)
-
-
-display_figure = False
-variables = ['salinity']
-#ics_stack = ics_stack.discretize(display_figure=display_figure, y_bins=y_bins, variables=variables)
-ics_stack.discretize(display_figure=True, y_bins=y_bins, variables=variables, fill_gap=False, fill_extremity=False)
+ics_stack.discretize(display_figure=False, y_bins=y_bins, variables=variables, fill_gap=fill_gap, fill_extremity=fill_extremity)
 
 stats = ['mean', 'min', 'max', 'std']
-groups = {'length': [0.25, 0.75], 'y_mid':y_bins}
+groups = {'length': [0.25, 0.75], 'y_mid': y_bins}
 ics_stat = ics_stack.section_stat(groups=groups, stats=stats, variables=variables)
 
-
-bins = [key for key, value in ics_stat.items() if key.lower().startswith('bin_')]
-bin_value = [ics_stat[b].unique() for b in bins]
-bins_max_value = [max(v)+1 for v in bin_value]
-if bin_value.__len__() == 1:
-    bin_value = bin_value[0]
-    bins_max_value = [max(bin_value)+1]
-
-
-figure_number = 0
-vmin = {'temperature': -20, 'salinity': 0}
-vmax = {'temperature': 0, 'salinity': 10}
-
-for index in seaice.core.corestack.indices(bins_max_value):
-    func_arg = 'ics_stat['
-    for i in range(index.__len__()):
-        func_arg += '(ics_stat[bins['+str("%i" %i)+']]==bin_value['+str("%i" % index[i])+']) & '
-    func_arg = func_arg[:-3]+']'
-    data = eval(func_arg)
-
-    fig, ax = plt.subplots(1, 2, facecolor='white', sharey=True)
-    n_ax = 0
-    for variable in data.variable.unique():
-        ic_data = data[data.variable == variable]
-        variable_dict = {'variable': variable}
-        ax[n_ax] = seaice.core.plot.plot_envelop(data, variable_dict, flag_number=True)
+#
+# bins = [key for key, value in ics_stat.items() if key.lower().startswith('bin_')]
+# bin_value = [ics_stat[b].unique() for b in bins]
+# bins_max_value = [max(v)+1 for v in bin_value]
+# if bin_value.__len__() == 1:
+#     bin_value = bin_value[0]
+#     bins_max_value = [max(bin_value)+1]
+#
+#
+# figure_number = 0
+# vmin = {'temperature': -20, 'salinity': 0}
+# vmax = {'temperature': 0, 'salinity': 10}
+#
+# for index in seaice.core.corestack.indices(bins_max_value):
+#     func_arg = 'ics_stat['
+#     for i in range(index.__len__()):
+#         func_arg += '(ics_stat[bins['+str("%i" %i)+']]==bin_value['+str("%i" % index[i])+']) & '
+#     func_arg = func_arg[:-3]+']'
+#     data = eval(func_arg)
+#
+#     fig, ax = plt.subplots(1, 2, facecolor='white', sharey=True)
+#     n_ax = 0
+#     for variable in data.variable.unique():
+#         ic_data = data[data.variable == variable]
+#         variable_dict = {'variable': variable}
+#         ax[n_ax] = seaice.core.plot.plot_envelop(data, variable_dict, flag_number=True)
 #
 #         ax[n_ax].set_xlabel(variable)
 #         ax[n_ax].xaxis.set_label_position('top')

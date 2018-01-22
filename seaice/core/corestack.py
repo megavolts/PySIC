@@ -292,6 +292,11 @@ def grouped_stat(ics_stack, groups, variables=None, stats=('min', 'mean', 'max',
                     temp_all = temp.join(t2)
                 else:
                     temp_all = temp_all.append(temp.join(t2), ignore_index=True)
+        if '_weight_property' in data:
+            data.drop('_weight_property', axis=1, inplace=True)
+        if '_weight_where_notnull' in data:
+            data.drop('_weight_where_notnull', axis=1, inplace=True)
+
         del data
     return CoreStack(temp_all)
 
