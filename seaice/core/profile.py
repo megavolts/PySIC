@@ -308,25 +308,18 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
 
         # continuous profile (temperature-like)
         if is_continuous_profile(profile[profile.variable == variable]):
-            yx = profile.loc[profile.variable == variable, [variable, 'y_mid']]
-            yx = yx.dropna(axis=0)
+            yx = profile.loc[profile.variable == variable, ['y_mid', variable]].set_index('y_mid')
+            y2 = y_mid
+            x2 = np.interp(y2, yx.index, yx[variable], left=np.nan, right=np.nan)
 
-            dat_temp = np.interp(y2x.index, yx['y_mid'], yx[variable].astype(float), left=np.nan, right=np.nan)
-            y2x = pd.DataFrame(dat_temp, index=y2x.index, columns=[variable])
-            y2x = y2x.reset_index(level='y_mid')
+            y2x = pd.DataFrame(x2, columns=[variable], index=y2)
             for index in yx.index:
                 y2x.loc[abs(y2x.index - index) < 1e-6, variable] = yx.loc[yx.index == index, variable].values
 
-            ## add the core extremity temperature
-
-
-
             temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(y_mid.__len__()))
-            temp.update(y2x.reset_index())
+            temp.update(y2x.reset_index().rename(columns={'index': 'y_mid'}))
 
-
-
-            profile_prop = profile.head(1)
+            profile_prop = profile.loc[profile.variable == variable].head(1)
             profile_prop = profile_prop.drop(variable, 1)
             profile_prop['variable'] = variable
             if 'y_low' in profile_prop:
@@ -334,6 +327,7 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
             profile_prop = profile_prop.drop('y_mid', 1)
             if 'y_sup' in profile_prop:
                 profile_prop = profile_prop.drop('y_sup', 1)
+
             temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
                                      index=temp.index.tolist()))
             if 'date' in temp:
@@ -502,8 +496,8 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                                      columns=['y_low', 'y_mid', 'y_sup', variable, 'weight'],
                                      index=temp.index[0:np.unique(y_step).__len__() - 1]))
 
-            # properties
-            profile_prop = profile.head(1)
+            # core attribut
+            profile_prop = profile.loc[profile.variable == variable].head(1)
             profile_prop = profile_prop.drop(variable, 1)
             profile_prop['variable'] = variable
             profile_prop = profile_prop.drop('y_low', 1)

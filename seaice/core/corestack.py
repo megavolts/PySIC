@@ -67,11 +67,11 @@ class CoreStack(pd.DataFrame):
         :param ic_data:
         :return:
         """
-        if ic_data.variables is not None:
-            self.logger.info("Adding %s profiles for core %s" % (", ".join(ic_data.variables), ic_data.name))
+        if ic_data.variables().size > 0:
+            self.logger.info("Adding %s profiles for core %s" % (", ".join(ic_data.variables()), ic_data.name))
             profile = ic_data.profile
-            profile['name'] = ic_data.name
-            profile['length'] = ic_data.length[~np.isnan(ic_data.length)].mean()
+            #profile['name'] = ic_data.name
+            #profile['length'] = ic_data.length[~np.isnan(ic_data.length())].mean()
             if ic_data.ice_thickness.__len__() == 1 and isinstance(ic_data.ice_thickness[0], (int, float)):
                 profile['ice_thickness'] = ic_data.ice_thickness[0]
             else:

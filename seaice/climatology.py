@@ -12,6 +12,62 @@ import numpy as np
 import pandas as pd
 import seaice
 
+
+
+def DD_fillup(ics_stack, DD, freezup_dates):
+    import datetime
+
+    for f_day in ics_stack.date.unique():
+        # look for freezup_day
+        if isinstance(f_day, np.datetime64):
+            f_day = datetime.datetime.utcfromtimestamp(
+                (f_day - np.datetime64('1970-01-01T00:00:00')) / np.timedelta64(1, 's'))
+        f_day = datetime.datetime(f_day.year, f_day.month, f_day.day)
+        if f_day < datetime.datetime(f_day.year, 9, 1):
+            freezup_day = datetime.datetime.fromordinal(freezup_dates[f_day.year])
+        else:
+            freezup_day = datetime.datetime.fromordinal(freezup_dates[f_day.year + 1])
+
+        # look for number of freezing/thawing degree day:
+        if DD[f_day][1] < 0:
+            ics_stack.loc[ics_stack.date == f_day, 'DD'] = DD[f_day][1]
+        else:
+            ics_stack.loc[ics_stack.date == f_day, 'DD'] = DD[f_day][0]
+
+        ics_stack.loc[ics_stack.date == f_day, 'FDD'] = DD[f_day][0]
+        ics_stack.loc[ics_stack.date == f_day, 'TDD'] = DD[f_day][1]
+        ics_stack.loc[ics_stack.date == f_day, 'freezup_day'] = ['a']
+        ics_stack.loc[ics_stack.date == f_day, 'freezup_day'] = [freezup_day]
+    return CoreStack(ics_stack)
+
+
+def stack_DD_fud(ics_data, DD, freezup_dates):
+    ics_data_stack = CoreStack()
+    for ii_core in ics_data.keys():
+        core = ics_data[ii_core]
+        ics_data_stack = ics_data_stack.add_profiles(core.profiles)
+
+    for ii_day in ics_data_stack.date.unique():
+        variable_dict = {'date': ii_day}
+        ii_day = pd.DatetimeIndex([ii_day])[0].to_datetime()
+
+        # freezup day:
+        if ii_day < datetime.datetime(ii_day.year, 9, 1):
+            freezup_day = datetime.datetime.fromordinal(freezup_dates[ii_day.year - 1])
+        else:
+            freezup_day = datetime.datetime.fromordinal(freezup_dates[ii_day.year])
+        # DD
+        if DD[ii_day][1] < 0:
+            data = [[DD[ii_day][0], DD[ii_day][1], DD[ii_day][1], np.datetime64(freezup_day)]]
+        else:
+            data = [[DD[ii_day][0], DD[ii_day][1], DD[ii_day][0], np.datetime64(freezup_day)]]
+        data_label = ['date', 'FDD', 'TDD', 'DD', 'freezup_day']
+        data = pd.DataFrame(data, columns=data_label)
+
+        ics_data_stack = ics_data_stack.add_variable(variable_dict, data)
+    return ics_data_stack
+
+
 def grouped_stat(ics_stack, variables, stats, bins_DD, bins_y, comment=False):
     ics_stack = ics_stack.reset_index(drop=True)
     y_cuts = pd.cut(ics_stack.y_mid, bins_y, labels=False)

@@ -345,7 +345,7 @@ def electric_conductivity(t, s, rho_si='default', vf_a=0.005):
 
     if isinstance(vf_a, (int, float, list)):
         vf_a = np.atleast_1d(vf_a).astype(float)
-    if vf_a.size() == 1:
+    if vf_a.size == 1:
         vf_a = vf_a * np.ones_like(s)
 
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \
@@ -419,6 +419,7 @@ def latentheat(t, s, transformation='solidification', s0=35.):
     return l_si
 
 
+
 def permeability(t, s, rho_si='default', vf_a=0.005):
     """
         Calculate sea ice permeability k in function of temperature and salinity, according to Golden et al.
@@ -464,7 +465,7 @@ def permeability(t, s, rho_si='default', vf_a=0.005):
 
     if isinstance(vf_a, (int, float, list)):
         vf_a = np.atleast_1d(vf_a).astype(float)
-    if vf_a.size() == 1:
+    if vf_a.size == 1:
         vf_a = vf_a * np.ones_like(s)
 
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \
@@ -522,7 +523,7 @@ def resistivity(t, s, rho_si='default', vf_a=0.005):
 
     if isinstance(vf_a, (int, float, list)):
         vf_a = np.atleast_1d(vf_a).astype(float)
-    if vf_a.size() == 1:
+    if vf_a.size == 1:
         vf_a = vf_a * np.ones_like(s)
 
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \
@@ -708,7 +709,7 @@ def thermal_diffusivity(t, s, method_l='prindle', method_cp='untersteiner', rho_
 
     if isinstance(vf_a, (int, float, list)):
         vf_a = np.atleast_1d(vf_a).astype(float)
-    if vf_a.size() == 1:
+    if vf_a.size == 1:
         vf_a = vf_a * np.ones_like(s)
 
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \

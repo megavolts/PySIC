@@ -19,7 +19,6 @@ import logging
 import numpy as np
 import pandas as pd
 
-from seaice.io.icxl import *
 from seaice.core.corestack import *
 import seaice.core.plot
 import seaice.property
@@ -80,7 +79,6 @@ class Core:
         self.snow_depth = snow_depth
         self.freeboard = freeboard
         self.ice_thickness = ice_thickness
-        self.length = np.array([])
         self.collection = [name]
         self.comment = None
         self.profile = pd.DataFrame([])
@@ -89,14 +87,6 @@ class Core:
         self.t_ice_surface = np.nan
         self.t_water = np.nan
         self.protocol = None
-        self.variables = None
-
-    def add_length(self, length):
-        """
-        :param length:
-        :return:
-        """
-        self.length = np.concatenate((self.length, [length]))
 
     def add_to_collection(self, core_list):
         """
@@ -145,15 +135,11 @@ class Core:
             elif comment not in self.comment.split('; '):
                 self.comment += '; ' + comment
 
-    def add_variable(self, variable):
-        """
-        :param variable:
-        :return:
-        """
-        if self.variables is None:
-            self.variables = [variable]
-        elif variable not in self.variables:
-            self.variables.append(variable)
+    def length(self):
+        return self.profile.length.unique()
+
+    def variables(self):
+        return self.profile.variable.unique()
 
     def del_variable(self, variable):
         """
