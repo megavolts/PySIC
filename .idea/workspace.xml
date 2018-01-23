@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="BookmarkManager">
-    <bookmark url="file://$PROJECT_DIR$/seaice/core/profile.py" description="&#10;            if display_figure:&#10;                pl..." line="488" />
+    <bookmark url="file://$PROJECT_DIR$/seaice/core/profile.py" description="&#10;            if display_figure:&#10;                pl..." line="495" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="680e243d-e8cd-476a-918e-70c339c5189f" name="Default" comment="implemented logging">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/data_sample/ice_cores/testing-gap_extremity-TS.xlsx" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/data_sample/ice_cores/testing-gap_extremity-TS&#10;.xlsx" afterPath="" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/data_sample/ice_cores/testing-nogap_extremity-TS.xlsx" afterPath="$PROJECT_DIR$/data_sample/ice_cores/testing-nogap_extremity-TS.xlsx" />
+    <list default="true" id="680e243d-e8cd-476a-918e-70c339c5189f" name="Default" comment="">
+      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/data_sample/ice_cores/testing-gap_noextremity-TS.xlsx" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/data_sample/ice_cores/testing-nogap_noextremity-TS.xlsx" afterPath="$PROJECT_DIR$/data_sample/ice_cores/testing-nogap_noextremity-TS.xlsx" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/data_sample/ice_cores/ics_list.txt" afterPath="$PROJECT_DIR$/data_sample/ice_cores/ics_list.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/seaice/__init__.py" afterPath="$PROJECT_DIR$/seaice/__init__.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/seaice/core/corestack.py" afterPath="$PROJECT_DIR$/seaice/core/corestack.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/seaice/core/profile.py" afterPath="$PROJECT_DIR$/seaice/core/profile.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/seaice/property/__init__.py" afterPath="$PROJECT_DIR$/seaice/property/__init__.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/seaice/property/si.py" afterPath="$PROJECT_DIR$/seaice/property/si.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/testing.py" afterPath="$PROJECT_DIR$/testing.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -23,13 +24,82 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="FileEditorManager">
-    <splitter split-orientation="horizontal" split-proportion="0.16601308">
+    <splitter split-orientation="horizontal" split-proportion="0.7386291">
       <split-first>
         <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+          <file leaf-file-name="si.py" pinned="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/seaice/property/si.py">
+              <provider selected="true" editor-type-id="text-editor">
+                <state relative-caret-position="-102">
+                  <caret line="13" column="27" lean-forward="true" selection-start-line="13" selection-start-column="27" selection-end-line="13" selection-end-column="27" />
+                  <folding>
+                    <element signature="e#845#3859#0" expanded="false" />
+                    <element signature="e#3929#7459#0" expanded="false" />
+                  </folding>
+                </state>
+              </provider>
+            </entry>
+          </file>
+          <file leaf-file-name="sw.py" pinned="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/seaice/property/sw.py">
+              <provider selected="true" editor-type-id="text-editor">
+                <state relative-caret-position="306">
+                  <caret line="19" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="132" selection-end-column="0" />
+                  <folding />
+                </state>
+              </provider>
+            </entry>
+          </file>
+          <file leaf-file-name="corestack.py" pinned="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/seaice/core/corestack.py">
+              <provider selected="true" editor-type-id="text-editor">
+                <state relative-caret-position="1589">
+                  <caret line="246" column="0" lean-forward="false" selection-start-line="246" selection-start-column="0" selection-end-line="246" selection-end-column="0" />
+                  <folding>
+                    <element signature="e#94#108#0" expanded="true" />
+                    <element signature="e#657#774#0" expanded="false" />
+                    <element signature="e#815#928#0" expanded="false" />
+                    <element signature="e#4848#5158#0" expanded="false" />
+                    <element signature="e#11021#11057#0" expanded="false" />
+                  </folding>
+                </state>
+              </provider>
+            </entry>
+          </file>
+          <file leaf-file-name="profile.py" pinned="false" current-in-tab="true">
+            <entry file="file://$PROJECT_DIR$/seaice/core/profile.py">
+              <provider selected="true" editor-type-id="text-editor">
+                <state relative-caret-position="119">
+                  <caret line="311" column="14" lean-forward="false" selection-start-line="311" selection-start-column="12" selection-end-line="311" selection-end-column="14" />
+                  <folding>
+                    <element signature="e#667#720#0" expanded="false" />
+                    <element signature="e#14679#23556#0" expanded="false" />
+                    <element signature="e#15913#16760#0" expanded="false" />
+                    <element signature="e#23728#25112#0" expanded="false" />
+                    <element signature="e#25181#26400#0" expanded="false" />
+                    <element signature="e#26453#26908#0" expanded="false" />
+                    <element signature="e#26961#27415#0" expanded="false" />
+                    <element signature="e#27490#28043#0" expanded="false" />
+                    <element signature="e#28086#28286#0" expanded="false" />
+                  </folding>
+                </state>
+              </provider>
+            </entry>
+          </file>
+          <file leaf-file-name="climatology.py" pinned="false" current-in-tab="false">
+            <entry file="file://$PROJECT_DIR$/seaice/climatology.py">
+              <provider selected="true" editor-type-id="text-editor">
+                <state relative-caret-position="397">
+                  <caret line="118" column="36" lean-forward="false" selection-start-line="118" selection-start-column="36" selection-end-line="118" selection-end-column="36" />
+                  <folding />
+                </state>
+              </provider>
+            </entry>
+          </file>
           <file leaf-file-name="core_old.py" pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/seaice/core_old.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="576">
+                <state relative-caret-position="0">
                   <caret line="207" column="40" lean-forward="false" selection-start-line="207" selection-start-column="26" selection-end-line="207" selection-end-column="40" />
                   <folding>
                     <element signature="e#2102#7791#0" expanded="false" />
@@ -41,30 +111,14 @@
               </provider>
             </entry>
           </file>
-          <file leaf-file-name="testing.py" pinned="false" current-in-tab="true">
+          <file leaf-file-name="testing.py" pinned="false" current-in-tab="false">
             <entry file="file://$PROJECT_DIR$/testing.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="442">
-                  <caret line="89" column="21" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="303" selection-end-column="81" />
+                <state relative-caret-position="474">
+                  <caret line="63" column="17" lean-forward="false" selection-start-line="63" selection-start-column="0" selection-end-line="64" selection-end-column="0" />
                   <folding>
                     <element signature="e#45#66#0" expanded="true" />
-                  </folding>
-                </state>
-              </provider>
-            </entry>
-          </file>
-          <file leaf-file-name="corestack.py" pinned="false" current-in-tab="false">
-            <entry file="file://$PROJECT_DIR$/seaice/core/corestack.py">
-              <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="481">
-                  <caret line="282" column="8" lean-forward="true" selection-start-line="282" selection-start-column="8" selection-end-line="282" selection-end-column="8" />
-                  <folding>
-                    <element signature="e#94#108#0" expanded="true" />
-                    <element signature="e#657#774#0" expanded="false" />
-                    <element signature="e#815#928#0" expanded="false" />
-                    <element signature="e#4773#5083#0" expanded="false" />
-                    <element signature="e#10648#11372#0" expanded="false" />
-                    <element signature="e#11397#11603#0" expanded="false" />
+                    <element signature="e#3541#4932#0" expanded="false" />
                   </folding>
                 </state>
               </provider>
@@ -73,16 +127,16 @@
         </leaf>
       </split-first>
       <split-second>
-        <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+        <leaf>
           <file leaf-file-name="si.py" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/seaice/property/si.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="289">
-                  <caret line="291" column="19" lean-forward="true" selection-start-line="291" selection-start-column="19" selection-end-line="291" selection-end-column="19" />
+                <state relative-caret-position="266">
+                  <caret line="301" column="0" lean-forward="true" selection-start-line="301" selection-start-column="0" selection-end-line="301" selection-end-column="0" />
                   <folding>
-                    <element signature="e#140#154#0" expanded="true" />
-                    <element signature="e#846#3863#0" expanded="false" />
-                    <element signature="e#3933#7466#0" expanded="false" />
+                    <element signature="e#845#3859#0" expanded="false" />
+                    <element signature="e#3929#7459#0" expanded="false" />
+                    <element signature="e#7497#10620#0" expanded="false" />
                   </folding>
                 </state>
               </provider>
@@ -94,14 +148,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>module</find>
-      <find>resize_core</find>
-      <find>grouped_stat</find>
-      <find>scale_profile</find>
-      <find>brine</find>
-      <find>core.core</find>
-      <find>Core</find>
-      <find>pd.Da</find>
       <find>if yx</find>
       <find>fill_gap</find>
       <find>group</find>
@@ -124,6 +170,14 @@
       <find>select_profile</find>
       <find>make_ic_sourcefile</find>
       <find>discretize_profile</find>
+      <find>grouped_ic</find>
+      <find>var</find>
+      <find>permeabi</find>
+      <find>bine_volume_fraction</find>
+      <find>permeab</find>
+      <find>si.dens</find>
+      <find>si</find>
+      <find>si.</find>
     </findStrings>
     <replaceStrings>
       <replace>logger</replace>
@@ -181,20 +235,20 @@
         <option value="$PROJECT_DIR$/logging.json" />
         <option value="$PROJECT_DIR$/docs/logging.json" />
         <option value="$PROJECT_DIR$/testing-ElsonLagoon.py" />
-        <option value="$PROJECT_DIR$/seaice/property/__init__.py" />
         <option value="$PROJECT_DIR$/seaice/core/core.py" />
         <option value="$PROJECT_DIR$/seaice/core/__init__.py" />
         <option value="$PROJECT_DIR$/seaice/io/icxl.py" />
         <option value="$PROJECT_DIR$/seaice/core_old.py" />
         <option value="$PROJECT_DIR$/seaice/core/tool.py" />
         <option value="$PROJECT_DIR$/seaice/climatology.py" />
-        <option value="$PROJECT_DIR$/seaice/__init__.py" />
         <option value="$PROJECT_DIR$/seaice/core/plot.py" />
         <option value="$PROJECT_DIR$/data_sample/ice_cores/ics_list.txt" />
-        <option value="$PROJECT_DIR$/seaice/core/profile.py" />
-        <option value="$PROJECT_DIR$/testing.py" />
         <option value="$PROJECT_DIR$/seaice/core/corestack.py" />
+        <option value="$PROJECT_DIR$/seaice/property/__init__.py" />
         <option value="$PROJECT_DIR$/seaice/property/si.py" />
+        <option value="$PROJECT_DIR$/seaice/__init__.py" />
+        <option value="$PROJECT_DIR$/testing.py" />
+        <option value="$PROJECT_DIR$/seaice/core/profile.py" />
       </list>
     </option>
   </component>
@@ -222,6 +276,7 @@
     </navigator>
     <panes>
       <pane id="Scope" />
+      <pane id="Scratches" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -267,7 +322,6 @@
           <select />
         </subPane>
       </pane>
-      <pane id="Scratches" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -283,120 +337,6 @@
       <recent name="$PROJECT_DIR$/data_sample/ice_cores/bkp" />
       <recent name="$PROJECT_DIR$/docs" />
     </key>
-  </component>
-  <component name="RestoreUpdateTree" date="Moments ago" ActionInfo="_Update">
-    <UpdatedFiles>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Updated from server" />
-        <option name="myStatusName" value="Changed on server" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="CHANGED_ON_SERVER" />
-        <FILE-GROUP>
-          <option name="myUpdateName" value="Updated" />
-          <option name="myStatusName" value="Changed" />
-          <option name="mySupportsDeletion" value="false" />
-          <option name="myCanBeAbsent" value="false" />
-          <option name="myId" value="UPDATED" />
-        </FILE-GROUP>
-        <FILE-GROUP>
-          <option name="myUpdateName" value="Created" />
-          <option name="myStatusName" value="Created" />
-          <option name="mySupportsDeletion" value="false" />
-          <option name="myCanBeAbsent" value="false" />
-          <option name="myId" value="CREATED" />
-          <PATH vcs="Git" revision="">$PROJECT_DIR$/data_sample/ice_cores/testing-gap_extremity-TS
-.xlsx</PATH>
-          <PATH vcs="Git" revision="">$PROJECT_DIR$/data_sample/ice_cores/testing-nogap_extremity-TS.xlsx</PATH>
-          <PATH vcs="Git" revision="">$PROJECT_DIR$/data_sample/ice_cores/testing-nogap_noextremity-TS.xlsx</PATH>
-          <PATH vcs="Git" revision="">$PROJECT_DIR$/requirements.txt</PATH>
-        </FILE-GROUP>
-        <FILE-GROUP>
-          <option name="myUpdateName" value="Deleted" />
-          <option name="myStatusName" value="Deleted" />
-          <option name="mySupportsDeletion" value="false" />
-          <option name="myCanBeAbsent" value="true" />
-          <option name="myId" value="REMOVED_FROM_REPOSITORY" />
-        </FILE-GROUP>
-        <FILE-GROUP>
-          <option name="myUpdateName" value="Restored" />
-          <option name="myStatusName" value="Will be restored" />
-          <option name="mySupportsDeletion" value="false" />
-          <option name="myCanBeAbsent" value="false" />
-          <option name="myId" value="RESTORED" />
-        </FILE-GROUP>
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Modified" />
-        <option name="myStatusName" value="Modified" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="MODIFIED" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Skipped" />
-        <option name="myStatusName" value="Skipped" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="SKIPPED" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Merged with conflicts" />
-        <option name="myStatusName" value="Will be merged with conflicts" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="MERGED_WITH_CONFLICTS" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Merged with tree conflicts" />
-        <option name="myStatusName" value="Merged with tree conflicts" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="MERGED_WITH_TREE_CONFLICT" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Merged with property conflicts" />
-        <option name="myStatusName" value="Will be merged with property conflicts" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="MERGED_WITH_PROPERTY_CONFLICT" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Merged" />
-        <option name="myStatusName" value="Will be merged" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="MERGED" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Not in repository" />
-        <option name="myStatusName" value="Not in repository" />
-        <option name="mySupportsDeletion" value="true" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="UNKNOWN" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Locally added" />
-        <option name="myStatusName" value="Locally added" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="LOCALLY_ADDED" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Locally removed" />
-        <option name="myStatusName" value="Locally removed" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="LOCALLY_REMOVED" />
-      </FILE-GROUP>
-      <FILE-GROUP>
-        <option name="myUpdateName" value="Switched" />
-        <option name="myStatusName" value="Switched" />
-        <option name="mySupportsDeletion" value="false" />
-        <option name="myCanBeAbsent" value="false" />
-        <option name="myId" value="SWITCHED" />
-      </FILE-GROUP>
-    </UpdatedFiles>
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -463,42 +403,37 @@
       <option name="project" value="LOCAL" />
       <updated>1515611139156</updated>
     </task>
-    <option name="localTasksCounter" value="7" />
+    <task id="LOCAL-00007" summary="implemented logging">
+      <created>1516663365455</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1516663365455</updated>
+    </task>
+    <option name="localTasksCounter" value="8" />
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="0" width="1920" height="1200" extended-state="6" />
-    <editor active="true" />
+    <frame x="0" y="22" width="1920" height="1200" extended-state="6" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.18356457" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.1670224" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.40097404" sideWeight="0.17727272" order="7" side_tool="true" content_ui="tabs" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32897195" sideWeight="0.49786553" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
+      <window_info id="Python Console" active="true" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.42897198" sideWeight="0.82272726" order="8" side_tool="false" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
-      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32990655" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
-      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.4728972" sideWeight="0.82272726" order="8" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32792208" sideWeight="0.7204546" order="9" side_tool="false" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
+      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Data View" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
-      <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
-      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.40097404" sideWeight="0.17727272" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
-      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
-      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.42857143" sideWeight="0.82272726" order="8" side_tool="false" content_ui="tabs" />
-      <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32792208" sideWeight="0.7204546" order="9" side_tool="false" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
-      <window_info id="Project" active="true" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.2977273" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
-      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32897195" sideWeight="0.49786553" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
-      <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
-      <window_info id="Data View" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
     </layout>
     <layout-to-restore>
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
@@ -549,7 +484,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/seaice/core/corestack.py</url>
-          <line>134</line>
+          <line>137</line>
           <option name="timeStamp" value="16" />
         </line-breakpoint>
       </breakpoints>
@@ -691,39 +626,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/seaice/property/ice.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="272">
-          <caret line="19" column="0" lean-forward="false" selection-start-line="19" selection-start-column="0" selection-end-line="19" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/seaice/property/brine.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="405">
-          <caret line="24" column="0" lean-forward="false" selection-start-line="24" selection-start-column="0" selection-end-line="24" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/seaice/property/sw.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="306">
-          <caret line="19" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="132" selection-end-column="0" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/seaice/io/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/seaice/property/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="510">
-          <caret line="30" column="18" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="30" selection-end-column="18" />
         </state>
       </provider>
     </entry>
@@ -750,31 +656,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/seaice/climatology.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="266">
-          <caret line="118" column="36" lean-forward="false" selection-start-line="118" selection-start-column="36" selection-end-line="118" selection-end-column="36" />
-          <folding>
-            <element signature="e#236#254#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/seaice/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="11">
-          <caret line="23" column="17" lean-forward="false" selection-start-line="23" selection-start-column="0" selection-end-line="24" selection-end-column="0" />
-          <folding>
-            <element signature="e#681#12342#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/data_sample/ice_cores/ics_list.txt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="34">
           <caret line="2" column="75" lean-forward="false" selection-start-line="2" selection-start-column="75" selection-end-line="2" selection-end-column="75" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -790,38 +675,106 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="153">
           <caret line="9" column="17" lean-forward="false" selection-start-line="9" selection-start-column="7" selection-end-line="9" selection-end-column="17" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/seaice/property/sw.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="306">
+          <caret line="19" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="132" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/seaice/property/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="236">
+          <caret line="19" column="86" lean-forward="false" selection-start-line="19" selection-start-column="86" selection-end-line="19" selection-end-column="86" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/seaice/climatology.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="397">
+          <caret line="118" column="36" lean-forward="false" selection-start-line="118" selection-start-column="36" selection-end-line="118" selection-end-column="36" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/seaice/property/ice.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="272">
+          <caret line="19" column="0" lean-forward="false" selection-start-line="19" selection-start-column="0" selection-end-line="19" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/seaice/property/brine.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="219">
+          <caret line="24" column="0" lean-forward="false" selection-start-line="24" selection-start-column="0" selection-end-line="24" selection-end-column="0" />
           <folding>
-            <element signature="e#843#1879#0" expanded="false" />
-            <element signature="e#1943#2913#0" expanded="false" />
-            <element signature="e#3486#3889#0" expanded="false" />
-            <element signature="e#3969#6049#0" expanded="false" />
-            <element signature="e#6133#9407#0" expanded="false" />
-            <element signature="e#9570#10711#0" expanded="false" />
+            <element signature="e#139#157#0" expanded="false" />
+            <element signature="e#643#1612#0" expanded="false" />
+            <element signature="e#1649#2372#0" expanded="false" />
+            <element signature="e#2408#3697#0" expanded="false" />
+            <element signature="e#3734#5795#0" expanded="false" />
+            <element signature="e#5840#7368#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/seaice/core/profile.py">
+    <entry file="file://$PROJECT_DIR$/seaice/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="102">
-          <caret line="478" column="35" lean-forward="true" selection-start-line="0" selection-start-column="0" selection-end-line="679" selection-end-column="0" />
+        <state relative-caret-position="397">
+          <caret line="31" column="25" lean-forward="false" selection-start-line="31" selection-start-column="25" selection-end-line="31" selection-end-column="25" />
           <folding>
-            <element signature="e#667#720#0" expanded="false" />
-            <element signature="e#12899#14602#0" expanded="false" />
-            <element signature="e#15893#16740#0" expanded="false" />
-            <element signature="e#23708#25092#0" expanded="false" />
-            <element signature="e#25161#26380#0" expanded="false" />
-            <element signature="e#26433#26888#0" expanded="false" />
-            <element signature="e#26941#27395#0" expanded="false" />
-            <element signature="e#27470#28023#0" expanded="false" />
-            <element signature="e#28066#28266#0" expanded="false" />
+            <element signature="e#395#409#0" expanded="false" />
+            <element signature="e#755#12416#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/testing.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="474">
+          <caret line="63" column="17" lean-forward="false" selection-start-line="63" selection-start-column="0" selection-end-line="64" selection-end-column="0" />
+          <folding>
+            <element signature="e#45#66#0" expanded="true" />
+            <element signature="e#3541#4932#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/seaice/property/si.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-102">
+          <caret line="13" column="27" lean-forward="true" selection-start-line="13" selection-start-column="27" selection-end-line="13" selection-end-column="27" />
+          <folding>
+            <element signature="e#845#3859#0" expanded="false" />
+            <element signature="e#3929#7459#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/seaice/core/corestack.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1589">
+          <caret line="246" column="0" lean-forward="false" selection-start-line="246" selection-start-column="0" selection-end-line="246" selection-end-column="0" />
+          <folding>
+            <element signature="e#94#108#0" expanded="true" />
+            <element signature="e#657#774#0" expanded="false" />
+            <element signature="e#815#928#0" expanded="false" />
+            <element signature="e#4848#5158#0" expanded="false" />
+            <element signature="e#11021#11057#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/seaice/core_old.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="576">
+        <state relative-caret-position="0">
           <caret line="207" column="40" lean-forward="false" selection-start-line="207" selection-start-column="26" selection-end-line="207" selection-end-column="40" />
           <folding>
             <element signature="e#2102#7791#0" expanded="false" />
@@ -832,39 +785,20 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/seaice/core/corestack.py">
+    <entry file="file://$PROJECT_DIR$/seaice/core/profile.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="481">
-          <caret line="282" column="8" lean-forward="true" selection-start-line="282" selection-start-column="8" selection-end-line="282" selection-end-column="8" />
+        <state relative-caret-position="119">
+          <caret line="311" column="14" lean-forward="false" selection-start-line="311" selection-start-column="12" selection-end-line="311" selection-end-column="14" />
           <folding>
-            <element signature="e#94#108#0" expanded="true" />
-            <element signature="e#657#774#0" expanded="false" />
-            <element signature="e#815#928#0" expanded="false" />
-            <element signature="e#4773#5083#0" expanded="false" />
-            <element signature="e#10648#11372#0" expanded="false" />
-            <element signature="e#11397#11603#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/testing.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="442">
-          <caret line="89" column="21" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="303" selection-end-column="81" />
-          <folding>
-            <element signature="e#45#66#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/seaice/property/si.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="289">
-          <caret line="291" column="19" lean-forward="true" selection-start-line="291" selection-start-column="19" selection-end-line="291" selection-end-column="19" />
-          <folding>
-            <element signature="e#140#154#0" expanded="true" />
-            <element signature="e#846#3863#0" expanded="false" />
-            <element signature="e#3933#7466#0" expanded="false" />
+            <element signature="e#667#720#0" expanded="false" />
+            <element signature="e#14679#23556#0" expanded="false" />
+            <element signature="e#15913#16760#0" expanded="false" />
+            <element signature="e#23728#25112#0" expanded="false" />
+            <element signature="e#25181#26400#0" expanded="false" />
+            <element signature="e#26453#26908#0" expanded="false" />
+            <element signature="e#26961#27415#0" expanded="false" />
+            <element signature="e#27490#28043#0" expanded="false" />
+            <element signature="e#28086#28286#0" expanded="false" />
           </folding>
         </state>
       </provider>

@@ -123,13 +123,16 @@ class CoreStack(pd.DataFrame):
 
         return CoreStack(grouped_stat(self, groups, variables=variables, stats=stats))
 
-    def discretize(self, y_bins=None, y_mid=None, variables=None, display_figure=False, fill_gap=False, fill_extremity=False):
+    def discretize(self, y_bins=None, y_mid=None, variables=None, display_figure=False, fill_gap=False,
+                   fill_extremity=False):
         """
 
         :param y_bins:
         :param y_mid:
         :param variables:
         :param display_figure:
+        :param fill_extremity:
+        :param fill_gap:
         :return:
         """
         if variables is None:
@@ -239,25 +242,30 @@ def grouped_stat(ics_stack, groups, variables=None, stats=('min', 'mean', 'max',
         data = ics_stack[ics_stack.variable == variable]
 
         # apply weight
-        data['_weight_property'] = data['weight'] * data[variable]
-        data['_weight_where_notnull'] = data['weight'] * pd.notnull(data[variable])
+        _values = data['weight'] * data[variable]
+        data.loc[ics_stack.variable == variable, '_weight_property'] = _values.values
+        _values = data['weight'] * pd.notnull(data[variable])
+        data.loc[ics_stack.variable == variable, '_weight_where_notnull'] = _values.values
+        del _values
 
         data_grouped = data.groupby(cuts)
 
         for stat in stats:
             if stat in ['sum', 'mean']:
-                func = "kgroups['_weight_property']." + stat + "()" #/kgroups['_weight_where_notnull']." + stat + "()"
+                func = "kgroups.loc[~kgroups._weight_property.isna(), '_weight_property']." + stat + "()"
             elif stat in ['min', 'max', 'std']:
-                func = "kgroups['" + variable + "']." + stat + "()"
+                func = "kgroups.loc[~kgroups._weight_property.isna(), '" + variable + "']." + stat + "()"
             else:
                 logger.error("%s operation not defined. Open a bug report" % stat)
+                return 0
             logger.info('\tcomputing %s' % stat)
 
             stat_var = np.nan * np.ones(dim)
-            core_var = [None for i in range(np.prod(dim))]
+            core_var = [None for i in range(int(np.prod(dim)))]
             for k1, kgroups in data_grouped:
                 stat_var[tuple(np.array(k1, dtype=int))] = eval(func)
-                core_var[int(np.prod(np.array(k1)+1)-1)] = ', '.join(list(kgroups['name'].unique()))
+                core_var[int(np.prod(np.array(k1)+1)-1)] = ', '.join(list(kgroups.loc[~kgroups._weight_property.isna(),
+                                                                                      'name'].unique()))
             core_var = np.reshape(core_var, dim)
 
             # run over ndim, minus the ice thickness
@@ -301,35 +309,35 @@ def grouped_stat(ics_stack, groups, variables=None, stats=('min', 'mean', 'max',
     return CoreStack(temp_all)
 
 
-def grouped_ic(ics_stack, groups):
-    """
-
-    :param ics_stack:
-    :param groups:
-    :return:
-    """
-
-    logger = logging.getLogger(__name__)
-
-    groups_ordered = list(groups.keys())
-
-    cuts = []
-    dim = []
-    for group in groups_ordered:
-        cuts.append(pd.cut(ics_stack[group], groups[group], labels=False))
-        dim.append(groups[group].__len__()-1)
-
-    temp_all = pd.DataFrame()
-    logger.info('grouping ice core by %s' % ", ".join(groups_ordered))
-
-    data_grouped = ics_stack.groupby(cuts)
-
-    core_var = [None for i in range(np.prod(dim))]
-    for k1, kgroups in data_grouped:
-        core_var[int(np.prod(np.array(k1)+1)-1)] = sorted(kgroups['name'].unique())
-    core_var = np.reshape(core_var, dim)
-
-    return CoreStack(temp_all)
+# def grouped_ic(ics_stack, groups):
+#     """
+#
+#     :param ics_stack:
+#     :param groups:
+#     :return:
+#     """
+#
+#     logger = logging.getLogger(__name__)
+#
+#     groups_ordered = list(groups.keys())
+#
+#     cuts = []
+#     dim = []
+#     for group in groups_ordered:
+#         cuts.append(pd.cut(ics_stack[group], groups[group], labels=False))
+#         dim.append(groups[group].__len__()-1)
+#
+#     temp_all = pd.DataFrame()
+#     logger.info('grouping ice core by %s' % ", ".join(groups_ordered))
+#
+#     data_grouped = ics_stack.groupby(cuts)
+#
+#     core_var = [None for i in range(int(np.prod(dim)))]
+#     for k1, kgroups in data_grouped:
+#         core_var[int(np.prod(np.array(k1)+1)-1)] = sorted(kgroups['name'].unique())
+#     core_var = np.reshape(core_var, dim)
+#
+#     return CoreStack(temp_all)
 
 
 def indices(dim):

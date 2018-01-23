@@ -17,14 +17,13 @@ __status__ = "development"
 __date__ = "2017/09/13"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 __name__ = "si"
-
-logger = logging.getLogger(__name__)
-
 __all__ = ["air_volume_fraction", 'brine_volume_fraction', "density", "electric_conductivity", "latentheat",
            "permeability", "resistivity", "specific_heat_capacity", "thermal_conductivity", "thermal_diffusivity"]
 
-import seaice.property.ice as ice
-import seaice.property.si as si
+logger = logging.getLogger(__name__)
+
+from seaice.property import ice
+from seaice.property import brine
 
 def air_volume_fraction(t, s, rho_si='default'):
     """
@@ -64,7 +63,7 @@ def air_volume_fraction(t, s, rho_si='default'):
 
     if rho_si is 'default':
         logger.info('rho_si computed from t and s')
-        rho_si = si.density(t, s)
+        rho_si = density(t, s)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
     if rho_si.size == 1:
@@ -161,7 +160,7 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005):
 
     if rho_si is 'default':
         logger.info('rho_si computed from t and s')
-        rho_si = si.density(t, s)
+        rho_si = density(t, s)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d([rho_si]).astype(float)
     if rho_si.size == 1:
@@ -355,7 +354,7 @@ def electric_conductivity(t, s, rho_si='default', vf_a=0.005):
         return 0
 
     sigma_b = brine.electric_conductivity(t)
-    vf_b = bine_volume_fraction(t, s, rho_si=rho_si, vf=vf_a)
+    vf_b = brine_volume_fraction(t, s, rho_si=rho_si, vf=vf_a)
 
     sigma_si = sigma_b*vf_b**2.88
 
@@ -473,7 +472,7 @@ def permeability(t, s, rho_si='default', vf_a=0.005):
         logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
         return 0
 
-    k = 3 * bine_volume_fraction(t, s, rho_si, vf_a=vf_a)**3*1e-8
+    k = 3 * brine_volume_fraction(t, s, rho_si, vf_a=vf_a)**3*1e-8
 
     return k
 

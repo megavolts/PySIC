@@ -22,11 +22,14 @@ import pandas as pd
 from seaice.io.icxl import *
 from seaice.core.corestack import *
 import seaice.core.plot
+import seaice.property
+
 # import seaice.core.tool
 # import seaice.core.plot
 # import seaice.climatology
-# import seaice.property.brine
-
+import seaice.property.brine
+import seaice.property.ice
+import seaice.property.si
 
 TOL = 1e-6
 

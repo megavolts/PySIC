@@ -29,3 +29,4 @@ prop_latex = {'salinity': 'S',
                  'snow thickness': 'h_{s}',
                  'seaice permeability': '\kappa'
                  }
+
