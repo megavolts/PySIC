@@ -19,7 +19,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from seaice.core.corestack import *
+import seaice.core.corestack
 import seaice.core.plot
 import seaice.property
 
@@ -136,10 +136,16 @@ class Core:
                 self.comment += '; ' + comment
 
     def length(self):
-        return self.profile.length.unique()
+        if 'length' in self.profile:
+            return self.profile.length.unique()
+        else:
+            return np.array([]).astype(str)
 
     def variables(self):
-        return self.profile.variable.unique()
+        if 'variable' in self.profile:
+            return self.profile.variable.unique()
+        else:
+            return np.array([]).astype(str)
 
     def del_variable(self, variable):
         """

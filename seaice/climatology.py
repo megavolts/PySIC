@@ -97,7 +97,7 @@ def grouped_stat(ics_stack, variables, stats, bins_DD, bins_y, comment=False):
                                                          ['name'].unique())]
             for ii_bin in range(stat_var.__len__()):
                 temp = pd.DataFrame(stat_var[ii_bin], columns=[ii_variable])
-                temp = temp.join(pd.DataFrame(core_var[ii_bin], columns=['core collection']))
+                temp = temp.join(pd.DataFrame(core_var[ii_bin], columns=['collection']))
                 DD_label = 'DD-' + str(bins_DD[ii_bin]) + '_' + str(bins_DD[ii_bin + 1])
                 data = [str(bins_DD[ii_bin]), str(bins_DD[ii_bin + 1]), DD_label, int(ii_bin), ii_stat,
                         ii_variable, ics_stack.v_ref.unique()[0]]
@@ -106,9 +106,9 @@ def grouped_stat(ics_stack, variables, stats, bins_DD, bins_y, comment=False):
                 temp = temp.join(pd.DataFrame([data], columns=columns, index=index))
                 temp = temp.join(pd.DataFrame(index, columns=['y_index'], index=index))
                 for row in temp.index.tolist():
-                    #temp.loc[temp.index == row, 'n'] = temp.loc[temp.index == row, 'core collection'].__len__()
-                    if temp.loc[temp.index == row, 'core collection'][row] is not None:
-                        temp.loc[temp.index == row, 'n'] = temp.loc[temp.index == row, 'core collection'][row].__len__()
+                    #temp.loc[temp.index == row, 'n'] = temp.loc[temp.index == row, 'collection'].__len__()
+                    if temp.loc[temp.index == row, 'collection'][row] is not None:
+                        temp.loc[temp.index == row, 'n'] = temp.loc[temp.index == row, 'collection'][row].__len__()
                     else:
                         temp.loc[temp.index == row, 'n'] = 0
                 columns = ['y_low', 'y_sup', 'y_mid']

@@ -25,226 +25,6 @@ __all__ = ["discretize_profile", "set_vertical_reference", "select_profile", "se
            "delete_profile"]
 
 TOL = 1e-6
-
-# TODO create a function to fill gap within a profile
-# this version fo discretize_profile is deprecated
-# def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display_figure=False, fill_gap=True):
-#     """
-#     :param profile:
-#     :param y_bins:
-#     :param y_mid:
-#     :param variables:
-#     :param display_figure:
-#     :param fill_gap:
-#     :return:
-#     """
-#     logger = logging.getLogger(__name__)
-#
-#     if profile.empty:
-#         logger.warning("Discretization impossible, empty profile")
-#         return profile
-#     else:
-#         if 'name' in profile.keys():
-#             logger.info("Processing %s" % profile.name.unique()[0])
-#         else:
-#             logger.info("Processing")
-#
-#     v_ref = profile.v_ref.unique()[0]
-#
-#     # VARIABLES CHECK
-#     if y_bins is None and y_mid is None:
-#         y_bins = pd.Series(profile.y_low.dropna().tolist() + profile.y_sup.dropna().tolist()).sort_values().unique()
-#         y_mid = profile.y_mid.dropna().sort_values().unique()
-#         logger.info("y_bins and y_mid are empty, creating from profile")
-#     elif y_bins is None:
-#         if y_mid is not None:
-#             logger.info("y_bins is empty, creating from given y_mid")
-#             y_mid = y_mid.sort_values().values
-#             dy = np.diff(y_mid) / 2
-#             y_bins = np.concatenate([[y_mid[0] - dy[0]], y_mid[:-1] + dy, [y_mid[-1] + dy[-1]]])
-#             if y_bins[0] < 0:
-#                 y_bins[0] = 0
-#     elif y_mid is None:
-#         if y_bins is not None:
-#             y_mid = np.diff(y_bins) / 2 + y_bins[:-1]
-#             logger.info("y_mid is empty, creating from given y_bins")
-#
-#     y_bins = np.array(y_bins)
-#     y_mid = np.array(y_mid)
-#
-#     if variables is None:
-#         variables = [variable for variable in profile.variable.unique().tolist() if variable in profile.keys()]
-#
-#     if not isinstance(variables, list):
-#         variables = [variables]
-#
-#     discretized_profile = pd.DataFrame()
-#
-#     for variable in variables:
-#         temp = pd.DataFrame()
-#
-#         if profile[profile.variable == variable].empty:
-#             logger.debug("\t %s profile is missing" % variable)
-#         else:
-#             logger.debug("\t %s profile is discretized" % variable)
-#
-#         # continuous profile (temperature-like)
-#         if is_continuous_profile(profile[profile.variable == variable]):
-#             yx = profile[profile.variable == variable].set_index('y_mid').sort_index()[[variable]]
-#             yx = yx.dropna(how='all')  # drop row with all NA value
-#
-#             y2x = yx.reindex(y_mid)
-#             for index in yx.index:
-#                 y2x.loc[abs(y2x.index - index) < 1e-6, variable] = yx.loc[yx.index == index, variable].values
-#             dat_temp = np.interp(y2x.index, yx.index, yx[variable].astype(float), left=np.nan, right=np.nan)
-#             y2x = pd.DataFrame(dat_temp, index=y2x.index, columns=[variable])
-#             temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(y_mid.__len__()))
-#             temp.update(y2x.reset_index())
-#
-#             profile_prop = profile.head(1)
-#             profile_prop = profile_prop.drop(variable, 1)
-#             profile_prop['variable'] = variable
-#             if 'y_low' in profile_prop:
-#                 profile_prop = profile_prop.drop('y_low', 1)
-#             profile_prop = profile_prop.drop('y_mid', 1)
-#             if 'y_sup' in profile_prop:
-#                 profile_prop = profile_prop.drop('y_sup', 1)
-#             temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
-#                                      index=temp.index.tolist()))
-#             if 'date' in temp:
-#                 temp['date'] = temp['date'].astype('datetime64[ns]')
-#
-#             if display_figure:
-#                 plt.figure()
-#                 yx = yx.reset_index()
-#                 plt.plot(yx[variable], yx['y_mid'], 'k')
-#                 plt.plot(temp[variable], temp['y_mid'], 'xr')
-#                 if 'name' in profile_prop.keys():
-#                     plt.title(profile_prop.name.unique()[0] + ' - ' + variable)
-#
-#         # step profile (salinity-like)
-#         elif ('y_low' in profile and not profile[profile.variable == variable].y_low.isnull().all() and
-#                       profile[profile.variable == variable].y_low.__len__() > 0):
-#             if v_ref == 'bottom':
-#                 yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
-#                     ['y_sup', 'y_low', variable])
-#                 if yx[0, 0] > yx[0, 1]:
-#                     yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
-#                         ['y_low', 'y_sup', variable])
-#             else:
-#                 yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
-#                     ['y_low', 'y_sup', variable])
-#
-#             x_step = []
-#             y_step = []
-#             ii_bin = 0
-#
-#             if yx[0, 0] - y_bins[0] <= TOL:
-#                 ii_yx = np.where(yx[:, 0] - y_bins[0] <= TOL)[0][-1]
-#             else:
-#                 ii_bin = np.where(y_bins - yx[0, 0] <= TOL)[0][-1]
-#                 ii_yx = 0
-#                 ii = 0
-#                 while ii < ii_bin:
-#                     y_step.append(y_bins[ii])
-#                     y_step.append(y_bins[ii + 1])
-#                     x_step.append(np.nan)
-#                     x_step.append(np.nan)
-#                     ii += 1
-#
-#             # skip first bin, if value not completely in:
-#             if yx[ii_yx, 0] - y_bins[ii_bin] >= TOL:
-#                 y_step.append(y_bins[ii])
-#                 y_step.append(y_bins[ii + 1])
-#                 x_step.append(np.nan)
-#                 x_step.append(np.nan)
-#                 ii_bin  +=1
-#                 while yx[ii_yx, 1] - y_bins[ii_bin] <= TOL:
-#                     ii_yx += 1
-#
-#             while ii_bin < y_bins.__len__() - 1:
-#
-#                 while ii_bin + 1 < y_bins.__len__() and y_bins[ii_bin + 1] - yx[ii_yx, 1] <= TOL and ii_yx < yx.__len__():
-#                     sy = s_nan(yx, ii_yx, fill_gap)
-#                     y_step.append(y_bins[ii_bin])
-#                     y_step.append(y_bins[ii_bin + 1])
-#                     x_step.append(sy)
-#                     x_step.append(sy)
-#                     ii_bin += 1
-#                     ii_yx += 1
-#
-#                 if not yx[-1, 1] - y_bins[ii_bin] <= TOL:
-#                     ly = 0
-#                     sy = 0
-#                     if ii_yx < yx[:, 0].__len__() - 1:
-#                         while ii_yx < yx[:, 0].__len__() - 1 and yx[ii_yx, 1] - y_bins[ii_bin + 1] <= TOL:
-#                             ly += (yx[ii_yx, 1] - y_bins[ii_bin])
-#                             sy += (yx[ii_yx, 1] - y_bins[ii_bin]) * s_nan(yx, ii_yx, fill_gap)
-#                             ii_yx += 1
-#
-#                         if yx[ii_yx, 0] - y_bins[ii_bin + 1] <= TOL:
-#                             sy += (y_bins[ii_bin + 1] - yx[ii_yx, 0]) * s_nan(yx, ii_yx, fill_gap)
-#                             ly += y_bins[ii_bin + 1] - yx[ii_yx, 0]
-#                         if ly > TOL:
-#                             sy = sy / ly
-#                         else:
-#                             sy = np.nan
-#
-#                     else:
-#                         sy = yx[-1, -1]
-#                     y_step.append(y_bins[ii_bin])
-#                     y_step.append(y_bins[ii_bin + 1])
-#                     x_step.append(sy)
-#                     x_step.append(sy)
-#                     ii_bin += 1
-#
-#                 else:
-#                     while ii_bin + 1 < y_bins.__len__():
-#                         y_step.append(y_bins[ii_bin])
-#                         y_step.append(y_bins[ii_bin + 1])
-#                         x_step.append(np.nan)
-#                         x_step.append(np.nan)
-#                         ii_bin += 1
-#
-#             temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(np.unique(y_step).__len__() - 1))
-#             temp.update(pd.DataFrame(np.vstack(
-#                 (np.unique(y_step)[:-1], np.unique(y_step)[:-1] + np.diff(np.unique(y_step)) / 2, np.unique(y_step)[1:],
-#                  [x_step[2 * ii] for ii in
-#                   range(int(x_step.__len__() / 2))])).transpose(),
-#                                      columns=['y_low', 'y_mid', 'y_sup', variable],
-#                                      index=temp.index[0:np.unique(y_step).__len__() - 1]))
-#
-#             # properties
-#             profile_prop = profile.head(1)
-#             profile_prop = profile_prop.drop(variable, 1)
-#             profile_prop['variable'] = variable
-#             profile_prop = profile_prop.drop('y_low', 1)
-#             profile_prop = profile_prop.drop('y_mid', 1)
-#             profile_prop = profile_prop.drop('y_sup', 1)
-#             temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
-#                                      index=temp.index.tolist()))
-#             if 'date' in temp:
-#                 temp['date'] = temp['date'].astype('datetime64[ns]')
-#
-#             if display_figure:
-#                 plt.figure()
-#                 x = []
-#                 y = []
-#                 for ii in range(yx[:, 0].__len__()):
-#                     y.append(yx[ii, 0])
-#                     y.append(yx[ii, 1])
-#                     x.append(yx[ii, 2])
-#                     x.append(yx[ii, 2])
-#                 plt.step(x, y, 'bx')
-#                 plt.step(x_step, y_step, 'ro')
-#                 if 'name' in profile_prop.keys():
-#                     plt.title(profile_prop.name.unique()[0] + ' - ' + variable)
-#
-#         discretized_profile = discretized_profile.append(temp)
-#
-#     return discretized_profile
-#
-
 def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display_figure=False, fill_gap=False, fill_extremity=False):
     """
     :param profile:
@@ -306,223 +86,242 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
         else:
             logger.debug("\t %s profile is discretized" % variable)
 
-        # continuous profile (temperature-like)
-        if is_continuous_profile(profile[profile.variable == variable]):
-            yx = profile.loc[profile.variable == variable, ['y_mid', variable]].set_index('y_mid')
-            y2 = y_mid
-            x2 = np.interp(y2, yx.index, yx[variable], left=np.nan, right=np.nan)
+            # continuous profile (temperature-like)
+            if is_continuous_profile(profile[profile.variable == variable]):
+                yx = profile.loc[profile.variable == variable, ['y_mid', variable]].set_index('y_mid').sort_index()
+                y2 = y_mid
+                x2 = np.interp(y2, yx.index, yx[variable], left=np.nan, right=np.nan)
 
-            y2x = pd.DataFrame(x2, columns=[variable], index=y2)
-            for index in yx.index:
-                y2x.loc[abs(y2x.index - index) < 1e-6, variable] = yx.loc[yx.index == index, variable].values
+                y2x = pd.DataFrame(x2, columns=[variable], index=y2)
+                for index in yx.index:
+                    y2x.loc[abs(y2x.index - index) < 1e-6, variable] = yx.loc[yx.index == index, variable].values
 
-            temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(y_mid.__len__()))
-            temp.update(y2x.reset_index().rename(columns={'index': 'y_mid'}))
+                temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(y_mid.__len__()))
+                temp.update(y2x.reset_index().rename(columns={'index': 'y_mid'}))
 
-            profile_prop = profile.loc[profile.variable == variable].head(1)
-            profile_prop = profile_prop.drop(variable, 1)
-            profile_prop['variable'] = variable
-            if 'y_low' in profile_prop:
-                profile_prop = profile_prop.drop('y_low', 1)
-            profile_prop = profile_prop.drop('y_mid', 1)
-            if 'y_sup' in profile_prop:
-                profile_prop = profile_prop.drop('y_sup', 1)
+                w = np.nan*np.ones(temp.index.size)
+                # compute weight
+                for ii_bin in range(y_mid.__len__()):
+                    a = np.flatnonzero(yx.index - y_mid[ii_bin] < TOL)
+                    b = np.flatnonzero(y_mid[ii_bin] - yx.index < TOL)
 
-            temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
-                                     index=temp.index.tolist()))
-            if 'date' in temp:
-                temp['date'] = temp['date'].astype('datetime64[ns]')
+                    if a.size == 0 or b.size == 0:
+                        w[ii_bin] = 0
+                    elif b.size > 0 and y_bins[ii_bin]-yx.index[0] < TOL:
+                        w[ii_bin] = (y_bins[ii_bin+1]-yx.index[0])/(y_bins[ii_bin+1]-y_bins[ii_bin])
+                    elif a.size > 0 and yx.index[-1] - y_bins[ii_bin+1] < -TOL:
+                        w[ii_bin] = (yx.index[-1] - y_bins[ii_bin])/(y_bins[ii_bin+1]-y_bins[ii_bin])
+                    else:
+                        w[ii_bin] = 1
+                temp['weight'] = pd.Series(w, index=temp.index)
+                profile_prop = profile.loc[profile.variable == variable].head(1)
+                profile_prop = profile_prop.drop(variable, 1)
+                profile_prop['variable'] = variable
+                if 'y_low' in profile_prop:
+                    profile_prop = profile_prop.drop('y_low', 1)
+                profile_prop = profile_prop.drop('y_mid', 1)
+                if 'y_sup' in profile_prop:
+                    profile_prop = profile_prop.drop('y_sup', 1)
 
-            if display_figure:
-                plt.figure()
-                yx = yx.reset_index()
-                plt.plot(yx[variable], yx['y_mid'], 'k')
-                plt.plot(temp[variable], temp['y_mid'], 'xr')
-                if 'name' in profile_prop.keys():
-                    plt.title(profile_prop.name.unique()[0] + ' - ' + variable)
+                temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
+                                         index=temp.index.tolist()))
+                if 'date' in temp:
+                    temp['date'] = temp['date'].astype('datetime64[ns]')
 
-        # step profile (salinity-like)
-        else:
-            if v_ref == 'bottom':
-                yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
-                    ['y_sup', 'y_low', variable])
-                if yx[0, 0] > yx[0, 1]:
+                if display_figure:
+                    plt.figure()
+                    yx = yx.reset_index()
+                    plt.plot(yx[variable], yx['y_mid'], 'k')
+                    plt.plot(temp[variable], temp['y_mid'], 'xr')
+                    if 'name' in profile_prop.keys():
+                        plt.title(profile_prop.name.unique()[0] + ' - ' + variable)
+
+            # step profile (salinity-like)
+            else:
+                if v_ref == 'bottom':
+                    yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
+                        ['y_sup', 'y_low', variable])
+                    if yx[0, 0] > yx[0, 1]:
+                        yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
+                            ['y_low', 'y_sup', variable])
+                else:
                     yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
                         ['y_low', 'y_sup', variable])
-            else:
-                yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
-                    ['y_low', 'y_sup', variable])
-            # for testing purpose only, inverse profile
-            # y_bins = -y_bins
-            # yx = -yx
-            # yx = np.vstack(([yx[:, 1]], [yx[:, 0]], [yx[:, 2]])).transpose()
+                # for testing purpose only, inverse profile
+                # y_bins = -y_bins
+                # yx = -yx
+                # yx = np.vstack(([yx[:, 1]], [yx[:, 0]], [yx[:, 2]])).transpose()
 
-            # if missing section, add an emtpy section with np.nan as property value
-            yx_new = []
-            for row in range(yx[:, 0].__len__()-1):
-                yx_new.append(yx[row])
-                if abs(yx[row, 1]-yx[row+1, 0]) > TOL:
-                    yx_new.append([yx[row, 1], yx[row+1, 0], np.nan])
-            yx_new.append(yx[row+1, :])
-            yx = np.array(yx_new)
-            del yx_new
+                # if missing section, add an emtpy section with np.nan as property value
+                yx_new = []
+                for row in range(yx[:, 0].__len__()-1):
+                    yx_new.append(yx[row])
+                    if abs(yx[row, 1]-yx[row+1, 0]) > TOL:
+                        yx_new.append([yx[row, 1], yx[row+1, 0], np.nan])
+                yx_new.append(yx[row+1, :])
+                yx = np.array(yx_new)
+                del yx_new
 
-            if fill_gap:
-                value = pd.Series(yx[:, 2])
-                value_low = value.fillna(method='ffill')
-                value_sup = value.fillna(method='bfill')
+                if fill_gap:
+                    value = pd.Series(yx[:, 2])
+                    value_low = value.fillna(method='ffill')
+                    value_sup = value.fillna(method='bfill')
 
-                ymid = pd.Series(yx[:, 0]+(yx[:, 1]-yx[:, 0])/2)
-                ymid2 = pd.Series(None, index=value.index)
-                ymid2[np.isnan(value)] = ymid[np.isnan(value)]
+                    ymid = pd.Series(yx[:, 0]+(yx[:, 1]-yx[:, 0])/2)
+                    ymid2 = pd.Series(None, index=value.index)
+                    ymid2[np.isnan(value)] = ymid[np.isnan(value)]
 
-                dy = pd.DataFrame(yx[:, 0:2], columns=['y_low', 'y_sup'])
-                dy2 = pd.DataFrame([[None, None]], index=value.index, columns=['y_low', 'y_sup'])
-                dy2[~np.isnan(value)] = dy[~np.isnan(value)]
-                dy2w = dy2['y_low'].fillna(method='bfill') - dy2['y_sup'].fillna(method='ffill')
-                new_value = value_low + (ymid2 - dy2['y_sup'].fillna(method='ffill'))*(value_sup-value_low)/dy2w
-                value.update(new_value)
+                    dy = pd.DataFrame(yx[:, 0:2], columns=['y_low', 'y_sup'])
+                    dy2 = pd.DataFrame([[None, None]], index=value.index, columns=['y_low', 'y_sup'])
+                    dy2[~np.isnan(value)] = dy[~np.isnan(value)]
+                    dy2w = dy2['y_low'].fillna(method='bfill') - dy2['y_sup'].fillna(method='ffill')
+                    new_value = value_low + (ymid2 - dy2['y_sup'].fillna(method='ffill'))*(value_sup-value_low)/dy2w
+                    value.update(new_value)
 
-                yx[:, 2] = value
+                    yx[:, 2] = value
 
-            x_step = []
-            y_step = []
-            w_step = []  # weight of the bin, defined as the portion on which the property is define
-            # yx and y_bins should be ascendent suit
-            if (np.diff(y_bins) < 0).all():
-                logger.info("y_bins is descending reverting the list")
-                y_bins = y_bins[::-1]
-            elif (np.diff(y_bins) > 0).all():
-                logger.debug("y_bins is ascending")
-            else:
-                logger.info("y_bins is not sorted")
-            if (np.diff(yx[:, 0]) < 0).all():
-                logger.info("yx is descending reverting the list")
-                yx = yx[::-1, :]
-            elif (np.diff(yx[:, 0]) > 0).all():
-                logger.debug("yx is ascending")
-            else:
-                logger.info("yx is not sorted")
+                x_step = []
+                y_step = []
+                w_step = []  # weight of the bin, defined as the portion on which the property is define
+                # yx and y_bins should be ascendent suit
+                if (np.diff(y_bins) < 0).all():
+                    logger.info("y_bins is descending reverting the list")
+                    y_bins = y_bins[::-1]
+                elif (np.diff(y_bins) > 0).all():
+                    logger.debug("y_bins is ascending")
+                else:
+                    logger.info("y_bins is not sorted")
+                if (np.diff(yx[:, 0]) < 0).all():
+                    logger.info("yx is descending reverting the list")
+                    yx = yx[::-1, :]
+                elif (np.diff(yx[:, 0]) > 0).all():
+                    logger.debug("yx is ascending")
+                else:
+                    logger.info("yx is not sorted")
 
-            for ii_bin in range(y_bins.__len__()-1):
-                a = np.flatnonzero((yx[:, 0] - y_bins[ii_bin] < -TOL) & ( y_bins[ii_bin] - yx[:, 1] < -TOL))
-                a = np.concatenate((a, np.flatnonzero((y_bins[ii_bin] - yx[:, 0] <= TOL) & (yx[:, 1] - y_bins[ii_bin+1] <= TOL))))
-                a = np.concatenate((a, np.flatnonzero((yx[:, 0] - y_bins[ii_bin+1] < -TOL) & ( y_bins[ii_bin+1] - yx[:, 1] < -TOL))))
-                a = np.unique(a)
-                #print(y_bins[ii_bin], y_bins[ii_bin+1])
-                #print(a, yx[a])
-                #print()
+                for ii_bin in range(y_bins.__len__()-1):
+                    a = np.flatnonzero((yx[:, 0] - y_bins[ii_bin] < -TOL) & ( y_bins[ii_bin] - yx[:, 1] < -TOL))
+                    a = np.concatenate((a, np.flatnonzero((y_bins[ii_bin] - yx[:, 0] <= TOL) & (yx[:, 1] - y_bins[ii_bin+1] <= TOL))))
+                    a = np.concatenate((a, np.flatnonzero((yx[:, 0] - y_bins[ii_bin+1] < -TOL) & ( y_bins[ii_bin+1] - yx[:, 1] < -TOL))))
+                    a = np.unique(a)
+                    #print(y_bins[ii_bin], y_bins[ii_bin+1])
+                    #print(a, yx[a])
+                    #print()
 
-                if a.size != 0:
-                    S = np.nan
-                    L = 0
-                    L_nan = 0
-                    a_ii = 0
-                    if yx[a[a_ii], 0] - y_bins[ii_bin] < -TOL:
-                        S_temp = yx[a[a_ii], 2]*(yx[a[a_ii], 1] - y_bins[ii_bin])
-                        if not np.isnan(S_temp):
-                            if np.isnan(S):
-                                S = S_temp
-                            else:
-                                S += S_temp
-                            L += (yx[a[a_ii], 1] - y_bins[ii_bin])
-                        else:
-                            L_nan += (yx[a[a_ii], 1] - y_bins[ii_bin])
-                        #print(y_bins[ii_bin], yx[a[a_ii], 1], S_temp)
-                        a_ii +=1
-                    while ii_bin+1 <= y_bins.shape[0]-1 and a_ii < a.shape[0]-1 and yx[a[a_ii], 1] - y_bins[ii_bin+1] < -TOL:
-                        S_temp = yx[a[a_ii], 2] * (yx[a[a_ii], 1]-yx[a[a_ii], 0])
-                        if not np.isnan(S_temp):
-                            if np.isnan(S):
-                                S = S_temp
-                            else:
-                                S += S_temp
-                            L += yx[a[a_ii], 1]-yx[a[a_ii], 0]
-                        else:
-                            L_nan += yx[a[a_ii], 1]-yx[a[a_ii], 0]
-                        #print(yx[a[a_ii], 0], yx[a[a_ii], 1], S_temp)
-                        a_ii += 1
-
-                    if yx[a[a_ii], 1] - y_bins[ii_bin+1] > -TOL:
-                        S_temp = yx[a[a_ii], 2] * (y_bins[ii_bin+1] -yx[a[a_ii], 0])
-                        if not np.isnan(S_temp):
-                            if np.isnan(S):
-                                S = S_temp
-                            else:
-                                S += S_temp
-                            L += (y_bins[ii_bin+1] - yx[a[a_ii], 0])
-                        else:
-                            L_nan += (y_bins[ii_bin+1] - yx[a[a_ii], 0])
-                        #print(yx[a[a_ii], 0], y_bins[ii_bin+1], S_temp)
-                    elif yx[a[a_ii], 1] - y_bins[ii_bin + 1] < -TOL:
-                        S_temp = yx[a[a_ii], 2] * (yx[a[a_ii], 1] -yx[a[a_ii], 0])
-                        if not np.isnan(S_temp):
-                            if np.isnan(S):
-                                S = S_temp
-                            else:
-                                S += S_temp
-                            L += (yx[a[a_ii], 1] -yx[a[a_ii], 0])
-                        else:
-                            L_nan += (yx[a[a_ii], 1] -yx[a[a_ii], 0])
-                        # print(yx[a[a_ii], 0], yx[a[a_ii], 1], S_temp)
-
-                    if L !=0:
-                        S = S/L
-                        w = L/(y_bins[ii_bin + 1]-y_bins[ii_bin])
-                    elif L_nan != 0:
+                    if a.size != 0:
                         S = np.nan
-                        w = 0
-                    #print(L)
-                    #print(S)
-                    #print(w)
-                    if yx[a[0], 0] - y_bins[ii_bin] > TOL and not fill_extremity:
-                        y_step.append(yx[a[0], 0])
-                        y_step.append(y_bins[ii_bin + 1])
-                    elif yx[a[-1], 1] - y_bins[ii_bin + 1] < -TOL and not fill_extremity:
-                        y_step.append(y_bins[ii_bin])
-                        y_step.append(yx[a[-1], 1])
-                    else:
-                        y_step.append(y_bins[ii_bin])
-                        y_step.append(y_bins[ii_bin + 1])
-                    x_step.append(S)
-                    x_step.append(S)
-                    w_step.append(w)
+                        L = 0
+                        L_nan = 0
+                        a_ii = 0
+                        if yx[a[a_ii], 0] - y_bins[ii_bin] < -TOL:
+                            S_temp = yx[a[a_ii], 2]*(yx[a[a_ii], 1] - y_bins[ii_bin])
+                            if not np.isnan(S_temp):
+                                if np.isnan(S):
+                                    S = S_temp
+                                else:
+                                    S += S_temp
+                                L += (yx[a[a_ii], 1] - y_bins[ii_bin])
+                            else:
+                                L_nan += (yx[a[a_ii], 1] - y_bins[ii_bin])
+                            #print(y_bins[ii_bin], yx[a[a_ii], 1], S_temp)
+                            a_ii += 1
+                        while ii_bin+1 <= y_bins.shape[0]-1 and a_ii < a.shape[0]-1 and yx[a[a_ii], 1] - y_bins[ii_bin+1] < -TOL:
+                            S_temp = yx[a[a_ii], 2] * (yx[a[a_ii], 1]-yx[a[a_ii], 0])
+                            if not np.isnan(S_temp):
+                                if np.isnan(S):
+                                    S = S_temp
+                                else:
+                                    S += S_temp
+                                L += yx[a[a_ii], 1]-yx[a[a_ii], 0]
+                            else:
+                                L_nan += yx[a[a_ii], 1]-yx[a[a_ii], 0]
+                            #print(yx[a[a_ii], 0], yx[a[a_ii], 1], S_temp)
+                            a_ii += 1
 
-            temp = pd.DataFrame(columns=profile.columns.tolist()+['weight'], index=range(np.unique(y_step).__len__() - 1))
-            temp.update(pd.DataFrame(np.vstack(
-                (np.unique(y_step)[:-1], np.unique(y_step)[:-1] + np.diff(np.unique(y_step)) / 2, np.unique(y_step)[1:],
-                 [x_step[2 * ii] for ii in
-                  range(int(x_step.__len__() / 2))], w_step)).transpose(),
-                                     columns=['y_low', 'y_mid', 'y_sup', variable, 'weight'],
-                                     index=temp.index[0:np.unique(y_step).__len__() - 1]))
+                        # check if a_ii-1 was not the last element of a
+                        if a_ii < a.size:
+                            if yx[a[a_ii], 1] - y_bins[ii_bin+1] > -TOL:
+                                S_temp = yx[a[a_ii], 2] * (y_bins[ii_bin+1] -yx[a[a_ii], 0])
+                                if not np.isnan(S_temp):
+                                    if np.isnan(S):
+                                        S = S_temp
+                                    else:
+                                        S += S_temp
+                                    L += (y_bins[ii_bin+1] - yx[a[a_ii], 0])
+                                else:
+                                    L_nan += (y_bins[ii_bin+1] - yx[a[a_ii], 0])
+                                #print(yx[a[a_ii], 0], y_bins[ii_bin+1], S_temp)
+                            elif yx[a[a_ii], 1] - y_bins[ii_bin + 1] < -TOL:
+                                S_temp = yx[a[a_ii], 2] * (yx[a[a_ii], 1] -yx[a[a_ii], 0])
+                                if not np.isnan(S_temp):
+                                    if np.isnan(S):
+                                        S = S_temp
+                                    else:
+                                        S += S_temp
+                                    L += (yx[a[a_ii], 1] -yx[a[a_ii], 0])
+                                else:
+                                    L_nan += (yx[a[a_ii], 1] -yx[a[a_ii], 0])
+                                # print(yx[a[a_ii], 0], yx[a[a_ii], 1], S_temp)
 
-            # core attribut
-            profile_prop = profile.loc[profile.variable == variable].head(1)
-            profile_prop = profile_prop.drop(variable, 1)
-            profile_prop['variable'] = variable
-            profile_prop = profile_prop.drop('y_low', 1)
-            profile_prop = profile_prop.drop('y_mid', 1)
-            profile_prop = profile_prop.drop('y_sup', 1)
-            temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
-                                     index=temp.index.tolist()))
-            if 'date' in temp:
-                temp['date'] = temp['date'].astype('datetime64[ns]')
+                        if L !=0:
+                            S = S/L
+                            w = L/(y_bins[ii_bin + 1]-y_bins[ii_bin])
+                        elif L_nan != 0:
+                            S = np.nan
+                            w = 0
+                        #print(L)
+                        #print(S)
+                        #print(w)
+                        if yx[a[0], 0] - y_bins[ii_bin] > TOL and not fill_extremity:
+                            y_step.append(yx[a[0], 0])
+                            y_step.append(y_bins[ii_bin + 1])
+                        elif yx[a[-1], 1] - y_bins[ii_bin + 1] < -TOL and not fill_extremity:
+                            y_step.append(y_bins[ii_bin])
+                            y_step.append(yx[a[-1], 1])
+                        else:
+                            y_step.append(y_bins[ii_bin])
+                            y_step.append(y_bins[ii_bin + 1])
+                        x_step.append(S)
+                        x_step.append(S)
+                        w_step.append(w)
 
-            if display_figure:
-                plt.figure()
-                x = []
-                y = []
-                for ii in range(yx[:, 0].__len__()):
-                    y.append(yx[ii, 0])
-                    y.append(yx[ii, 1])
-                    x.append(yx[ii, 2])
-                    x.append(yx[ii, 2])
-                plt.step(x, y, 'bx')
-                plt.step(x_step, y_step, 'ro')
-                if 'name' in profile_prop.keys():
-                    plt.title(profile_prop.name.unique()[0] + ' - ' + variable)
+                temp = pd.DataFrame(columns=profile.columns.tolist()+['weight'], index=range(np.unique(y_step).__len__() - 1))
+                temp.update(pd.DataFrame(np.vstack(
+                    (np.unique(y_step)[:-1], np.unique(y_step)[:-1] + np.diff(np.unique(y_step)) / 2, np.unique(y_step)[1:],
+                     [x_step[2 * ii] for ii in
+                      range(int(x_step.__len__() / 2))], w_step)).transpose(),
+                                         columns=['y_low', 'y_mid', 'y_sup', variable, 'weight'],
+                                         index=temp.index[0:np.unique(y_step).__len__() - 1]))
 
-        discretized_profile = discretized_profile.append(temp)
+                # core attribut
+                profile_prop = profile.loc[profile.variable == variable].head(1)
+                profile_prop = profile_prop.drop(variable, 1)
+                profile_prop['variable'] = variable
+                profile_prop = profile_prop.drop('y_low', 1)
+                profile_prop = profile_prop.drop('y_mid', 1)
+                profile_prop = profile_prop.drop('y_sup', 1)
+                temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
+                                         index=temp.index.tolist()))
+                if 'date' in temp:
+                    temp['date'] = temp['date'].astype('datetime64[ns]')
+
+                if display_figure:
+                    plt.figure()
+                    x = []
+                    y = []
+                    for ii in range(yx[:, 0].__len__()):
+                        y.append(yx[ii, 0])
+                        y.append(yx[ii, 1])
+                        x.append(yx[ii, 2])
+                        x.append(yx[ii, 2])
+                    plt.step(x, y, 'bx')
+                    plt.step(x_step, y_step, 'ro')
+                    if 'name' in profile_prop.keys():
+                        plt.title(profile_prop.name.unique()[0] + ' - ' + variable)
+
+            temp = temp.apply(pd.to_numeric, errors='ignore')
+
+            discretized_profile = discretized_profile.append(temp)
 
     return discretized_profile
 
@@ -561,7 +360,7 @@ def set_profile_orientation(profile, v_ref, hi=None, comment=False):
             data['y_mid'] = hi - data['y_mid']
             data['y_sup'] = hi - data['y_sup']
             data['v_ref'] = v_ref
-        profile = profile.delete_profile({'name': profile.name.unique()[0], 'variable': variable})
+        profile = delete_profile(profile, {'name': profile.name.unique()[0], 'variable': variable})
         profile = profile.append(data)
     return profile
 

@@ -61,7 +61,6 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
 
     if not os.path.exists(ic_path):
         logger.error("%s does not exists in core directory" % ic_path.split('/')[-1])
-        return 0
 
     wb = openpyxl.load_workbook(filename=ic_path)  # load the xlsx spreadsheet
     ws_name = wb.get_sheet_names()
@@ -419,6 +418,13 @@ def read_variable(ws_variable, variables=None, version=__CoreVersion__, v_ref='t
         except:
             logger.info('%s no ice core length' % name)
             length = np.nan
+        else:
+            if length == 'n/a':
+                logger.info('%s ice core length is not available (n/a)' % name)
+                length = np.nan
+            elif not isinstance(length, (int, float)):
+                logger.info('%s ice core length is not a number' % name)
+                length = np.nan
         variable_profile['length'] = length
 
         # convert numeric to float

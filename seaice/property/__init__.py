@@ -105,20 +105,17 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
             logger.error("length of si_prop format does not match length of si_prop. si_prop should be length 1"
                          "or should match length si_prop")
 
-    # initialisation
-    prop_profile = pd.DataFrame()
-
     # check parameters
     if 'salinity' not in s_profile.keys() or not s_profile['salinity'].notnull().any():
         print("no salinity data")
-        return prop_profile
+        return pd.DataFrame()
     else:
         S_core_name = s_profile.name.values[0]
         s_profile.loc[s_profile.variable == 'salinity', 'salinity'] = pd.to_numeric(s_profile['salinity']).values
 
     if 'temperature' not in t_profile.keys() or not t_profile['temperature'].notnull().any():
         print("no temperature data")
-        return prop_profile
+        return pd.DataFrame()
     else:
         T_core_name = t_profile.name.values[0]
         t_profile.loc[t_profile.variable == 'temperature', 'temperature'] = pd.to_numeric(t_profile['temperature']).values
@@ -126,22 +123,22 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
     if resize_core in ['S', S_core_name]:
         if s_profile.length.notnull().all():
             profile_length = s_profile.length.unique()[0]
-        elif s_profile.length.notnull().all():
+        elif s_profile.ice_thickness.notnull().all():
             profile_length = s_profile.ice_thickness.unique()[0]
             print("ice core length unknown, using ice thickness instead")
         else:
-            profile_length = max(s_profile.y_low.min(), s_profile.y_sup.max())[0]
+            profile_length = max(s_profile.y_low.min(), s_profile.y_sup.max())
             print("todo: need warning text")
         if not t_profile.length.unique() == profile_length:
             t_profile = scale_profile(t_profile, profile_length)
     elif resize_core in ['T', T_core_name]:
         if t_profile.length.notnull().all():
             profile_length = t_profile.length.unique()[0]
-        elif t_profile.length.notnull().all():
+        elif t_profile.ice_thickness.notnull().all():
             profile_length = t_profile.ice_thickness.unique()[0]
             print("ice core length unknown, using ice thickness instead")
         else:
-            profile_length = max(t_profile.y_low.min(), t_profile.y_sup.max())[0]
+            profile_length = max(t_profile.y_low.min(), t_profile.y_sup.max())
             print("todo: need warning text")
         if not t_profile.length.unique() == profile_length:
             s_profile = scale_profile(s_profile, profile_length)
@@ -151,17 +148,21 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
     if y_mid.__len__() < 1:
         y_mid = (s_profile.y_low / 2. + s_profile.y_sup / 2).dropna().astype(float)
 
+    # replace the 2 following lines
+    # interp_data = pd.concat([t_profile, pd.DataFrame(y_mid, columns=['y_mid'])])
+    # interp_data = interp_data.set_index('y_mid').sort_index().interpolate(method='index').reset_index().drop_duplicates(subset='y_mid')
+    # with
+    t_profile = t_profile.sort_values(by='y_mid')
 
-
-    interp_data = pd.concat([t_profile, pd.DataFrame(y_mid, columns=['y_mid'])])
-    interp_data = interp_data.set_index('y_mid').sort_index().interpolate(method='index').reset_index().drop_duplicates(
-        subset='y_mid')
+    interp_data = np.interp(y_mid, t_profile['y_mid'].values, t_profile['temperature'].values, left=np.nan, right=np.nan)
+    t_profile2 = pd.DataFrame(np.transpose([interp_data, y_mid]), columns=['temperature', 'y_mid'])
 
     if 'temperature' in s_profile.keys():
         s_profile = s_profile.drop('temperature', axis=1)
-    s_profile = pd.merge(s_profile, interp_data[['temperature', 'y_mid']], on=['y_mid'])
+    s_profile = pd.merge(s_profile, t_profile2, on=['y_mid'])
 
     # compute properties
+    prop_profile = pd.DataFrame()
     for f_prop in si_prop_dict.keys():
         if f_prop not in prop_list.keys():
             print('property %s not defined in the ice core property module' % property)

@@ -374,39 +374,17 @@ def plot_enveloplog(ic_data, variable_dict, ax=None, param_dict={}, flag_number=
     :return:
     """
 
-    if 'variable' in variable_dict.keys():
-        variable = variable_dict['variable']
-    else:
-        variable = [ic_data.variable.unique()[0]]
+    # for log scale, replace smallest value by minimum*2
+    variable_dict.update({'stats': 'min'})
+    param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
+    ax = semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    variable_dict.update({'stats': 'mean'})
+    param_dict.update({'color': 'k'})
+    ax = semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    variable_dict.update({'stats': 'max'})
+    param_dict.update({'color': 'r'})
+    ax = semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    variable_dict.pop('stats')
+    ax = semilogx_mean_envelop(ic_data, variable_dict, ax=ax)
 
-    # TODO: check if all stat are present for the variable
-
-    if variable in ['seaice permeability']:
-        # for log scale, replace smallest value by minimum*2
-        variable_dict.update({'stats': 'min'})
-        param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
-        ax = semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
-        variable_dict.update({'stats': 'mean'})
-        param_dict.update({'color': 'k'})
-        ax = semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
-        variable_dict.update({'stats': 'max'})
-        param_dict.update({'color': 'r'})
-        ax = semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
-        variable_dict.pop('stats')
-        ax = semilogx_mean_envelop(ic_data, variable_dict, ax=ax)
-    else:
-        variable_dict.update({'stats': 'min'})
-        param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
-        ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
-        variable_dict.update({'stats': 'mean'})
-        param_dict.update({'color': 'k'})
-        ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
-        variable_dict.update({'stats': 'max'})
-        param_dict.update({'color': 'r'})
-        ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
-        variable_dict.pop('stats')
-        ax = plot_mean_envelop(ic_data, variable_dict, ax=ax)
-        if flag_number:
-            variable_dict.update({'stats': 'mean'})
-            ax = plot_number(ic_data, variable_dict=variable_dict, ax=ax, z_delta=0.01, every=1)
     return ax

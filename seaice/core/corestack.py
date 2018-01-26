@@ -214,13 +214,11 @@ def grouped_stat(ics_stack, groups, variables=None, stats=('min', 'mean', 'max',
 
     if groups is None:
         logger.error("Grouping option cannot be empty; it should contains at least vertical section y_mid")
-        return 0
     elif 'y_mid' not in groups:
         try:
             groups['y_mid'] = sorted(pd.concat([ics_stack.y_low, ics_stack.y_sup]).dropna().unique())
         except AttributeError:
             logger.error("y_mid not in grouping option; y_mid cannot be generated from section horizon")
-            return 0
         else:
             logger.info("y_mid not in grouping option; y_mid generated from section horizon")
 
@@ -239,16 +237,15 @@ def grouped_stat(ics_stack, groups, variables=None, stats=('min', 'mean', 'max',
     temp_all = pd.DataFrame()
     for variable in variables:
         logger.info('computing %s' % variable)
-        data = ics_stack[ics_stack.variable == variable]
 
         # apply weight
-        _values = data['weight'] * data[variable]
-        data.loc[ics_stack.variable == variable, '_weight_property'] = _values.values
-        _values = data['weight'] * pd.notnull(data[variable])
-        data.loc[ics_stack.variable == variable, '_weight_where_notnull'] = _values.values
-        del _values
-
-        data_grouped = data.groupby(cuts)
+        _series = pd.Series(ics_stack.loc[ics_stack.variable == variable, 'weight'] *
+                            ics_stack.loc[ics_stack.variable == variable, variable], index=ics_stack.loc[ics_stack.variable == variable].index)
+        ics_stack.loc[ics_stack.variable == variable, '_weight_property'] = _series
+        _series = pd.Series(ics_stack.loc[ics_stack.variable == variable, 'weight'] *
+                            pd.notnull(ics_stack.loc[ics_stack.variable == variable, variable]), index=ics_stack.loc[ics_stack.variable == variable].index)
+        ics_stack.loc[ics_stack.variable == variable, '_weight_where_notnull'] = _series
+        data_grouped = ics_stack.loc[ics_stack.variable == variable].groupby(cuts)
 
         for stat in stats:
             if stat in ['sum', 'mean']:
@@ -257,7 +254,6 @@ def grouped_stat(ics_stack, groups, variables=None, stats=('min', 'mean', 'max',
                 func = "kgroups.loc[~kgroups._weight_property.isna(), '" + variable + "']." + stat + "()"
             else:
                 logger.error("%s operation not defined. Open a bug report" % stat)
-                return 0
             logger.info('\tcomputing %s' % stat)
 
             stat_var = np.nan * np.ones(dim)
@@ -271,14 +267,15 @@ def grouped_stat(ics_stack, groups, variables=None, stats=('min', 'mean', 'max',
             # run over ndim, minus the ice thickness
             for index in indices(dim[:-1]):
                 temp = pd.DataFrame(stat_var[index], columns=[variable])
-                temp = temp.join(pd.DataFrame(core_var[index], columns=['core collection']))
+                temp = temp.join(pd.DataFrame(core_var[index], columns=['collection']))
                 data = [x for x in index]+[stat, variable, ics_stack.v_ref.unique()[0]]
                 columns = ['bin_'+x for x in groups_order[:-1]] + ['stats', 'variable', 'v_ref']
                 rows = np.array(temp.index.tolist())
                 temp = temp.join(pd.DataFrame([data], columns=columns, index=rows))
 
                 # number of samples
-                n = [int(temp.iloc[row]['core collection'].split(', ').__len__()) for row in temp.index.tolist()]
+
+                n = [int(temp.iloc[row]['collection'].split(', ').__len__()) if temp.iloc[row]['collection'] is not None else 0 for row in temp.index.tolist()]
                 temp = temp.join(pd.DataFrame(n, columns=['n'], index=rows))
 
                 columns = ['y_low', 'y_sup', 'y_mid']
@@ -300,12 +297,6 @@ def grouped_stat(ics_stack, groups, variables=None, stats=('min', 'mean', 'max',
                     temp_all = temp.join(t2)
                 else:
                     temp_all = temp_all.append(temp.join(t2), ignore_index=True)
-        if '_weight_property' in data:
-            data.drop('_weight_property', axis=1, inplace=True)
-        if '_weight_where_notnull' in data:
-            data.drop('_weight_where_notnull', axis=1, inplace=True)
-
-        del data
     return CoreStack(temp_all)
 
 
