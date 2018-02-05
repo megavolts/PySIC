@@ -63,8 +63,8 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
         logger.error("%s does not exists in core directory" % ic_path.split('/')[-1])
 
     wb = openpyxl.load_workbook(filename=ic_path)  # load the xlsx spreadsheet
-    ws_name = wb.get_sheet_names()
-    ws_summary = wb.get_sheet_by_name('summary')  # load the data from the summary sheet
+    ws_name = wb.sheetnames
+    ws_summary = wb['summary']  # load the data from the summary sheet
 
     name = ws_summary['C21'].value
 
@@ -77,8 +77,8 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
         update_spreadsheet(ic_path, v_ref=v_ref)
         logger.info("Updating ice core spreadsheet %s to last version (%s)" % (name, str(__CoreVersion__)))
         wb = openpyxl.load_workbook(filename=ic_path)  # load the xlsx spreadsheet
-        ws_name = wb.get_sheet_names()
-        ws_summary = wb.get_sheet_by_name('summary')  # load the data from the summary sheet
+        ws_name = wb.sheetnames
+        ws_summary = wb['summary']  # load the data from the summary sheet
         version = ws_summary['C3'].value
 
     n_row_collection = 22
@@ -187,7 +187,7 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
                      (sheet.lower().find('fig') == -1)]
         core_flag = []
         for sheet in sheets:
-            ws_variable = wb.get_sheet_by_name(sheet)
+            ws_variable = wb[sheet]
             profile = read_variable(ws_variable, variables=None, version=version, v_ref=v_ref)
             for variable in profile.keys():
                 if not profile[variable][1] == core.name:
@@ -215,7 +215,7 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
         core_flag = []
         for variable in variables:
             if variable_2_sheet[variable] in ws_name:
-                ws_variable = wb.get_sheet_by_name(variable_2_sheet[variable])
+                ws_variable = wb[variable_2_sheet[variable]]
                 profile = read_variable(ws_variable, variables=variable, version=version, v_ref=v_ref)
                 if profile.keys().__len__() == 0:
                     logger.warning('\t(%s) no data exist for %s' % (core.name, variable))
@@ -541,7 +541,7 @@ def update_spreadsheet(ic_path, v_ref='top', backup=True):
         logger.info("\t ice core file path %s" % ic_path)
 
     wb = openpyxl.load_workbook(filename=ic_path)  # load the xlsx spreadsheet
-    ws_summary = wb.get_sheet_by_name('summary')  # load the data from the summary sheet
+    ws_summary = wb['summary']  # load the data from the summary sheet
 
     if isinstance(ws_summary['C3'].value, (float, int)):
         version = ws_summary['C3'].value
@@ -565,8 +565,8 @@ def update_spreadsheet(ic_path, v_ref='top', backup=True):
             ws_summary = delete_row(ws_summary, 22)
 
             # loop through variables
-            if "S_ice" in wb.get_sheet_names():
-                ws = wb.get_sheet_by_name("S_ice")
+            if "S_ice" in wb.sheetnames:
+                ws = wb["S_ice"]
                 # add reference row=4
                 ws = add_row(ws, 4)
                 ws['A4'] = 'vertical reference'
@@ -589,8 +589,8 @@ def update_spreadsheet(ic_path, v_ref='top', backup=True):
                 ws['G6'] = 'κ'
                 delete_column(ws, 'K', row_start, ws.max_row)
 
-            if "T_ice" in wb.get_sheet_names():
-                ws = wb.get_sheet_by_name("T_ice")
+            if "T_ice" in wb.sheetnames:
+                ws = wb["T_ice"]
                 # add reference row=4
                 ws = add_row(ws, 4)
                 ws['A4'] = 'vertical reference'
@@ -601,8 +601,8 @@ def update_spreadsheet(ic_path, v_ref='top', backup=True):
                 ws['A6'] = 'd'
                 ws['B6'] = 'T'
 
-            if "oil_content" in wb.get_sheet_names():
-                ws = wb.get_sheet_by_name("oil_content")
+            if "oil_content" in wb.sheetnames:
+                ws = wb["oil_content"]
                 # add reference row=4
                 ws = add_row(ws, 4)
                 ws['A4'] = 'vertical reference'
