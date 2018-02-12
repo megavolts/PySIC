@@ -239,12 +239,13 @@ def grouped_stat(ics_stack, groups, variables=None, stats=('min', 'mean', 'max',
         logger.info('computing %s' % variable)
 
         # apply weight
+        # if property weight is null, property value is set to np.nan
         _series = pd.Series(ics_stack.loc[ics_stack.variable == variable, 'weight'] *
                             ics_stack.loc[ics_stack.variable == variable, variable], index=ics_stack.loc[ics_stack.variable == variable].index)
         ics_stack.loc[ics_stack.variable == variable, '_weight_property'] = _series
-        _series = pd.Series(ics_stack.loc[ics_stack.variable == variable, 'weight'] *
-                            pd.notnull(ics_stack.loc[ics_stack.variable == variable, variable]), index=ics_stack.loc[ics_stack.variable == variable].index)
-        ics_stack.loc[ics_stack.variable == variable, '_weight_where_notnull'] = _series
+        # set _weight_property to 0 if property weight is null
+        ics_stack.loc[(ics_stack.variable == variable) & (ics_stack.weight == 0), '_weight_property'] = np.nan
+
         data_grouped = ics_stack.loc[ics_stack.variable == variable].groupby(cuts)
 
         for stat in stats:

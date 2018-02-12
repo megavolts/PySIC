@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 # LOGGING
 debug = 'vv'
 
-vert_resolution = 5/100
+vertical_resolution = 5/100
 
 # logging
 logger = logging.getLogger(__name__)
@@ -51,8 +51,8 @@ logger.info('Reloading seaice.core.py')
 ic_dir = '/home/megavolts/git/seaice/data_sample/ice_cores'
 # ic_path = os.path.join(ic_dir, 'testing-nogap_extremity-TS.xlsx')
 # ic_path = os.path.join(ic_dir, 'testing-nogap_noextremity-TS.xlsx')
-# ic_path = os.path.join(ic_dir, 'testing-gap_extremity-TS.xlsx')
-ic_path = os.path.join(ic_dir, 'testing-gap_noextremity-TS.xlsx')
+ic_path = os.path.join(ic_dir, 'testing-gap_extremity-TS.xlsx')
+#ic_path = os.path.join(ic_dir, 'testing-gap_noextremity-TS.xlsx')
 
 fill_gap = False
 fill_extremity = False
@@ -60,15 +60,15 @@ display_figure = True
 y_mid = None
 variables = ['salinity', 'temperature']
 ic_data = seaice.core.import_ic_path(ic_path, variables=variables, v_ref='top')
-y_bins = np.arange(0, max(ic_data.length())+vert_resolution, vert_resolution)
+y_bins = np.arange(0, max(ic_data.length())+vertical_resolution, vertical_resolution)
 profile = ic_data.profile
 ics_stack = seaice.core.corestack.discretize_profile(profile, y_bins, display_figure=False, fill_gap=fill_gap,
                                                      fill_extremity=fill_extremity)
 
 ics_dict = seaice.core.import_ic_sourcefile(seaice.core.make_ic_sourcefile(ic_dir, '.xlsx'))
 ics_stack = seaice.core.corestack.stack_cores(ics_dict)
-y_bins = np.arange(0, max(max(ics_stack.y_sup), max(ics_stack.length), max(ics_stack.ice_thickness))+vert_resolution,
-                   vert_resolution)
+y_bins = np.arange(0, max(max(ics_stack.y_sup), max(ics_stack.length), max(ics_stack.ice_thickness))+vertical_resolution,
+                   vertical_resolution)
 ics_stack = ics_stack.discretize(display_figure=False, y_bins=y_bins, variables=variables, fill_gap=fill_gap,
                                  fill_extremity=fill_extremity)
 

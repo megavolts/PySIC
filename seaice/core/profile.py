@@ -96,24 +96,21 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                 for index in yx.index:
                     y2x.loc[abs(y2x.index - index) < 1e-6, variable] = yx.loc[yx.index == index, variable].values
 
-                temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(y_mid.__len__()))
+                # compute weight, if y_mid is in min(yx) < y_mid < max(yx)
+                w = [1 if yx.index[0] - TOL <= y <= yx.index[-1] + TOL else 0 for y in y_mid ]
+
+                # add the temperaure profile extremum value
+                if not any(abs(yx.index[0]-y2) < TOL):
+                    y2x.loc[yx.index[0], variable] = yx.loc[yx.index == yx.index[0], variable].values
+                    w = w + [0]
+                if not any(abs(yx.index[-1]-y2) < TOL):
+                    y2x.loc[yx.index[-1], variable] = yx.loc[yx.index == yx.index[-1], variable].values
+                    w = w + [0]
+
+                temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(y2x.__len__()))
                 temp.update(y2x.reset_index().rename(columns={'index': 'y_mid'}))
-
-                w = np.nan*np.ones(temp.index.size)
-                # compute weight
-                for ii_bin in range(y_mid.__len__()):
-                    a = np.flatnonzero(yx.index - y_mid[ii_bin] < TOL)
-                    b = np.flatnonzero(y_mid[ii_bin] - yx.index < TOL)
-
-                    if a.size == 0 or b.size == 0:
-                        w[ii_bin] = 0
-                    elif b.size > 0 and y_bins[ii_bin]-yx.index[0] < TOL:
-                        w[ii_bin] = (y_bins[ii_bin+1]-yx.index[0])/(y_bins[ii_bin+1]-y_bins[ii_bin])
-                    elif a.size > 0 and yx.index[-1] - y_bins[ii_bin+1] < -TOL:
-                        w[ii_bin] = (yx.index[-1] - y_bins[ii_bin])/(y_bins[ii_bin+1]-y_bins[ii_bin])
-                    else:
-                        w[ii_bin] = 1
                 temp['weight'] = pd.Series(w, index=temp.index)
+                temp = temp.sort_values('y_mid').reset_index()
                 profile_prop = profile.loc[profile.variable == variable].head(1)
                 profile_prop = profile_prop.drop(variable, 1)
                 profile_prop['variable'] = variable
