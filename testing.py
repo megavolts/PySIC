@@ -65,12 +65,16 @@ profile = ic_data.profile
 ics_stack = seaice.core.corestack.discretize_profile(profile, y_bins, display_figure=False, fill_gap=fill_gap,
                                                      fill_extremity=fill_extremity)
 
+
+
 ics_dict = seaice.core.import_ic_sourcefile(seaice.core.make_ic_sourcefile(ic_dir, '.xlsx'))
 ics_stack = seaice.core.corestack.stack_cores(ics_dict)
+ics_stack = ics_stack.set_vertical_reference('bottom')
 y_bins = np.arange(0, max(max(ics_stack.y_sup), max(ics_stack.length), max(ics_stack.ice_thickness))+vertical_resolution,
                    vertical_resolution)
 ics_stack = ics_stack.discretize(display_figure=False, y_bins=y_bins, variables=variables, fill_gap=fill_gap,
                                  fill_extremity=fill_extremity)
+
 
 stats = ['mean', 'min', 'max', 'std']
 groups = {'length': [0.25, 0.75], 'y_mid': y_bins}
@@ -127,12 +131,9 @@ for index in seaice.core.corestack.indices(bins_max_value):
 si_prop = ['brine volume fraction', 'permeability']
 si_prop_format = 'step'
 
-# for name in ics_stack.name.unique():
-name = ics_stack.name.unique()[3]
-s_profile = ics_stack.loc[(ics_stack.name == name) & (ics_stack.variable == 'salinity')]
-t_profile = ics_stack.loc[(ics_stack.name == name) & (ics_stack.variable == 'temperature')]
-
-seaice.property.compute_phys_prop_from_core(s_profile, t_profile, si_prop, resize_core='S')
-
-## TODO check if set reference to the bottom works or not
-## TODO set_reference if no ice core length, remove error, just display warnign and remove core
+for name in ics_stack.name.unique():
+    s_profile = ics_stack.loc[(ics_stack.name == name) & (ics_stack.variable == 'salinity')]
+    t_profile = ics_stack.loc[(ics_stack.name == name) & (ics_stack.variable == 'temperature')]
+    
+    temp = seaice.property.compute_phys_prop_from_core(s_profile, t_profile, si_prop, resize_core='S', display_figure=True)
+    ics_stack = ics_stack.add_profile(temp)

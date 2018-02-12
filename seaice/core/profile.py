@@ -21,7 +21,7 @@ __date__ = "2017/09/13"
 __comment__ = "profile.py contained function to handle property profile"
 __CoreVersion__ = 1.1
 
-__all__ = ["discretize_profile", "set_vertical_reference", "select_profile", "set_profile_orientation",
+__all__ = ["discretize_profile", "set_vertical_reference", "select_profile", "set_vertical_reference",
            "delete_profile"]
 
 TOL = 1e-6
@@ -323,13 +323,11 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
     return discretized_profile
 
 
-def set_profile_orientation(profile, v_ref, hi=None, comment=False):
+def set_profile_orientation(profile, v_ref):
     """
 
     :param profile:
-    :param v_ref:
-    :param hi:
-    :param comment:
+    :param v_ref: new reference 'top', 'bottom'
     :return:
     """
 
@@ -338,31 +336,39 @@ def set_profile_orientation(profile, v_ref, hi=None, comment=False):
     for variable in profile.variable.unique():
         data = profile[profile.variable == variable]
         # look for ice thickness:
-        if hi is None:
-            if not np.isnan(profile.ice_thickness.astype(float)).all():
-                hi = profile.ice_thickness.astype(float).dropna().unique()
-            elif not np.isnan(profile.length.astype(float)).all():
-                hi = profile.length.astype(float).dropna().unique()
-            else:
-                logger.error(
-                    "%s ice core length and ice thickness missing" % profile.name.unique())
-                return pd.DataFrame()
-        if comment is True:
-            print(profile.name.unique()[0], variable, hi)
         if data.v_ref.unique().__len__() > 1:
             logger.error("vertical reference for profile are not consistent")
             return pd.DataFrame()
-        elif not data.v_ref.unique()[0] == v_ref:
-            data['y_low'] = hi - data['y_low']
-            data['y_mid'] = hi - data['y_mid']
-            data['y_sup'] = hi - data['y_sup']
-            data['v_ref'] = v_ref
-        profile = delete_profile(profile, {'name': profile.name.unique()[0], 'variable': variable})
+        if not data.v_ref.unique().tolist()[0] == v_ref:
+            # search ice core length, or ice thickness
+            if not np.isnan(data.ice_thickness.astype(float)).all():
+                lc = data.ice_thickness.astype(float).dropna().unique()
+            elif not np.isnan(data.length.astype(float)).all():
+                lc = data.length.astype(float).dropna().unique()
+            elif not np.isnan(profile.ice_thickness.astype(float)).all():
+                lc = profile.ice_thickness.astype(float).dropna().unique()
+            elif not np.isnan(profile.length.astype(float)).all():
+                lc = profile.length.astype(float).dropna().unique()
+            else:
+                lc = None
+
+            if lc is None:
+                logger.warning("Mising core length or ice thickness, impossible to set profile orientation to %s. Deleting profile" % v_ref)
+                profile = delete_profile(profile, {'variable': variable})
+            else:
+                data.loc[:,  'y_low'] = lc - data['y_low'].values
+                data.loc[:, 'y_mid'] = lc - data['y_mid'].values
+                data.loc[:, 'y_sup'] = lc - data['y_sup'].values
+                data.loc[:, 'v_ref'] = v_ref
+        else:
+            logger.info('profile orientiation already set')
+
+        profile = delete_profile(profile, {'variable': variable})
         profile = profile.append(data)
     return profile
 
 
-def set_vertical_reference(profile, h_ref=0, new_v_ref=None):
+def set_vertical_reference(profile, h_ref=None, new_v_ref=None):
     """
 
     :param profile:
@@ -378,24 +384,12 @@ def set_vertical_reference(profile, h_ref=0, new_v_ref=None):
         else:
             new_v_ref = profile.v_ref.unique()[0]
 
-    # look for ice thickness:
-    if not np.isnan(profile.ice_thickness.astype(float)).all():
-        hi = profile.ice_thickness.astype(float).dropna().unique()
-    elif not np.isnan(profile.length.astype(float)).all():
-        hi = profile.length.astype(float).dropna().unique()
-    else:
-        logger.warning("ice core length and ice thickness not available for the profile")
-        return pd.DataFrame()
+    profile = set_profile_orientation(profile, new_v_ref)
 
-    if not new_v_ref == profile.v_ref.unique()[0]:
-        profile['y_low'] = hi - profile['y_low']
-        profile['y_mid'] = hi - profile['y_mid']
-        profile['y_sup'] = hi - profile['y_sup']
-
-    if not h_ref == 0:
-        profile['y_low'] = profile['y_low'] - h_ref
-        profile['y_mid'] = profile['y_mid'] - h_ref
-        profile['y_sup'] = profile['y_sup'] - h_ref
+    if h_ref is not None:
+        profile.loc[:, 'y_low'] = profile.loc[:, 'y_low'] - h_ref
+        profile.loc[:, 'y_mid'] = profile.loc[:, 'y_mid'] - h_ref
+        profile.loc[:, 'y_sup'] = profile.loc[:, 'y_sup'] - h_ref
 
     return profile
 

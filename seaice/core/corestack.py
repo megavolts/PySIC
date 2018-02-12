@@ -156,7 +156,7 @@ class CoreStack(pd.DataFrame):
         if inplace is True:
             return self
 
-    def set_reference(self, v_ref):
+    def set_vertical_reference(self, new_v_ref, h_ref = None):
         """
         :param v_ref:
         :return:
@@ -164,7 +164,7 @@ class CoreStack(pd.DataFrame):
         temp = CoreStack()
         for f_core in self.name.unique():
             ic_data = self[self.name == f_core]
-            ic_data = set_profile_orientation(ic_data, v_ref=v_ref)
+            ic_data = set_vertical_reference(ic_data, new_v_ref=new_v_ref, h_ref=h_ref)
             temp = temp.append(ic_data)
         return CoreStack(temp)
 

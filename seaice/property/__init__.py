@@ -67,7 +67,7 @@ def scale_profile(profile, h_ice_f):
 
 
 def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='step', resize_core='S',
-                                display_figure=True, attribut_core='S'):
+                                display_figure=True, attribut_core='S', prop_name=None):
     """
     :param s_profile:
     :param t_profile:
@@ -111,14 +111,14 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
         return pd.DataFrame()
     else:
         S_core_name = s_profile.name.values[0]
-        s_profile.loc[s_profile.variable == 'salinity', 'salinity'] = pd.to_numeric(s_profile['salinity']).values
+        s_profile.loc[:, 'salinity'] = pd.to_numeric(s_profile['salinity']).values
 
     if 'temperature' not in t_profile.keys() or not t_profile['temperature'].notnull().any():
         print("no temperature data")
         return pd.DataFrame()
     else:
         T_core_name = t_profile.name.values[0]
-        t_profile.loc[t_profile.variable == 'temperature', 'temperature'] = pd.to_numeric(t_profile['temperature']).values
+        t_profile.loc[:, 'temperature'] = pd.to_numeric(t_profile['temperature']).values
 
     if resize_core in ['S', S_core_name]:
         if s_profile.length.notnull().all():
@@ -149,11 +149,7 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
         y_mid = (s_profile.y_low / 2. + s_profile.y_sup / 2).dropna().astype(float)
 
     # replace the 2 following lines
-    # interp_data = pd.concat([t_profile, pd.DataFrame(y_mid, columns=['y_mid'])])
-    # interp_data = interp_data.set_index('y_mid').sort_index().interpolate(method='index').reset_index().drop_duplicates(subset='y_mid')
-    # with
     t_profile = t_profile.sort_values(by='y_mid')
-
     interp_data = np.interp(y_mid, t_profile['y_mid'].values, t_profile['temperature'].values, left=np.nan, right=np.nan)
     t_profile2 = pd.DataFrame(np.transpose([interp_data, y_mid]), columns=['temperature', 'y_mid'])
 
@@ -173,27 +169,27 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
 
         prop_data = pd.DataFrame(np.vstack((prop_data, s_profile['y_mid'])).transpose(), columns=[prop, 'y_mid'])
         comment_core = 'physical properties computed from ' + S_core_name + '(S) and ' + T_core_name + '(T)'
-        prop_data['comment'] = comment_core
-        prop_data['variable'] = prop
-        if S_core_name is T_core_name:
-            prop_name = S_core_name
-        else:
-            prop_name = S_core_name + '/' + T_core_name
+        prop_data.loc[:, 'variable'] = prop
+        if prop_name is None:
+            if S_core_name is T_core_name:
+                prop_name = S_core_name
+            else:
+                prop_name = S_core_name + '/' + T_core_name
 
         if attribut_core is 'S':
-            prop_data['name'] = list(set(s_profile.name))[0]
+            prop_data.loc[:, 'name'] = list(set(s_profile.name))[0]
             var_drop = [var for var in ['salinity', 'temperature', 'variable', f_prop, 'name', 'core'] if
                         var in s_profile.keys()]
             core_frame = s_profile.drop(var_drop, axis=1)
         elif attribut_core is 'T':
-            prop_data['name'] = list(set(t_profile.name))[0]
+            prop_data.loc[:, 'name'] = list(set(t_profile.name))[0]
             var_drop = [var for var in ['salinity', 'temperature', 'variable', f_prop, 'name', 'core'] if
                         var in t_profile.keys()]
             core_frame = t_profile.drop(var_drop, axis=1)
-        prop_data['name'] = prop_name
+        prop_data.loc[:, 'name'] = prop_name
 
         if si_prop_dict[f_prop] == 'linear':
-            core_frame[['y_low', 'y_sup']] = np.nan
+            core_frame.loc[:, ['y_low', 'y_sup']] = np.nan
         prop_data = pd.merge(prop_data, core_frame, how='inner', on=['y_mid'])
 
         for index in prop_data.index:
@@ -258,6 +254,6 @@ def compute_phys_prop_from_core_name(ics_stack, S_core_name, T_core_name, si_pro
             if not ics_stack[(ics_stack.name == S_core_name) & (ics_stack.variable == f_prop)].empty:
                 ics_stack = ics_stack[(ics_stack.name != S_core_name) | (ics_stack.variable != f_prop)]
             ics_stack = ics_stack.append(prop_profile, ignore_index=True)
-        return ics_stack
+        return seaice.core.corestack.CoreStack(ics_stack)
     else:
         return prop_profile

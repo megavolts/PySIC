@@ -6,6 +6,11 @@
   <component name="ChangeListManager">
     <list default="true" id="680e243d-e8cd-476a-918e-70c339c5189f" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/data_sample/ice_cores/ics_list.txt" afterPath="$PROJECT_DIR$/data_sample/ice_cores/ics_list.txt" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/seaice/core/corestack.py" afterPath="$PROJECT_DIR$/seaice/core/corestack.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/seaice/core/profile.py" afterPath="$PROJECT_DIR$/seaice/core/profile.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/seaice/property/__init__.py" afterPath="$PROJECT_DIR$/seaice/property/__init__.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/testing.py" afterPath="$PROJECT_DIR$/testing.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -19,11 +24,11 @@
       <file leaf-file-name="testing.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/testing.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-1">
-              <caret line="126" column="8" lean-forward="false" selection-start-line="126" selection-start-column="8" selection-end-line="126" selection-end-column="8" />
+            <state relative-caret-position="144">
+              <caret line="138" column="43" lean-forward="false" selection-start-line="138" selection-start-column="43" selection-end-line="138" selection-end-column="43" />
               <folding>
                 <element signature="e#70#93#0" expanded="true" />
-                <marker date="1518427709963" expanded="false" signature="3576:4985" ph="..." />
+                <element signature="e#3639#5043#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -32,10 +37,11 @@
       <file leaf-file-name="__init__.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/seaice/property/__init__.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="140">
-              <caret line="214" column="0" lean-forward="true" selection-start-line="206" selection-start-column="0" selection-end-line="214" selection-end-column="0" />
+            <state relative-caret-position="62">
+              <caret line="212" column="0" lean-forward="true" selection-start-line="212" selection-start-column="0" selection-end-line="212" selection-end-column="0" />
               <folding>
-                <element signature="e#9392#11287#0" expanded="false" />
+                <element signature="e#1362#2146#0" expanded="false" />
+                <element signature="e#2727#2956#0" expanded="false" />
               </folding>
             </state>
           </provider>
@@ -45,15 +51,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>display_figure</find>
-      <find>select_profile</find>
-      <find>permeability</find>
-      <find>size()</find>
-      <find>read_variable</find>
-      <find>columns_string</find>
-      <find>add_</find>
-      <find>read_varia</find>
-      <find>read_vari</find>
       <find>import_ic_list</find>
       <find>add_var</find>
       <find>.variables</find>
@@ -72,9 +69,18 @@
       <find>np.nan</find>
       <find>_series</find>
       <find>compute</find>
-      <find>compute_phys_prop_from_core</find>
       <find>vert_resolution</find>
       <find>prop_list</find>
+      <find>set_profile_orientation</find>
+      <find>set_prof</find>
+      <find>ic_data</find>
+      <find>set_profile</find>
+      <find>set_vertical_reference</find>
+      <find>set_refer</find>
+      <find>compute_phys_prop_from_core</find>
+      <find>sca</find>
+      <find>section_stack</find>
+      <find>prop_name</find>
     </findStrings>
     <replaceStrings>
       <replace>logger</replace>
@@ -143,10 +149,11 @@
         <option value="$PROJECT_DIR$/seaice/core_old.py" />
         <option value="$PROJECT_DIR$/seaice/climatology.py" />
         <option value="$PROJECT_DIR$/seaice/__init__.py" />
-        <option value="$PROJECT_DIR$/seaice/property/__init__.py" />
-        <option value="$PROJECT_DIR$/seaice/core/profile.py" />
-        <option value="$PROJECT_DIR$/testing.py" />
+        <option value="$PROJECT_DIR$/setup.py" />
         <option value="$PROJECT_DIR$/seaice/core/corestack.py" />
+        <option value="$PROJECT_DIR$/seaice/core/profile.py" />
+        <option value="$PROJECT_DIR$/seaice/property/__init__.py" />
+        <option value="$PROJECT_DIR$/testing.py" />
       </list>
     </option>
   </component>
@@ -190,6 +197,12 @@
               <item name="sea_ice" type="b2602c69:ProjectViewProjectNode" />
               <item name="seaice" type="462c0819:PsiDirectoryNode" />
               <item name="seaice" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="sea_ice" type="b2602c69:ProjectViewProjectNode" />
+              <item name="seaice" type="462c0819:PsiDirectoryNode" />
+              <item name="seaice" type="462c0819:PsiDirectoryNode" />
+              <item name="core" type="462c0819:PsiDirectoryNode" />
             </path>
             <path>
               <item name="sea_ice" type="b2602c69:ProjectViewProjectNode" />
@@ -325,7 +338,14 @@
       <option name="project" value="LOCAL" />
       <updated>1518429824764</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="For the discretization, extremum value of a continuous profile, like temperature, is kept. Weight value of the extermum value is zero, unless the extremum value match mid points.">
+      <created>1518429923921</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1518429923921</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="ToolWindowManager">
@@ -335,9 +355,10 @@
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.18106061" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.40097404" sideWeight="0.17727272" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32954547" sideWeight="0.49786553" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="10" side_tool="false" content_ui="tabs" />
-      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.4318182" sideWeight="0.82272726" order="8" side_tool="false" content_ui="tabs" />
+      <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.51623374" sideWeight="0.82272726" order="8" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32792208" sideWeight="0.7204546" order="9" side_tool="false" content_ui="tabs" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
@@ -348,7 +369,6 @@
       <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32954547" sideWeight="0.49786553" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
     </layout>
     <layout-to-restore>
@@ -379,7 +399,8 @@
     <MESSAGE value="update" />
     <MESSAGE value="implemented logging" />
     <MESSAGE value="add testing ice core data" />
-    <option name="LAST_COMMIT_MESSAGE" value="add testing ice core data" />
+    <MESSAGE value="For the discretization, extremum value of a continuous profile, like temperature, is kept. Weight value of the extermum value is zero, unless the extremum value match mid points." />
+    <option name="LAST_COMMIT_MESSAGE" value="For the discretization, extremum value of a continuous profile, like temperature, is kept. Weight value of the extermum value is zero, unless the extremum value match mid points." />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -406,7 +427,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/seaice/property/__init__.py</url>
-          <line>202</line>
+          <line>198</line>
           <option name="timeStamp" value="25" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
@@ -414,21 +435,22 @@
           <line>233</line>
           <option name="timeStamp" value="27" />
         </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file:///usr/lib/python3.6/site-packages/pandas/core/indexing.py</url>
+          <line>2011</line>
+          <option name="timeStamp" value="30" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/seaice/core/profile.py</url>
+          <line>351</line>
+          <option name="timeStamp" value="32" />
+        </line-breakpoint>
       </breakpoints>
-      <option name="time" value="30" />
+      <option name="time" value="33" />
     </breakpoint-manager>
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/seaice/io/icxl.py" />
-    <entry file="file://$PROJECT_DIR$/seaice/core/tool.py" />
-    <entry file="file://$PROJECT_DIR$/seaice/core/corestack.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="170">
-          <caret line="10" column="36" lean-forward="false" selection-start-line="10" selection-start-column="36" selection-end-line="10" selection-end-column="36" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/seaice/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="102">
@@ -624,38 +646,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/seaice/core/profile.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-357">
-          <caret line="101" column="26" lean-forward="true" selection-start-line="101" selection-start-column="26" selection-end-line="101" selection-end-column="26" />
-          <folding>
-            <element signature="e#115#129#0" expanded="true" />
-            <element signature="e#15574#16959#0" expanded="false" />
-            <element signature="e#17028#18247#0" expanded="false" />
-            <element signature="e#18300#18755#0" expanded="false" />
-            <element signature="e#18808#19262#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/seaice/core/corestack.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="174">
-          <caret line="247" column="0" lean-forward="true" selection-start-line="247" selection-start-column="0" selection-end-line="247" selection-end-column="0" />
-          <folding>
-            <element signature="e#94#108#0" expanded="true" />
-            <element signature="e#590#5166#0" expanded="false" />
-            <element signature="e#657#774#0" expanded="false" />
-            <element signature="e#815#928#0" expanded="false" />
-            <element signature="e#1454#2946#0" expanded="false" />
-            <element signature="e#3017#3466#0" expanded="false" />
-            <element signature="e#5218#5558#0" expanded="false" />
-            <element signature="e#11004#11040#0" expanded="false" />
-            <element signature="e#11847#12053#0" expanded="false" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/seaice/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="89">
@@ -666,23 +656,98 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/requirements.txt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/setup.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="136">
+          <caret line="35" column="26" lean-forward="false" selection-start-line="35" selection-start-column="26" selection-end-line="35" selection-end-column="26" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file:///usr/lib/python3.6/site-packages/pandas/core/indexing.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-724">
+          <caret line="87" column="30" lean-forward="false" selection-start-line="87" selection-start-column="29" selection-end-line="87" selection-end-column="30" />
+          <folding>
+            <element signature="e#830#992#0" expanded="false" />
+            <element signature="e#1097#1963#0" expanded="false" />
+            <element signature="e#2073#46821#0" expanded="false" />
+            <element signature="e#46863#48518#0" expanded="false" />
+            <element signature="e#48566#50478#0" expanded="false" />
+            <element signature="e#50522#58785#0" expanded="false" />
+            <element signature="e#58830#66069#0" expanded="false" />
+            <element signature="e#66121#67312#0" expanded="false" />
+            <element signature="e#67359#68321#0" expanded="false" />
+            <element signature="e#68369#69013#0" expanded="false" />
+            <element signature="e#69125#69938#0" expanded="false" />
+            <element signature="e#69987#70660#0" expanded="false" />
+            <element signature="e#70692#71014#0" expanded="false" />
+            <element signature="e#71054#71960#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/seaice/core/corestack.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="35">
+          <caret line="40" column="25" lean-forward="true" selection-start-line="40" selection-start-column="25" selection-end-line="40" selection-end-column="25" />
+          <folding>
+            <element signature="e#1123#1227#0" expanded="false" />
+            <element signature="e#1282#1407#0" expanded="false" />
+            <element signature="e#1454#2946#0" expanded="false" />
+            <element signature="e#3017#3466#0" expanded="false" />
+            <element signature="e#3570#3762#0" expanded="false" />
+            <element signature="e#3918#4640#0" expanded="false" />
+            <element signature="e#4697#4807#0" expanded="false" />
+            <element signature="e#4880#5210#0" expanded="false" />
+            <element signature="e#5265#5605#0" expanded="false" />
+            <element signature="e#5702#11048#0" expanded="false" />
+            <element signature="e#11051#11087#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/seaice/core/profile.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="459">
+          <caret line="325" column="44" lean-forward="false" selection-start-line="325" selection-start-column="44" selection-end-line="325" selection-end-column="44" />
+          <folding>
+            <element signature="e#803#15497#0" expanded="false" />
+            <element signature="e#15549#17388#0" expanded="false" />
+            <element signature="e#18226#18681#0" expanded="false" />
+            <element signature="e#18734#19188#0" expanded="false" />
+            <element signature="e#19263#19816#0" expanded="false" />
+            <element signature="e#19859#20059#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/seaice/property/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="140">
-          <caret line="214" column="0" lean-forward="true" selection-start-line="206" selection-start-column="0" selection-end-line="214" selection-end-column="0" />
+        <state relative-caret-position="62">
+          <caret line="212" column="0" lean-forward="true" selection-start-line="212" selection-start-column="0" selection-end-line="212" selection-end-column="0" />
           <folding>
-            <element signature="e#9392#11287#0" expanded="false" />
+            <element signature="e#1362#2146#0" expanded="false" />
+            <element signature="e#2727#2956#0" expanded="false" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/testing.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1">
-          <caret line="126" column="8" lean-forward="false" selection-start-line="126" selection-start-column="8" selection-end-line="126" selection-end-column="8" />
+        <state relative-caret-position="144">
+          <caret line="138" column="43" lean-forward="false" selection-start-line="138" selection-start-column="43" selection-end-line="138" selection-end-column="43" />
           <folding>
             <element signature="e#70#93#0" expanded="true" />
-            <marker date="1518427709963" expanded="false" signature="3576:4985" ph="..." />
+            <element signature="e#3639#5043#0" expanded="false" />
           </folding>
         </state>
       </provider>
