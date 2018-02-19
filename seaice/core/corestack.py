@@ -168,6 +168,15 @@ class CoreStack(pd.DataFrame):
             temp = temp.append(ic_data)
         return CoreStack(temp)
 
+    def core_in_collection(self, core):
+        temp = self.loc[self.name == core, 'collection'].values
+        col = []
+        for ii in range(0, temp.__len__()):
+            for c in temp[ii].split(', '):
+                if c not in col:
+                    col.append(c)
+        return sorted(col)
+
 
 # Ice core operation
 def stack_cores(ics_dict):

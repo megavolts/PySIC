@@ -353,7 +353,10 @@ def set_profile_orientation(profile, v_ref):
                 lc = None
 
             if lc is None:
-                logger.warning("Mising core length or ice thickness, impossible to set profile orientation to %s. Deleting profile" % v_ref)
+                if 'name' in profile.keys():
+                    logger.warning("Mising core length or ice thickness, impossible to set profile orientation to %s. Deleting profile (%s)" %(v_ref, profile.name.unique()[0]))
+                else:
+                    logger.warning("Mising core length or ice thickness, impossible to set profile orientation to %s. Deleting profile" % v_ref)
                 profile = delete_profile(profile, {'variable': variable})
             else:
                 data.loc[:,  'y_low'] = lc - data['y_low'].values

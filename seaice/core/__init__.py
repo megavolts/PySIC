@@ -289,7 +289,7 @@ def import_ic_sourcefile(filepath, variables=None, v_ref='top'):
 
     with open(filepath) as f:
         ics = sorted([line.strip() for line in f])
-
+    print(ics)
     return import_ic_list(ics, variables=variables, v_ref=v_ref)
 
 

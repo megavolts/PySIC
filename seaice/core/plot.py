@@ -49,24 +49,26 @@ def plot_profile(profile, ax=None, param_dict=None):
         plt.figure()
         ax = plt.subplot(1, 1, 1)
 
-    # step variable
-    if not profile[profile.variable == variable].y_low.isnull().all():
-        x = []
-        y = []
-        for ii in profile[profile.variable == variable].index.tolist():
-            y.append(profile['y_low'][ii])
-            y.append(profile['y_sup'][ii])
-            x.append(profile[variable][ii])
-            x.append(profile[variable][ii])
+    # if profile not empty
+    if not profile.empty:
+        # step variable
+        if not profile[profile.variable == variable].y_low.isnull().all():
+            x = []
+            y = []
+            for ii in profile[profile.variable == variable].index.tolist():
+                y.append(profile['y_low'][ii])
+                y.append(profile['y_sup'][ii])
+                x.append(profile[variable][ii])
+                x.append(profile[variable][ii])
 
-    # continuous variable
-    else:
-        x = profile[variable].values
-        y = profile.y_mid.values
-    if param_dict is None:
-        ax.plot(x, y)
-    else:
-        ax.plot(x, y, **param_dict)
+        # continuous variable
+        else:
+            x = profile[variable].values
+            y = profile.y_mid.values
+        if param_dict is None:
+            ax.plot(x, y)
+        else:
+            ax.plot(x, y, **param_dict)
     return ax
 
 
@@ -87,25 +89,31 @@ def semilogx_profile(profile, ax=None, param_dict=None):
     else:
         variable = variable[0]
 
-    # step variable
-    if not profile[profile.variable == variable].y_low.isnull().all():
-        x = []
-        y = []
-        for ii in profile[profile.variable == variable].index.tolist():
-            y.append(profile['y_low'][ii])
-            y.append(profile['y_sup'][ii])
-            x.append(profile[variable][ii])
-            x.append(profile[variable][ii])
+    if ax is None:
+        plt.figure()
+        ax = plt.subplot(1, 1, 1)
 
-    # continuous variable
-    else:
-        x = profile[variable].values
-        y = profile.y_mid.values
+    # if profile not empty
+    if not profile.empty:
+        # step variable
+        if not profile[profile.variable == variable].y_low.isnull().all():
+            x = []
+            y = []
+            for ii in profile[profile.variable == variable].index.tolist():
+                y.append(profile['y_low'][ii])
+                y.append(profile['y_sup'][ii])
+                x.append(profile[variable][ii])
+                x.append(profile[variable][ii])
 
-    if param_dict is None:
-        ax.semilogx(x, y)
-    else:
-        ax.semilogx(x, y, **param_dict)
+        # continuous variable
+        else:
+            x = profile[variable].values
+            y = profile.y_mid.values
+
+        if param_dict is None:
+            ax.semilogx(x, y)
+        else:
+            ax.semilogx(x, y, **param_dict)
     return ax
 
 
@@ -276,7 +284,7 @@ def semilogx_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
         if 'label' not in param_dict.keys():
             param_dict['label'] = str(r"$\pm$" + "std dev")
 
-        ax.fill_betweenx(x_std_l[1, :], x_std_l[0, :], x_std_h[0, :], facecolor='black', alpha=0.2,
+        ax.fill_betweenx(x_std_l[1, :], x_std_l[0, :], x_std_h[0, :], facecolor=param_dict['facecolor'], alpha=0.2,
                          label=param_dict['label'])
     return ax
 
