@@ -310,35 +310,35 @@ def grouped_stat(ics_stack, groups, variables=None, stats=('min', 'mean', 'max',
     return CoreStack(temp_all)
 
 
-# def grouped_ic(ics_stack, groups):
-#     """
-#
-#     :param ics_stack:
-#     :param groups:
-#     :return:
-#     """
-#
-#     logger = logging.getLogger(__name__)
-#
-#     groups_ordered = list(groups.keys())
-#
-#     cuts = []
-#     dim = []
-#     for group in groups_ordered:
-#         cuts.append(pd.cut(ics_stack[group], groups[group], labels=False))
-#         dim.append(groups[group].__len__()-1)
-#
-#     temp_all = pd.DataFrame()
-#     logger.info('grouping ice core by %s' % ", ".join(groups_ordered))
-#
-#     data_grouped = ics_stack.groupby(cuts)
-#
-#     core_var = [None for i in range(int(np.prod(dim)))]
-#     for k1, kgroups in data_grouped:
-#         core_var[int(np.prod(np.array(k1)+1)-1)] = sorted(kgroups['name'].unique())
-#     core_var = np.reshape(core_var, dim)
-#
-#     return CoreStack(temp_all)
+def grouped_ic(ics_stack, groups):
+    """
+
+    :param ics_stack:
+    :param groups:
+    :return:
+    """
+
+    logger = logging.getLogger(__name__)
+
+    groups_ordered = list(groups.keys())
+
+    cuts = []
+    dim = []
+    for group in groups_ordered:
+        cuts.append(pd.cut(ics_stack[group], groups[group], labels=False))
+        dim.append(groups[group].__len__()-1)
+
+    temp_all = pd.DataFrame()
+    logger.info('grouping ice core by %s' % ", ".join(groups_ordered))
+
+    data_grouped = ics_stack.groupby(cuts)
+
+    core_var = [None for i in range(int(np.prod(dim)))]
+    for k1, kgroups in data_grouped:
+        core_var[int(np.prod(np.array(k1)+1)-1)] = sorted(kgroups['name'].unique())
+    core_var = np.reshape(core_var, dim)
+
+    return CoreStack(temp_all)
 
 
 def indices(dim):

@@ -254,19 +254,20 @@ def semilogx_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
             for ii in index_outlier:
                 l = ''
                 for key in variable_dict:
-                    l += key + ': ' + variable_dict[key] + '; '
+                    if isinstance(variable_dict[key], str):
+                        l += key + ': ' + variable_dict[key] + '; '
+                    else:
+                        l += key + ': ' + str(variable_dict[key]) + '; '
                 l = l[:-2]
                 module_logger.warning('%s index of %s bin modified lower value for logarithmic scale' % (ii, l))
 
-            ii_outlier = 1
             if index_outlier.__len__() > 0:
                 variable_dict.update({'stats': 'min'})
                 x_min = select_profile(ic_data, variable_dict).reset_index(drop=True)
+                ii_outlier = 1
                 while index_outlier.__len__() > 0:
                     # for index in index_outlier:
-                    x_std_l[(x_std_l <= 0)] = x_min.loc[x_min.index.isin(index_outlier), ii_variable] - x_std.loc[
-                                                                                                            x_std.index.isin(
-                                                                                                                index_outlier), ii_variable] / ii_outlier
+                    x_std_l[(x_std_l <= 0)] = x_mean.loc[x_mean.index.isin(index_outlier), ii_variable] - x_std.loc[x_std.index.isin(index_outlier), ii_variable] / 10
                     index_outlier = x_std_l[(x_std_l <= 0)].index.tolist()
                     ii_outlier += 1
 
