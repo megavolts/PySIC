@@ -130,7 +130,7 @@ for index in seaice.core.corestack.indices(bins_max_value):
 
 si_prop = ['brine volume fraction', 'permeability']
 si_prop_format = 'step'
-
+z
 for name in ics_stack.name.unique():
     s_profile = ics_stack.loc[(ics_stack.name == name) & (ics_stack.variable == 'salinity')]
     t_profile = ics_stack.loc[(ics_stack.name == name) & (ics_stack.variable == 'temperature')]

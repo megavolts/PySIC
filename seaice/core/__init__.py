@@ -105,15 +105,17 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
 
     origin = ws_summary['C5'].value
 
-    lat = np.nan
-    lon = np.nan
     if isinstance(ws_summary['C6'].value, (float, int)) or isinstance(ws_summary['D6'], (float, int)):
         lat = ws_summary['C6'].value
         lon = ws_summary['D6'].value
     elif ws_summary['C6'].value and ws_summary['D6'].value:
-        logger.error("\t(%s) lat/lon not defined in decimal degree" % name)
+        logger.info("\t(%s) lat/lon not defined in decimal degree" % name)
+        lat = np.nan
+        lon = np.nan
     else:
         logger.info("\t(%s) lat/lon unknown" % name)
+        lat = np.nan
+        lon = np.nan
 
     if isinstance(ws_summary['C9'].value, (float, int)):
         snow_depth = np.array([ws_summary['C9'].value]).astype(float)
@@ -195,8 +197,8 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
                                         % (ic_path, core.name, profile[variable][1]))
                 else:
                     core.add_profile(profile[variable][0])
-                    if core.name not in core_flag and profile[variable][3] is not None and ~np.isnan(
-                            profile[variable][3]):
+                    if core.name not in core_flag and profile[variable][3] is not None and\
+                            ~np.isnan(profile[variable][3]):
                         core_flag.append(core.name)
                     core.add_comment(profile[variable][2])
 
@@ -237,9 +239,9 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
     return core
 
 
-def import_ic_list(ics_list, variables=None, v_ref='top'):
+def import_ic_list(ic_list, variables=None, v_ref='top'):
     """
-    :param ics_list:
+    :param ic_list:
             array, array contains absolute filepath for the cores
     :param variables:
     :param v_ref:
@@ -248,24 +250,24 @@ def import_ic_list(ics_list, variables=None, v_ref='top'):
     logger = logging.getLogger(__name__)
 
     ic_dict = {}
-    inexisting_ics_list = []
-    for ic_path in ics_list:
+    inexisting_ic_list = []
+    for ic_path in ic_list:
         if not os.path.exists(ic_path):
             logger.warning("%s does not exists in core directory" % ic_path.split('/')[-1])
-            inexisting_ics_list.append(ic_path.split('/')[-1].split('.')[0])
+            inexisting_ic_list.append(ic_path.split('/')[-1].split('.')[0])
         else:
             ic_data = import_ic_path(ic_path, variables=variables, v_ref=v_ref)
             if ic_data.variables().size is 0 :
-                inexisting_ics_list.append(ic_path.split('/')[-1].split('.')[0])
-                logger.warning("%s have no properties profile" % ic_data.name)
+                inexisting_ic_list.append(ic_path.split('/')[-1].split('.')[0])
+                logger.warning("%s have no properties profile" % (ic_data.name))
             else:
                 ic_dict[ic_data.name] = ic_data
 
     logging.info("Import ice core lists completed")
-    if inexisting_ics_list.__len__()>0:
-        logger.info("%s core does not exits. Removing from collection" % ', '.join(inexisting_ics_list))
+    if inexisting_ic_list.__len__()>0:
+        logger.info("%s core does not exits. Removing from collection" % ', '.join(inexisting_ic_list))
 
-    for ic in inexisting_ics_list:
+    for ic in inexisting_ic_list:
         for ic2 in ic_dict.keys():
             if ic in ic_dict[ic2].collection:
                 ic_dict[ic2].del_from_collection(ic)
@@ -463,7 +465,7 @@ def list_ic(dirpath, fileext):
 
     :param dirpath: str
     :param fileext: str
-    :return ics_list: list
+    :return ic_list: list
         list of ice core path
     """
     logger = logging.getLogger(__name__)
@@ -479,7 +481,7 @@ def list_ic_path(dirpath, fileext):
 
     :param dirpath: str
     :param fileext: str
-    :return ics_list: list
+    :return ic_list: list
         list of ice core path
     """
     logger = logging.getLogger(__name__)
@@ -503,7 +505,7 @@ def make_ic_sourcefile(dirpath, fileext, source_filepath=None):
     ic_paths_set = list_ic_path(dirpath, fileext)
 
     if source_filepath is None:
-        source_filepath = os.path.join(os.path.realpath(dirpath), 'ics_list.txt')
+        source_filepath = os.path.join(os.path.realpath(dirpath), 'ic_list.txt')
 
     with open(source_filepath, 'w') as f:
         for ic_path in ic_paths_set:

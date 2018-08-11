@@ -29,6 +29,10 @@ import seaice.property
 import seaice.property.brine
 import seaice.property.ice
 import seaice.property.si
+import seaice.property.sw
+import seaice.property.nacl
+
+#from seaice.core.corestack import CoreStack
 
 TOL = 1e-6
 
@@ -100,6 +104,7 @@ class Core:
         else:
             if core_list not in self.collection:
                 self.collection.append(core_list)
+        self.collection = sorted(self.collection)
 
     def remove_core(self, core):
         """
@@ -122,6 +127,7 @@ class Core:
         else:
             if core_list in self.collection:
                 self.collection.remove(core_list)
+        self.collection = sorted(self.collection)
 
     def add_comment(self, comment):
         """
@@ -215,108 +221,5 @@ class Core:
             pd.DataFrame, profile to add
         :return:
         """
-        self.profile = self.profile.append(profile)
+        self.profile = self.profile.append(profile, sort=False)
         self.profile.reset_index(inplace=True, drop=True)
-        #
-        # def plot_variables(self, variables=None, ax=None, param_dict=None):
-        #     """
-        #     :param ax:
-        #     :param variables:
-        #     :param param_dict:
-        #     :return:
-        #     """
-        #     # check variables :
-        #     if variables is None:
-        #         variables = self.variables
-        #     if not isinstance(variables, list):
-        #         variables = [variables]
-        #
-        #     if ax is None:
-        #         ax = [plt.subplot(1, variables.__len__(), ii) for ii in range(1, variables.__len__()+1)]
-        #     elif not ax.__len__() == variables.__len__():
-        #         module_logger.error("lenght of ax and variables should be identical")
-        #
-        #     plt.figure()
-        #     n_ax = 0
-        #     #TODO : automate color splitting according to the number of variable
-        #     variable_color = ['r', 'b', 'g']
-        #     for variable in variables:
-        #         profile = self.profile[self.profile.variable == variable]
-        #         if param_dict is None or 'color' not in param_dict:
-        #             param_dict = {'color':variable_color[n_ax]}
-        #         plot_profile(profile, ax=ax[n_ax], param_dict=param_dict)
-        #         n_ax += 1
-        #     return ax
-
-        # # def calc_prop(self, property):
-        # #     """
-        # #     :param property:
-        # #     :return:
-        # #     """
-        # #     # check properties variables
-        # #     if property not in si_prop_list.keys():
-        # #         logging.warning('property %s not defined in the ice core property module' % property)
-        # #         return None
-        # #     elif 'salinity' not in self.profiles:
-        # #         logging.warning('ice core %s is missing salinity profile for further calculation' % self.name)
-        # #         return None
-        # #     elif 'temperature' not in self.profiles:
-        # #         logging.warning('ice core %s is missing temperature profile for further calculation' % self.name)
-        # #         return None
-        # #     else:
-        # #         import seaice.properties
-        # #         variable = si_prop_list[property]
-        # #         function = getattr(seaice.properties, variable.replace(" ", "_"))
-        # #         profilet = self.profiles['temperature']
-        # #         profiles = self.profiles['salinity']
-        # #         y = np.sort(np.unique(np.concatenate((profilet.y, profiles.y))))
-        # #         y = y[np.where(y <= max(max(profilet.y), max(profiles.y)))]
-        # #         y = y[np.where(y >= max(min(profilet.y), min(profiles.y)))]
-        # #         y_mid = y[0:-1] + np.diff(y) / 2
-        # #         length = max(y) - min(y)
-        # #
-        # #         xt = np.interp(y_mid, profilet.y, profilet.x, left=np.nan, right=np.nan)
-        # #         xs = np.interp(y_mid, profiles.y[:-1] + np.diff(profiles.y) / 2, profiles.x, left=np.nan, right=np.nan)
-        # #         x = function(xt, xs)
-        # #
-        # #         note = 'computed from ' + self.profiles['temperature'].profile_label + ' temperature profile and ' + \
-        # #                self.profiles['salinity'].profile_label + ' salinity profile'
-        # #         profile_label = self.name
-        # #         prop_profile = Profile(x, y, profile_label, variable, comment=None, note=note, length=length)
-        # #         self.add_profile(prop_profile, variable)
-        # #         self.add_comment('computed %s' % variable)
-
-        # def plot_state_variable(self, flag_figure_number=None, param_dict=None):
-        #     """
-        #     :param flag_figure_number:
-        #     :param param_dict:
-        #     :return:
-        #     """
-        #     if flag_figure_number is None:
-        #         fig = plt.figure()
-        #         ax1 = fig.add_subplot(1, 2, 1)
-        #         ax2 = fig.add_subplot(1, 2, 2, sharey=ax1)
-        #     else:
-        #         fig = plt.figure(flag_figure_number)
-        #         ax1 = fig.add_subplot(1, 2, 1)
-        #         ax2 = fig.add_subplot(1, 2, 2, sharey=ax1)
-        #
-        #     if 'salinity' in self.profiles.keys():
-        #         self.plot_variable(ax1, 'salinity', param_dict)
-        #         ax1.set_ylabel('depth [m]')
-        #     else:
-        #         logging.warning('salinity profile missing for %s' % self.name)
-        #
-        #     if 'temperature' in self.profiles.keys():
-        #         self.plot_variable(ax2, 'temperature', param_dict)
-        #     else:
-        #         logging.warning('temperature profile missing for %s' % self.name)
-        #
-        #     ax_fig = [ax1, ax2]
-        #     return fig, ax_fig
-        #
-        # def get_profile_variable(self):
-        #     return sorted(self.profiles.keys())
-        #
-        # def rescale(self, variable=None, section_thickness=0.05):
-        #     return make_section(self, variable, section_thickness)

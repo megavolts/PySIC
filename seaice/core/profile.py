@@ -56,16 +56,14 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
         y_bins = pd.Series(profile.y_low.dropna().tolist() + profile.y_sup.dropna().tolist()).sort_values().unique()
         y_mid = profile.y_mid.dropna().sort_values().unique()
         logger.info("y_bins and y_mid are empty, creating from profile")
-    elif y_bins is None:
-        if y_mid is not None:
+    elif y_bins is None and y_mid is not None:
             logger.info("y_bins is empty, creating from given y_mid")
             y_mid = y_mid.sort_values().values
             dy = np.diff(y_mid) / 2
             y_bins = np.concatenate([[y_mid[0] - dy[0]], y_mid[:-1] + dy, [y_mid[-1] + dy[-1]]])
             if y_bins[0] < 0:
                 y_bins[0] = 0
-    elif y_mid is None:
-        if y_bins is not None:
+    else:
             y_mid = np.diff(y_bins) / 2 + y_bins[:-1]
             logger.info("y_mid is empty, creating from given y_bins")
 
@@ -132,22 +130,21 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                     plt.plot(temp[variable], temp['y_mid'], 'xr')
                     if 'name' in profile_prop.keys():
                         plt.title(profile_prop.name.unique()[0] + ' - ' + variable)
-
+                    plt.show()
             # step profile (salinity-like)
             else:
                 if v_ref == 'bottom':
-                    yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
-                        ['y_sup', 'y_low', variable])
+                    # yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
+                    #     ['y_sup', 'y_low', variable])
+                    yx = profile.loc[profile.variable == variable, ['y_sup', 'y_low', variable]].sort_values(by='y_low').values
                     if yx[0, 0] > yx[0, 1]:
-                        yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
-                            ['y_low', 'y_sup', variable])
+                        # yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
+                        #     ['y_low', 'y_sup', variable])
+                        yx = profile.loc[profile.variable == variable, ['y_low', 'y_sup', variable]].sort_values(by='y_sup').values
                 else:
-                    yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
-                        ['y_low', 'y_sup', variable])
-                # for testing purpose only, inverse profile
-                # y_bins = -y_bins
-                # yx = -yx
-                # yx = np.vstack(([yx[:, 1]], [yx[:, 0]], [yx[:, 2]])).transpose()
+                    # yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
+                    #     ['y_low', 'y_sup', variable])
+                    yx = profile.loc[profile.variable == variable, ['y_sup', 'y_low', variable]].sort_values(by='y_low').values
 
                 # if missing section, add an emtpy section with np.nan as property value
                 yx_new = []
@@ -290,13 +287,13 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                                          columns=['y_low', 'y_mid', 'y_sup', variable, 'weight'],
                                          index=temp.index[0:np.unique(y_step).__len__() - 1]))
 
-                # core attribut
+                # core attribute
                 profile_prop = profile.loc[profile.variable == variable].head(1)
-                profile_prop = profile_prop.drop(variable, 1)
                 profile_prop['variable'] = variable
                 profile_prop = profile_prop.drop('y_low', 1)
                 profile_prop = profile_prop.drop('y_mid', 1)
                 profile_prop = profile_prop.drop('y_sup', 1)
+                profile_prop = profile_prop.drop(variable, axis=1)
                 temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
                                          index=temp.index.tolist()))
                 if 'date' in temp:
@@ -311,11 +308,12 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                         y.append(yx[ii, 1])
                         x.append(yx[ii, 2])
                         x.append(yx[ii, 2])
-                    plt.step(x, y, 'bx')
-                    plt.step(x_step, y_step, 'ro')
+                    plt.step(x, y, 'bx', label='original')
+                    plt.step(x_step, y_step, 'ro', linestyle='--', label='discretized')
                     if 'name' in profile_prop.keys():
                         plt.title(profile_prop.name.unique()[0] + ' - ' + variable)
-
+                    plt.legend()
+                    plt.show()
             temp = temp.apply(pd.to_numeric, errors='ignore')
 
             discretized_profile = discretized_profile.append(temp)
@@ -410,7 +408,7 @@ def select_profile(ics_stack, variable_dict):
     for ii_key in variable_dict.keys():
         if ii_key in ics_stack.columns.values:
             ii_var.append(variable_dict[ii_key])
-            str_select = str_select + 'ics_stack.' + ii_key + '==ii_var[' + str('%d' % ii) + ']) & ('
+            str_select = str_select + 'ics_stack["' + ii_key + '"]==ii_var[' + str('%d' % ii) + ']) & ('
             ii += 1
     str_select = str_select[:-4]
     return ics_stack.loc[eval(str_select)]

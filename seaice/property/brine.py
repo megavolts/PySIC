@@ -192,14 +192,15 @@ def salinity_from_conductivity(t, c):
     http://www.chemiasoft.com/chemd/salinity_calculator
 
     """
-    if isinstance(t, (int, float, list)):
+    if isinstance(t, (int, float)):
+        t = np.array(t)
+    if isinstance(t, list):
         t = np.atleast_1d(t).astype(float)
-    if (t > 0).any():
-        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = np.nan
 
-    if isinstance(c, (int, float, list)):
-        t = np.atleast_1d(t).astype(float)*1e-4   # from S/m in uS/cm
+    if isinstance(c, (int, float)):
+        c = np.array(c)
+    if isinstance(c, list):
+        c = np.atleast_1d(c).astype(float)*1e-4   # from S/m in uS/cm
 
     if t.shape != c.shape:
         module_logger.warning('t, c must all have the same dimensions')
@@ -225,4 +226,3 @@ def salinity_from_conductivity(t, c):
     s = np.polyval(a[:, 0], rc_x)
 
     return s+ds
-

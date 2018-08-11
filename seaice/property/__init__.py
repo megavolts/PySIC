@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import logging
 import seaice.core.plot
+import matplotlib.pyplot as plt
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -66,7 +67,7 @@ def scale_profile(profile, h_ice_f):
     return profile
 
 
-def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='step', resize_core='S',
+def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='step', resize_core=False,
                                 display_figure=True, attribut_core='S', prop_name=None):
     """
     :param s_profile:
@@ -170,11 +171,16 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
         prop_data = pd.DataFrame(np.vstack((prop_data, s_profile['y_mid'])).transpose(), columns=[prop, 'y_mid'])
         comment_core = 'physical properties computed from ' + S_core_name + '(S) and ' + T_core_name + '(T)'
         prop_data.loc[:, 'variable'] = prop
-        if prop_name is None:
-            if S_core_name is T_core_name:
-                prop_name = S_core_name
-            else:
-                prop_name = S_core_name + '/' + T_core_name
+        if prop_name == 'S':
+            name = S_core_name
+        elif prop_name == 'T':
+            name = T_core_name
+        elif S_core_name is T_core_name:
+            name = S_core_name
+        elif prop_name is not None:
+            name = prop_name
+        else:
+            name = S_core_name + '/' + T_core_name
 
         if attribut_core is 'S':
             prop_data.loc[:, 'name'] = list(set(s_profile.name))[0]
@@ -186,7 +192,7 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
             var_drop = [var for var in ['salinity', 'temperature', 'variable', f_prop, 'name', 'core'] if
                         var in t_profile.keys()]
             core_frame = t_profile.drop(var_drop, axis=1)
-        prop_data.loc[:, 'name'] = prop_name
+        prop_data.loc[:, 'name'] = name
 
         if si_prop_dict[f_prop] == 'linear':
             core_frame.loc[:, ['y_low', 'y_sup']] = np.nan
@@ -202,13 +208,14 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
                 prop_data.loc[prop_data.index == index, 'comment'] = comment_core
 
         if display_figure:
-            ax = seaice.core.plot.plot_profile_variable(prop_data, {'name': prop_name, 'variable': prop},
+            ax = seaice.core.plot.plot_profile_variable(prop_data, {'name': name, 'variable': prop},
                                                         ax=None, param_dict=None)
             ax.set_xlabel(prop)
             ax.set_ylabel('ice thickness)')
             ax.set_title(S_core_name)
-        prop_profile = prop_profile.append(prop_data, ignore_index=True, verify_integrity=False)
+            plt.show()
 
+        prop_profile = prop_profile.append(prop_data, ignore_index=True, verify_integrity=False, sort=False)
     return prop_profile
 
 
@@ -257,3 +264,4 @@ def compute_phys_prop_from_core_name(ics_stack, S_core_name, T_core_name, si_pro
         return seaice.core.corestack.CoreStack(ics_stack)
     else:
         return prop_profile
+

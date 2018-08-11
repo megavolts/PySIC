@@ -18,7 +18,7 @@ __date__ = "2017/09/13"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 __name__ = "si"
 __all__ = ["air_volume_fraction", 'brine_volume_fraction', "density", "electric_conductivity", "latentheat",
-           "permeability", "resistivity", "specific_heat_capacity", "thermal_conductivity", "thermal_diffusivity"]
+           "permeability", "permeability_from_porosity", "resistivity", "specific_heat_capacity", "thermal_conductivity", "thermal_diffusivity"]
 
 logger = logging.getLogger(__name__)
 
@@ -419,11 +419,35 @@ def latentheat(t, s, transformation='solidification', s0=35.):
     return l_si
 
 
+def permeability_from_porosity(p):
+    """
+        Calculate sea ice permeability k in function of sea ice porosoty (-), according to Golden et al. hierarchical
+        model for columnar sea ice.
+
+        :param p : array_like, float
+            sea ice porosity (-)
+
+        :return k: ndarray
+            permeability [m2, unitless]
+
+        :source :
+            Equation 5  in K. Golden, H. Eicken, A.L. Heaton, J.Miner, D.J. Pringle, J. Zhu (2007) Thermal Evolution of
+            Permeability, Geophysical Research Letters, 34, doi:10.1029/2007GL030447
+
+    """
+    if isinstance(p, (int, float, list)):
+        p = np.atleast_1d(p).astype(float)
+
+    k = 3 * p**3*1e-8
+
+    return k
+
+
 
 def permeability(t, s, rho_si='default', vf_a=0.005):
     """
-        Calculate sea ice permeability k in function of temperature and salinity, according to Golden et al.
-        hierarchical model.
+        Calculate sea ice permeability k in function of temperature (°C) and salinity (PSU), according to Golden et al.
+        hierarchical model for columnar sea ice.
 
         :param t : array_like, float
             temperature [degree °C]
@@ -473,7 +497,7 @@ def permeability(t, s, rho_si='default', vf_a=0.005):
         logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
         return 0
 
-    k = 3 * brine_volume_fraction(t, s, rho_si, vf_a=vf_a)**3*1e-8
+    k = permeability_from_porosity(brine_volume_fraction(t, s, rho_si, vf_a=vf_a))
 
     return k
 

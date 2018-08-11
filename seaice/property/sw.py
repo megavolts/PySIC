@@ -76,7 +76,7 @@ def salinity_from_conductivity(t, c):
         Temperature [degree C]
         If t is an array, c should be an array of same dimension
     :param c: array_like, float
-        conductivity in microSievert by centimeters [S/m]
+        conductivity in microSievert by centimeters [uS/cm]
         If c is an array, t should be an array of same dimension
 
     :return sigma_sw: ndarray
@@ -92,12 +92,9 @@ def salinity_from_conductivity(t, c):
 
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)
-    if (t > 0).any():
-        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = np.nan
 
     if isinstance(c, (int, float, list)):
-        c = np.atleast_1d([c]) * 1e-4  # from S/m in uS/cm
+        c = np.atleast_1d([c])  # from S/m in uS/cm
 
     if t.shape != c.shape:
         module_logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
@@ -120,13 +117,14 @@ def salinity_from_conductivity(t, c):
     rc_x = np.sqrt(rc)
 
     ds = (t - 15) / (1 + 0.0162 * (t - 15)) * np.polyval(a[:, 1], rc_x)
-    s = np.polyval(a[:, 0], rc_x) +ds
+    s = np.polyval(a[:, 0], rc_x) + ds
 
-    if s[s > 42].__len__() or s[s , 42].__len__():
+    s = s+ds
+
+    if s[s > 42].__len__() > 0 or s[s < 2].__len__() > 0:
         module_logger.warning("%s some salinites are out of the validity domain" % __name__)
+        s[s > 42] = np.nan
+        s[s < 2] = np.nan
 
-    s[s > 42] = np.nan
-    s[s < 2] = np.nan
-
-    return s + ds
+    return s
 
