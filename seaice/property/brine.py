@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-property/brine.py contains function to compute physical property relative to the brine
+property/brine.py contains function to compute physical property relative to the sea ice brine
 """
 
 import numpy as np
@@ -32,12 +32,11 @@ def density(t):
         :return rho_b: ndarray
             The calculated density of the brine [kg/m3]
 
-        :source:
-        Equation 2.9 in thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
-        Equation (3) in Cox, G. F. N., & Weeks, W. F. (1986). Changes in the salinity and porosity of sea-ice
-        samples during shipping and storage. J. Glaciol, 32(112)
-        Zubov, N.N. (1945), L'dy Arktiki [Arctic ice]. Moscow, Izdatel'stvo Glavsevmorputi.
-
+        :reference:
+            Equation 2.9 in thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
+            Equation (3) in Cox, G. F. N., & Weeks, W. F. (1986). Changes in the salinity and porosity of sea-ice
+                samples during shipping and storage. J. Glaciol, 32(112)
+            Zubov, N.N. (1945), L'dy Arktiki [Arctic ice]. Moscow, Izdatel'stvo Glavsevmorputi.
     """
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)
@@ -46,7 +45,7 @@ def density(t):
         t[t > 0] = np.nan
 
     # Physical constant
-    a = [8 * 10 ** (-4), 1]
+    a = [8e-4, 1]
 
     s_b = salinity(t)
     rho_b = (a[1] + a[0] * s_b)
@@ -65,6 +64,8 @@ def electric_conductivity(t):
             The conductivity of the brine in [S/m]
 
         :source :
+            ? ? ? ?
+
         Fofonoff, Nick P., and Robert C. Millard. "Algorithms for computation of fundamental properties of seawater."
         (1983).
     """
@@ -97,6 +98,7 @@ def thermal_conductivity(t):
         Equation 2.12 in Eicken, H. (2003). From the microscopic, to the macroscopic, to the regional scale: growth,
         microstructure and properties of sea ice. In thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London:
         Wiley-Blackwell
+
         Yen, Y. C., Cheng, K. C., and Fukusako, s. (1991) Review of intrinsic thermophysical properties of snow,
         ice, sea ice, and frost. In: Proceedings 3rd International symposium on Cold Regions Heat transfer, Fairbanks,
         AK, June 11-14, 1991. (Ed. by J. P. Zarling & s. L. Faussett), pp. 187-218, University of Alaska, Fairbanks
@@ -173,15 +175,15 @@ def salinity(t, method='cw'):
     return s_b
 
 
-def salinity_from_conductivity(t, c):
+def salinity_from_conductivity(c, t):
     """
-    Calculates the salinity of brine from specifc conductance
+    Calculates the salinity of brine from specifc conductance at sea level temperature (p = 0 dbar)
 
     :param t: array_like, float
         Temperature [degree C]
         If t is an array, c should be an array of same dimension
     :param c: array_like, float
-        conductivity in microSievert by centimeters [S/m]
+        conductivity in Sievert by meters [S/m]
         If c is an array, t should be an array of same dimension
 
     :return sigma_sw: ndarray
@@ -196,7 +198,6 @@ def salinity_from_conductivity(t, c):
         t = np.array(t)
     if isinstance(t, list):
         t = np.atleast_1d(t).astype(float)
-
     if isinstance(c, (int, float)):
         c = np.array(c)
     if isinstance(c, list):
@@ -207,22 +208,17 @@ def salinity_from_conductivity(t, c):
         return 0
 
     # Physical constant
-    a = np.empty((6, 2))
-    a[0, :] = [0.0080, 0.0005]
-    a[1, :] = [-0.1692, -0.0056]
-    a[2, :] = [25.3851, -0.0066]
-    a[3, :] = [14.0941, -0.0375]
-    a[4, :] = [-7.0261, 0.0636]
-    a[5, :] = [2.7081, -0.0144]
+    a = [2.7081, -7.0261, 14.0941, 25.3851, -0.1692, 0.0080]
+    b = [-0.0144, 0.0636, -0.0375, -0.0066, -0.0056, 0.0005]
+    c = [-0.0267243, 4.6636947, 861.3027640, 29035.1640851]
 
-    b = [-0.0267243, 4.6636947, 861.3027640, 29035.1640851]
-
-    c_kcl = np.polyval(b, t)
+    c_kcl = np.polyval(c, t)
     rc = c / c_kcl
 
     rc_x = np.sqrt(rc)
 
-    ds = (t - 15) / (1 + 0.0162 * (t - 15)) * np.polyval(a[:, 1], rc_x)
-    s = np.polyval(a[:, 0], rc_x)
+
+    ds = (t - 15) / (1 + 0.0162 * (t - 15)) * np.polyval(b, rc_x)
+    s = np.polyval(a, rc_x)
 
     return s+ds
