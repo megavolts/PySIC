@@ -275,7 +275,7 @@ def import_ic_list(ic_list, variables=None, v_ref='top'):
     return ic_dict
 
 
-def import_ic_sourcefile(filepath, variables=None, v_ref='top'):
+def import_ic_sourcefile(f_path, variables=None, ic_dir=None, v_ref='top'):
     """
     :param filepath:
             string, absolute path to the file containing either the absolute path of the cores (1 path by line) or the
@@ -287,11 +287,17 @@ def import_ic_sourcefile(filepath, variables=None, v_ref='top'):
         top, or bottom
     """
     logger = logging.getLogger(__name__)
-    logger.info('Import ice core from source file: %s' % filepath)
+    logger.info('Import ice core from source file: %s' % f_path)
 
-    with open(filepath) as f:
-        ics = sorted([line.strip() for line in f])
+    if ic_dir is not None:
+        with open(f_path) as f:
+            ics = sorted([os.path.join(ic_dir, line.strip()) for line in f if not line.strip().startswith('#')])
+    else:
+        with open(f_path) as f:
+            ics = sorted([line.strip() for line in f if not line.strip().startswith('#')])
+
     print(ics)
+
     return import_ic_list(ics, variables=variables, v_ref=v_ref)
 
 
