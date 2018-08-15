@@ -3,10 +3,9 @@
 """
 property.seaice.py contains function to compute physical property relative to the seaice
 """
-import numpy as np
 import logging
-from seaice.property import ice
-from seaice.property import brine
+
+import numpy as np
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -17,29 +16,14 @@ __email__ = "moggier@alaska.edu"
 __status__ = "development"
 __date__ = "2017/09/13"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
-__name__ = "seaice"
-
-si_state_variable = {'temperature': 'temperature', 'temp': 'temperature', 't': 'temperature',
-                     'salinity': 'salinity', 's': 'salinity'}
-si_prop_list = {'brine volume fraction': 'brine volume fraction',
-                'vbf': 'brine volume fraction', 'vb': 'brine volume fraction',
-                'seaice permeability': 'seaice permeability', 'k': 'seaice permeability'}
-si_prop_unit = {'salinity': '-',
-                'temperature': '°C',
-                'vb': '-', 'brine volume fraction': '-',
-                'seaice permeability': 'm$^{-2}$'}
-si_prop_latex = {'salinity': 'S',
-                 'temperature': 'T',
-                 'brine volume fraction': '\phi_{B}',
-                 'ice thickness': 'h_{i}',
-                 'snow thickness': 'h_{s}',
-                 'seaice permeability': '\kappa'
-                 }
-
-module_logger = logging.getLogger(__name__)
-
+__name__ = "si"
 __all__ = ["air_volume_fraction", 'brine_volume_fraction', "density", "electric_conductivity", "latentheat",
-           "permeability", "resistivity", "specific_heat_capacity", "thermal_conductivity", "thermal_diffusivity"]
+           "permeability", "permeability_from_porosity", "resistivity", "specific_heat_capacity", "thermal_conductivity", "thermal_diffusivity"]
+
+logger = logging.getLogger(__name__)
+
+from seaice.property import ice
+from seaice.property import brine
 
 def air_volume_fraction(t, s, rho_si='default'):
     """
@@ -71,14 +55,14 @@ def air_volume_fraction(t, s, rho_si='default'):
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
-        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        logger.warning('Some element of t > 0°C. Replacing them with nan-value')
         t[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
 
     if rho_si is 'default':
-        module_logger.info('rho_si computed from t and s')
+        logger.info('rho_si computed from t and s')
         rho_si = density(t, s)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
@@ -86,7 +70,7 @@ def air_volume_fraction(t, s, rho_si='default'):
         rho_si = rho_si*np.ones_like(s)
 
     if t.shape != s.shape or t.shape != rho_si.shape or s.shape != rho_si.shape:
-        module_logger.warning('t, s, rho_si must all have the same dimensions')
+        logger.warning('t, s, rho_si must all have the same dimensions')
         return 0
 
     # Physical constant
@@ -163,7 +147,7 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005):
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
-        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        logger.warning('Some element of t > 0°C. Replacing them with nan-value')
         t[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
@@ -175,7 +159,7 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005):
         vf_a = vf_a * np.ones_like(s)
 
     if rho_si is 'default':
-        module_logger.info('rho_si computed from t and s')
+        logger.info('rho_si computed from t and s')
         rho_si = density(t, s)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d([rho_si]).astype(float)
@@ -184,7 +168,7 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005):
 
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \
                     s.shape != vf_a.shape or rho_si.shape != vf_a.shape:
-        module_logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
+        logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
         return 0
 
     # Physical constant
@@ -260,7 +244,7 @@ def density(t, s, vf_a=0.005):
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d([t]).astype(float)
     if (t > 0).any():
-        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        logger.warning('Some element of t > 0°C. Replacing them with nan-value')
         t[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
@@ -272,7 +256,7 @@ def density(t, s, vf_a=0.005):
         vf_a = vf_a * np.ones_like(t)
 
     if t.shape != s.shape or t.shape != vf_a.shape or s.shape != vf_a.shape:
-        module_logger.warning('t, s, vf_a must all have the same dimensions unless vf_a is a singleton')
+        logger.warning('t, s, vf_a must all have the same dimensions unless vf_a is a singleton')
         return 0
 
     # Physical constant
@@ -301,7 +285,7 @@ def density(t, s, vf_a=0.005):
     b[1] = [-22.9, -2]
     b[2] = [-30, -22.9]
 
-    rho_i = ice.density(t)*1e-3
+    rho_i = ice.density(t) * 1e-3
 
     f1 = np.nan * t
     f2 = np.nan * t
@@ -345,14 +329,14 @@ def electric_conductivity(t, s, rho_si='default', vf_a=0.005):
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
-        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        logger.warning('Some element of t > 0°C. Replacing them with nan-value')
         t[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
 
     if rho_si is 'default':
-        module_logger.info('rho_si computed from t and s')
+        logger.info('rho_si computed from t and s')
         rho_si = density(t, s)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
@@ -361,16 +345,16 @@ def electric_conductivity(t, s, rho_si='default', vf_a=0.005):
 
     if isinstance(vf_a, (int, float, list)):
         vf_a = np.atleast_1d(vf_a).astype(float)
-    if vf_a.size() == 1:
+    if vf_a.size == 1:
         vf_a = vf_a * np.ones_like(s)
 
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \
                     s.shape != vf_a.shape or rho_si.shape != vf_a.shape:
-        module_logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
+        logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
         return 0
 
     sigma_b = brine.electric_conductivity(t)
-    vf_b = bine_volume_fraction(t, s, rho_si=rho_si, vf=vf_a)
+    vf_b = brine_volume_fraction(t, s, rho_si=rho_si, vf=vf_a)
 
     sigma_si = sigma_b*vf_b**2.88
 
@@ -403,7 +387,7 @@ def latentheat(t, s, transformation='solidification', s0=35.):
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
-        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        logger.warning('Some element of t > 0°C. Replacing them with nan-value')
         t[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
@@ -415,7 +399,7 @@ def latentheat(t, s, transformation='solidification', s0=35.):
         s0 = s0 * np.ones_like(s)
 
     if t.shape != s.shape or t.shape != s0.shape or s.shape != s0.shape:
-        module_logger.warning('t, s, s0 must all have the same dimensions, unless s0 is a singleton')
+        logger.warning('t, s, s0 must all have the same dimensions, unless s0 is a singleton')
         return 0
 
     # Pysical Constant
@@ -429,16 +413,41 @@ def latentheat(t, s, transformation='solidification', s0=35.):
     elif transformation in ['fusion', 'melting']:
         l_si = lwater - c_i * t + c_i * m_m * s - m_m * lwater * (s / t)
     else:
-        module_logger.warning('Phase transformation undefined')
+        logger.warning('Phase transformation undefined')
         return 0
 
     return l_si
 
 
+def permeability_from_porosity(p):
+    """
+        Calculate sea ice permeability k in function of sea ice porosoty (-), according to Golden et al. hierarchical
+        model for columnar sea ice.
+
+        :param p : array_like, float
+            sea ice porosity (-)
+
+        :return k: ndarray
+            permeability [m2, unitless]
+
+        :source :
+            Equation 5  in K. Golden, H. Eicken, A.L. Heaton, J.Miner, D.J. Pringle, J. Zhu (2007) Thermal Evolution of
+            Permeability, Geophysical Research Letters, 34, doi:10.1029/2007GL030447
+
+    """
+    if isinstance(p, (int, float, list)):
+        p = np.atleast_1d(p).astype(float)
+
+    k = 3 * p**3*1e-8
+
+    return k
+
+
+
 def permeability(t, s, rho_si='default', vf_a=0.005):
     """
-        Calculate sea ice permeability k in function of temperature and salinity, according to Golden et al.
-        hierarchical model.
+        Calculate sea ice permeability k in function of temperature (°C) and salinity (PSU), according to Golden et al.
+        hierarchical model for columnar sea ice.
 
         :param t : array_like, float
             temperature [degree °C]
@@ -464,14 +473,14 @@ def permeability(t, s, rho_si='default', vf_a=0.005):
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
-        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        logger.warning('Some element of t > 0°C. Replacing them with nan-value')
         t[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
 
     if rho_si is 'default':
-        module_logger.info('rho_si computed from t and s')
+        logger.info('rho_si computed from t and s')
         rho_si = density(t, s)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
@@ -480,15 +489,15 @@ def permeability(t, s, rho_si='default', vf_a=0.005):
 
     if isinstance(vf_a, (int, float, list)):
         vf_a = np.atleast_1d(vf_a).astype(float)
-    if vf_a.size() == 1:
+    if vf_a.size == 1:
         vf_a = vf_a * np.ones_like(s)
 
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \
                     s.shape != vf_a.shape or rho_si.shape != vf_a.shape:
-        module_logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
+        logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
         return 0
 
-    k = 3 * bine_volume_fraction(t, s, rho_si, vf_a=vf_a)**3*1e-8
+    k = permeability_from_porosity(brine_volume_fraction(t, s, rho_si, vf_a=vf_a))
 
     return k
 
@@ -522,14 +531,14 @@ def resistivity(t, s, rho_si='default', vf_a=0.005):
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
-        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        logger.warning('Some element of t > 0°C. Replacing them with nan-value')
         t[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
 
     if rho_si is 'default':
-        module_logger.info('rho_si computed from t and s')
+        logger.info('rho_si computed from t and s')
         rho_si = density(t, s)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
@@ -538,12 +547,12 @@ def resistivity(t, s, rho_si='default', vf_a=0.005):
 
     if isinstance(vf_a, (int, float, list)):
         vf_a = np.atleast_1d(vf_a).astype(float)
-    if vf_a.size() == 1:
+    if vf_a.size == 1:
         vf_a = vf_a * np.ones_like(s)
 
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \
                     s.shape != vf_a.shape or rho_si.shape != vf_a.shape:
-        module_logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
+        logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
         return 0
 
     rhoel_si = 1/electric_conductivity(t, s, rho_si=rho_si, vf_a=vf_a)
@@ -581,14 +590,14 @@ def specific_heat_capacity(t, s, method='untersteiner'):
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
-        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        logger.warning('Some element of t > 0°C. Replacing them with nan-value')
         t[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
 
     if t.shape != s.shape:
-        module_logger.warning('t, s must all have the same dimensions')
+        logger.warning('t, s must all have the same dimensions')
         return 0
 
     # Pysical Constant
@@ -646,7 +655,7 @@ def thermal_conductivity(t, s, method='pringle', vf_a=0.005):
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
-        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        logger.warning('Some element of t > 0°C. Replacing them with nan-value')
         t[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
@@ -658,13 +667,13 @@ def thermal_conductivity(t, s, method='pringle', vf_a=0.005):
         vf_a = vf_a * np.ones_like(s)
 
     if t.shape != s.shape or t.shape != vf_a.shape or s.shape != vf_a.shape:
-        module_logger.warning('t, s, vf_a must all have the same dimensions unless vf_a is a singleton')
+        logger.warning('t, s, vf_a must all have the same dimensions unless vf_a is a singleton')
         return 0
 
     if method == 'maykut':
         # Physical constant
         a = 0.13
-        lambda_si = ice.thermal_conductivity(t) + a*s/t
+        lambda_si = ice.thermal_conductivity(t) + a * s / t
 
     elif method == 'pringle':
         rho_si = density(t, s, vf_a=vf_a)
@@ -708,14 +717,14 @@ def thermal_diffusivity(t, s, method_l='prindle', method_cp='untersteiner', rho_
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
-        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        logger.warning('Some element of t > 0°C. Replacing them with nan-value')
         t[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
 
     if rho_si is 'default':
-        module_logger.info('rho_si computed from t and s')
+        logger.info('rho_si computed from t and s')
         rho_si = density(t, s)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
@@ -724,12 +733,12 @@ def thermal_diffusivity(t, s, method_l='prindle', method_cp='untersteiner', rho_
 
     if isinstance(vf_a, (int, float, list)):
         vf_a = np.atleast_1d(vf_a).astype(float)
-    if vf_a.size() == 1:
+    if vf_a.size == 1:
         vf_a = vf_a * np.ones_like(s)
 
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \
                     s.shape != vf_a.shape or rho_si.shape != vf_a.shape:
-        module_logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
+        logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
         return 0
 
     sigma_si = thermal_conductivity(t, s, method=method_l, vf_a=vf_a) /\

@@ -8,9 +8,64 @@ __status__ = "development"
 __date__ = "2017/09/13"
 __name__ = "climatology"
 
-import pandas as pd
 import numpy as np
-import seaice.core
+import pandas as pd
+import seaice
+
+
+
+def DD_fillup(ics_stack, DD, freezup_dates):
+    import datetime
+
+    for f_day in ics_stack.date.unique():
+        # look for freezup_day
+        if isinstance(f_day, np.datetime64):
+            f_day = datetime.datetime.utcfromtimestamp(
+                (f_day - np.datetime64('1970-01-01T00:00:00')) / np.timedelta64(1, 's'))
+        f_day = datetime.datetime(f_day.year, f_day.month, f_day.day)
+        if f_day < datetime.datetime(f_day.year, 9, 1):
+            freezup_day = datetime.datetime.fromordinal(freezup_dates[f_day.year])
+        else:
+            freezup_day = datetime.datetime.fromordinal(freezup_dates[f_day.year + 1])
+
+        # look for number of freezing/thawing degree day:
+        if DD[f_day][1] < 0:
+            ics_stack.loc[ics_stack.date == f_day, 'DD'] = DD[f_day][1]
+        else:
+            ics_stack.loc[ics_stack.date == f_day, 'DD'] = DD[f_day][0]
+
+        ics_stack.loc[ics_stack.date == f_day, 'FDD'] = DD[f_day][0]
+        ics_stack.loc[ics_stack.date == f_day, 'TDD'] = DD[f_day][1]
+        ics_stack.loc[ics_stack.date == f_day, 'freezup_day'] = ['a']
+        ics_stack.loc[ics_stack.date == f_day, 'freezup_day'] = [freezup_day]
+    return CoreStack(ics_stack)
+
+
+def stack_DD_fud(ics_data, DD, freezup_dates):
+    ics_data_stack = CoreStack()
+    for ii_core in ics_data.keys():
+        core = ics_data[ii_core]
+        ics_data_stack = ics_data_stack.add_profiles(core.profiles)
+
+    for ii_day in ics_data_stack.date.unique():
+        variable_dict = {'date': ii_day}
+        ii_day = pd.DatetimeIndex([ii_day])[0].to_datetime()
+
+        # freezup day:
+        if ii_day < datetime.datetime(ii_day.year, 9, 1):
+            freezup_day = datetime.datetime.fromordinal(freezup_dates[ii_day.year - 1])
+        else:
+            freezup_day = datetime.datetime.fromordinal(freezup_dates[ii_day.year])
+        # DD
+        if DD[ii_day][1] < 0:
+            data = [[DD[ii_day][0], DD[ii_day][1], DD[ii_day][1], np.datetime64(freezup_day)]]
+        else:
+            data = [[DD[ii_day][0], DD[ii_day][1], DD[ii_day][0], np.datetime64(freezup_day)]]
+        data_label = ['date', 'FDD', 'TDD', 'DD', 'freezup_day']
+        data = pd.DataFrame(data, columns=data_label)
+
+        ics_data_stack = ics_data_stack.add_variable(variable_dict, data)
+    return ics_data_stack
 
 
 def grouped_stat(ics_stack, variables, stats, bins_DD, bins_y, comment=False):
@@ -42,7 +97,7 @@ def grouped_stat(ics_stack, variables, stats, bins_DD, bins_y, comment=False):
                                                          ['name'].unique())]
             for ii_bin in range(stat_var.__len__()):
                 temp = pd.DataFrame(stat_var[ii_bin], columns=[ii_variable])
-                temp = temp.join(pd.DataFrame(core_var[ii_bin], columns=['core collection']))
+                temp = temp.join(pd.DataFrame(core_var[ii_bin], columns=['collection']))
                 DD_label = 'DD-' + str(bins_DD[ii_bin]) + '_' + str(bins_DD[ii_bin + 1])
                 data = [str(bins_DD[ii_bin]), str(bins_DD[ii_bin + 1]), DD_label, int(ii_bin), ii_stat,
                         ii_variable, ics_stack.v_ref.unique()[0]]
@@ -51,9 +106,9 @@ def grouped_stat(ics_stack, variables, stats, bins_DD, bins_y, comment=False):
                 temp = temp.join(pd.DataFrame([data], columns=columns, index=index))
                 temp = temp.join(pd.DataFrame(index, columns=['y_index'], index=index))
                 for row in temp.index.tolist():
-                    #temp.loc[temp.index == row, 'n'] = temp.loc[temp.index == row, 'core collection'].__len__()
-                    if temp.loc[temp.index == row, 'core collection'][row] is not None:
-                        temp.loc[temp.index == row, 'n'] = temp.loc[temp.index == row, 'core collection'][row].__len__()
+                    #temp.loc[temp.index == row, 'n'] = temp.loc[temp.index == row, 'collection'].__len__()
+                    if temp.loc[temp.index == row, 'collection'][row] is not None:
+                        temp.loc[temp.index == row, 'n'] = temp.loc[temp.index == row, 'collection'][row].__len__()
                     else:
                         temp.loc[temp.index == row, 'n'] = 0
                 columns = ['y_low', 'y_sup', 'y_mid']
@@ -87,7 +142,7 @@ def grouped_stat(ics_stack, variables, stats, bins_DD, bins_y, comment=False):
         if k1[1] in variables:
             grouped_dict[k1[1]][int(k1[0])] = groups['name'].unique().tolist()
 
-    return seaice.core.CoreStack(temp_all.reset_index(drop=True)), grouped_dict
+    return seaice.core.corestack.CoreStack(temp_all.reset_index(drop=True)), grouped_dict
 
 
 def compute_climatology(ics_stack, bins_DD, bins_y, variables=None, ice_core_reference=['top']):
@@ -122,80 +177,3 @@ def compute_climatology(ics_stack, bins_DD, bins_y, variables=None, ice_core_ref
 
         ics_climat, ics_climat_dict = grouped_stat(ics_stack, variables, stats, bins_DD, bins_y, comment=True)
         return ics_climat, ics_climat_dict
-
-
-def plot_envelop(ic_data, variables_dict, ax=None, param_dict={}, flag_number=False):
-    """
-    :param ic_data: 
-    :param variables_dict: 
-    :param ax: 
-    :param param_dict: 
-    :return: 
-    """
-
-    if variables_dict is None:
-        variables_dict = {}
-
-    variables_dict.update({'stats': 'min'})
-    param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
-    ax = seaice.core.plot_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-    variables_dict.update({'stats': 'mean'})
-    param_dict.update({'color': 'k'})
-    ax = seaice.core.plot_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-    variables_dict.update({'stats': 'max'})
-    param_dict.update({'color': 'r'})
-    ax = seaice.core.plot_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-    variables_dict.pop('stats')
-    ax = seaice.core.plot_mean_envelop(ic_data, variables_dict, ax=ax)
-    if flag_number:
-        variables_dict.update({'stats': 'mean'})
-        ax = seaice.core.plot_number(ic_data, variable_dict=variables_dict, ax=ax, z_delta=0.01, every=1)
-    return ax
-
-
-def plot_enveloplog(ic_data, variables_dict, ax=None, param_dict={}, flag_number=False):
-    """
-    :param ic_data:
-    :param variables_dict:
-    :param ax:
-    :param param_dict:
-    :return:
-    """
-
-    if variables_dict is None:
-        variables_dict = {}
-
-    if 'variable' in variables_dict.keys():
-        variable = variables_dict['variable']
-    else:
-        variable = [ic_data.variable.unique()[0]]
-
-    if variable in ['seaice permeability']:
-        # for log scale, replace smallest value by minimum*2
-        variables_dict.update({'stats': 'min'})
-        param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
-        ax = seaice.core.semilogx_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-        variables_dict.update({'stats': 'mean'})
-        param_dict.update({'color': 'k'})
-        ax = seaice.core.semilogx_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-        variables_dict.update({'stats': 'max'})
-        param_dict.update({'color': 'r'})
-        ax = seaice.core.semilogx_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-        variables_dict.pop('stats')
-        ax = seaice.core.semilogx_mean_envelop(ic_data, variables_dict, ax=ax)
-    else:
-        variables_dict.update({'stats': 'min'})
-        param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
-        ax = seaice.core.plot_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-        variables_dict.update({'stats': 'mean'})
-        param_dict.update({'color': 'k'})
-        ax = seaice.core.plot_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-        variables_dict.update({'stats': 'max'})
-        param_dict.update({'color': 'r'})
-        ax = seaice.core.plot_profile_variable(ic_data, variable_dict=variables_dict, param_dict=param_dict, ax=ax)
-        variables_dict.pop('stats')
-        ax = seaice.core.plot_mean_envelop(ic_data, variables_dict, ax=ax)
-        if flag_number:
-            variables_dict.update({'stats': 'mean'})
-            ax = seaice.core.plot_number(ic_data, variable_dict=variables_dict, ax=ax, z_delta=0.01, every=1)
-    return ax

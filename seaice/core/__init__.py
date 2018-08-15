@@ -1,21 +1,10 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-seaice.io.py : function to import single ice core, ice core lists, ice core in a directory.
-
-Module parse to/from ice core formatted excel data spreadsheet
-
+seaice.io.icxl.py : function to import import ice core data from xlsx spreadsheet
 """
-import datetime
-import logging
-import os
-import dateutil
-import numpy as np
-import openpyxl
-import pandas as pd
-import seaice
 
-__name__ = "load"
+__name__ = "icxl"
 __author__ = "Marc Oggier"
 __license__ = "GPL"
 __version__ = "1.1"
@@ -24,13 +13,20 @@ __contact__ = "Marc Oggier"
 __email__ = "moggier@alaska.edu"
 __status__ = "dev"
 __date__ = "2017/09/13"
-__comment__ = "core.py contained classes and function destinated to analyezed sea ice core data "
+__comment__ = "loadxl.py contained function to import ice core data from xlsx spreadsheet"
 __CoreVersion__ = 1.1
 
-__all__ = ["import_ic", "import_ic_list", "import_ic_path"]
+import datetime
+import logging
+import os
 
-# create logger
-module_logger = logging.getLogger(__name__)
+import dateutil
+import numpy as np
+import openpyxl
+import pandas as pd
+import seaice
+
+__all__ = ["import_ic_path", "import_ic_list", "import_ic_sourcefile", "list_ic", "list_ic_path", "make_ic_sourcefile"]
 
 variable_2_sheet = {'temperature': 'T_ice',
                     'salinity': 'S_ice',
@@ -50,7 +46,8 @@ variable_2_sheet = {'temperature': 'T_ice',
                     }
 
 
-def import_ic(ic_path, variables=None, v_ref='top', verbose=logging.WARNING):
+
+def import_ic_path(ic_path, variables=None, v_ref='top'):
     """
     :param ic_path:
         string, path to the xlsx ice core spreadsheet
@@ -58,37 +55,34 @@ def import_ic(ic_path, variables=None, v_ref='top', verbose=logging.WARNING):
         list of string, variables to import. If not defined, all variable will be imported.
     :param v_ref:
         'top' or 'bottom', vertical reference. top for ice/snow or ice/air surface, bottom for ice/water interface
-    :param verbose:
     :return:
     """
+    logger = logging.getLogger(__name__)
 
     if not os.path.exists(ic_path):
-        module_logger.error("%s does not exists in core directory" % ic_path.split('/')[-1])
-        return 0
-    module_logger.setLevel(verbose)
-    module_logger.info("Ice core file path %s" % ic_path)
+        logger.error("%s does not exists in core directory" % ic_path.split('/')[-1])
 
     wb = openpyxl.load_workbook(filename=ic_path)  # load the xlsx spreadsheet
-    ws_name = wb.get_sheet_names()
-    ws_summary = wb.get_sheet_by_name('summary')  # load the data from the summary sheet
+    ws_name = wb.sheetnames
+    ws_summary = wb['summary']  # load the data from the summary sheet
 
     name = ws_summary['C21'].value
 
     if isinstance(ws_summary['C3'].value, (float, int)):
         version = ws_summary['C3'].value
     else:
-        module_logger.error("(%s) ice core spreadsheet version not unavailable" % name)
+        logger.error("(%s) ice core spreadsheet version not unavailable" % name)
 
     if version < __CoreVersion__:
-        update_spreadsheet(ic_path, v_ref=v_ref, verbose=verbose)
-        module_logger.info("Updating ice core spreadsheet %s to last version (%s)" % (name, str(__CoreVersion__)))
+        update_spreadsheet(ic_path, v_ref=v_ref)
+        logger.info("Updating ice core spreadsheet %s to last version (%s)" % (name, str(__CoreVersion__)))
         wb = openpyxl.load_workbook(filename=ic_path)  # load the xlsx spreadsheet
-        ws_name = wb.get_sheet_names()
-        ws_summary = wb.get_sheet_by_name('summary')  # load the data from the summary sheet
+        ws_name = wb.sheetnames
+        ws_summary = wb['summary']  # load the data from the summary sheet
         version = ws_summary['C3'].value
 
     n_row_collection = 22
-    module_logger.info("(%s) importing data" % name)
+    logger.info("importing data for %s" % name)
 
     if isinstance(ws_summary['C2'].value, datetime.datetime):
         if isinstance(ws_summary['D2'].value, datetime.time):
@@ -97,29 +91,31 @@ def import_ic(ic_path, variables=None, v_ref='top', verbose=logging.WARNING):
                 tz = dateutil.tz.gettz(ws_summary['E2'].value)
                 date = date.replace(tzinfo=tz)
             else:
-                module_logger.info("(%s) %s: timezone unavailable." % (__name__, name))
+                logger.info("\t(%s) timezone unavailable." % name)
         else:
             date = ws_summary['C2'].value
             if ws_summary['D2'].value is not None and dateutil.tz.gettz(ws_summary['D2'].value):
                 tz = dateutil.tz.gettz(ws_summary['D2'].value)
                 date = date.replace(tzinfo=tz)
             else:
-                module_logger.info("(%s) %s timezone unavailable." % (__name__, name))
+                logger.info("\t(%s) timezone unavailable." % name)
     else:
-        module_logger.warning("\t(%s) date unavailable" % name)
+        logger.warning("\t(%s) date unavailable" % name)
         date = None
 
     origin = ws_summary['C5'].value
 
-    lat = np.nan
-    lon = np.nan
     if isinstance(ws_summary['C6'].value, (float, int)) or isinstance(ws_summary['D6'], (float, int)):
         lat = ws_summary['C6'].value
         lon = ws_summary['D6'].value
     elif ws_summary['C6'].value and ws_summary['D6'].value:
-        module_logger.error("\t(%s) lat/lon not defined in decimal degree" % name)
+        logger.info("\t(%s) lat/lon not defined in decimal degree" % name)
+        lat = np.nan
+        lon = np.nan
     else:
-        module_logger.info("\t(%s) lat/lon unknown" % name)
+        logger.info("\t(%s) lat/lon unknown" % name)
+        lat = np.nan
+        lon = np.nan
 
     if isinstance(ws_summary['C9'].value, (float, int)):
         snow_depth = np.array([ws_summary['C9'].value]).astype(float)
@@ -138,7 +134,7 @@ def import_ic(ic_path, variables=None, v_ref='top', verbose=logging.WARNING):
             if isinstance(ws_summary.cell(row=10, column=3+n_temp).value, (float, int)):
                 freeboard = np.concatenate((freeboard, np.array([ws_summary.cell(row=10, column=3 + n_snow).value])))
             else:
-                module_logger.info("(%s)\tfreeboard cell %s not a float" % (name,
+                logger.info("(%s)\tfreeboard cell %s not a float" % (name,
                                                                             openpyxl.utils.get_column_letter(3 + n_temp)+str(9)))
             n_temp += 1
         freeboard = pd.to_numeric(freeboard, errors='coerce')
@@ -152,13 +148,13 @@ def import_ic(ic_path, variables=None, v_ref='top', verbose=logging.WARNING):
             if isinstance(ws_summary.cell(row=11, column=3+n_temp).value, (float, int)):
                 ice_thickness = np.concatenate((ice_thickness, np.array([ws_summary.cell(row=11, column=3+n_snow).value])))
             else:
-                module_logger.info("\t(%s) ice_thickness cell %s not a float" % (name, openpyxl.utils.get_column_letter(3+n_temp)+str(9)))
+                logger.info("\t(%s) ice_thickness cell %s not a float" % (name, openpyxl.utils.get_column_letter(3+n_temp)+str(9)))
             n_temp += 1
         ice_thickness = pd.to_numeric(ice_thickness, errors='coerce')
     else:
         ice_thickness = np.array([np.nan])
 
-    core = seaice.core.Core(name, date, origin, lat, lon, ice_thickness, freeboard, snow_depth)
+    core = seaice.Core(name, date, origin, lat, lon, ice_thickness, freeboard, snow_depth)
 
     # temperature
     if ws_summary['C15'].value:
@@ -191,104 +187,95 @@ def import_ic(ic_path, variables=None, v_ref='top', verbose=logging.WARNING):
     if variables is None:
         sheets = [sheet for sheet in ws_name if (sheet not in ['summary', 'abreviation', 'locations', 'lists', 'Vf_oil_calculation']) and
                      (sheet.lower().find('fig') == -1)]
+        core_flag = []
         for sheet in sheets:
-            ws_variable = wb.get_sheet_by_name(sheet)
-            core_flag = 0
+            ws_variable = wb[sheet]
             profile = read_variable(ws_variable, variables=None, version=version, v_ref=v_ref)
             for variable in profile.keys():
                 if not profile[variable][1] == core.name:
-                    module_logger.error('\t(%s) core name %s and profile name %s does not match'
+                    logger.error('\t(%s) core name %s and profile name %s does not match'
                                         % (ic_path, core.name, profile[variable][1]))
                 else:
                     core.add_profile(profile[variable][0])
-                    core.add_variable(variable)
-                    if core_flag == 0 and ~np.isnan(profile[variable][3]):
-                        core.add_ice_core_length(profile[variable][3])
-                        core_flag = 1
+                    if core.name not in core_flag and profile[variable][3] is not None and\
+                            ~np.isnan(profile[variable][3]):
+                        core_flag.append(core.name)
                     core.add_comment(profile[variable][2])
 
-        if core.variables is None:
-            module_logger.info('(%s) no variable to import' %(name))
-        elif core.variables.__len__() > 1:
-            module_logger.info('(%s) variables %s imported with success' %(name, ", ".join(core.variables)))
+        if core.variables().__len__() < 1:
+            logger.info('(%s) no variable to import' % name)
         else:
-            module_logger.info('(%s) variable %s imported with success' % (name, ", ".join(core.variables)))
+            logger.info('\t(%s) variables %s imported with success' % (name, ", ".join(core.variables())))
     else:
         if not isinstance(variables, list):
             if variables.lower().find('state variable')+1:
                 variables = ['temperature', 'salinity']
             else:
                 variables = [variables]
-        module_logger.info("(%s) Variables are %s" % (name, ', '.join(variables)))
+        logger.info("(%s) Variables are %s" % (name, ', '.join(variables)))
 
         core_flag = []
         for variable in variables:
             if variable_2_sheet[variable] in ws_name:
-                ws_variable = wb.get_sheet_by_name(variable_2_sheet[variable])
+                ws_variable = wb[variable_2_sheet[variable]]
                 profile = read_variable(ws_variable, variables=variable, version=version, v_ref=v_ref)
                 if profile.keys().__len__() == 0:
-                    module_logger.warning('\t(%s) no data exist for %s' % (core.name, variable))
+                    logger.warning('\t(%s) no data exist for %s' % (core.name, variable))
                 elif profile[variable][1] is not core.name:
-                    module_logger.error('\t(%s) core name %s and profile name %s does not match'
+                    logger.error('\t(%s) core name %s and profile name %s does not match'
                                         % (ic_path, core.name, profile[variable][1]))
                 else:
                     core.add_profile(profile[variable][0])
-                    core.add_variable(variable)
-                    if core.name not in core_flag and profile[variable][3] is not None and not np.isnan(profile[variable][3]):
-                        core.add_ice_core_length(profile[variable][3])
+                    if core.name not in core_flag and profile[variable][3] is not None and ~np.isnan(
+                            profile[variable][3]):
                         core_flag.append(core.name)
                     core.add_comment(profile[variable][2])
             else:
-                module_logger.info('\tsheet %s does not exists' % variable)
+                logger.info('\tsheet %s does not exists' % variable)
 
     # weather
     # TODO:adding a weather class and reading the information
 
-    if verbose < 30:
-        core.summary()
-
     return core
 
 
-def import_ic_list(ics_list, variables=None, v_ref='top', verbose=logging.WARNING):
+def import_ic_list(ic_list, variables=None, v_ref='top'):
     """
-    :param ics_list:
+    :param ic_list:
             array, array contains absolute filepath for the cores
     :param variables:
-    :param verbose:
     :param v_ref:
         top, or bottom
     """
-    module_logger.setLevel(verbose)
-    module_logger.info('Import ice core lists:')
+    logger = logging.getLogger(__name__)
+
     ic_dict = {}
-    inexisting_ics_list = []
-    for ic_path in ics_list:
-        module_logger.info("%s" % ic_path)
+    inexisting_ic_list = []
+    for ic_path in ic_list:
         if not os.path.exists(ic_path):
-            module_logger.warning("%s does not exists in core directory" % ic_path.split('/')[-1])
-            inexisting_ics_list.append(ic_path.split('/')[-1].split('.')[0])
+            logger.warning("%s does not exists in core directory" % ic_path.split('/')[-1])
+            inexisting_ic_list.append(ic_path.split('/')[-1].split('.')[0])
         else:
-            ic_data = import_ic(ic_path, variables=variables, v_ref=v_ref)
-            if ic_data.variables is None:
-                inexisting_ics_list.append(ic_path.split('/')[-1].split('.')[0])
-                module_logger.warning("%s have no profile" % ic_data.name)
+            ic_data = import_ic_path(ic_path, variables=variables, v_ref=v_ref)
+            if ic_data.variables().size is 0 :
+                inexisting_ic_list.append(ic_path.split('/')[-1].split('.')[0])
+                logger.warning("%s have no properties profile" % (ic_data.name))
             else:
                 ic_dict[ic_data.name] = ic_data
-            logging.debug("done")
-            module_logger.info('importation completed')
 
-    module_logger.info(
-        "%s core does not exits. Removing from collection" % ', '.join(inexisting_ics_list))
-    for ic in inexisting_ics_list:
+    logging.info("Import ice core lists completed")
+    if inexisting_ic_list.__len__()>0:
+        logger.info("%s core does not exits. Removing from collection" % ', '.join(inexisting_ic_list))
+
+    for ic in inexisting_ic_list:
         for ic2 in ic_dict.keys():
             if ic in ic_dict[ic2].collection:
                 ic_dict[ic2].del_from_collection(ic)
-                module_logger.info("remove %s from %s collection" % (ic, ic2))
+                logger.info("remove %s from %s collection" % (ic, ic2))
     return ic_dict
 
 
-def import_ic_path(filepath, variables=None, v_ref='top', verbose=logging.WARNING):
+def import_ic_sourcefile(f_path, variables=None, ic_dir=None, v_ref='top'):
     """
     :param filepath:
             string, absolute path to the file containing either the absolute path of the cores (1 path by line) or the
@@ -298,17 +285,20 @@ def import_ic_path(filepath, variables=None, v_ref='top', verbose=logging.WARNIN
 
     :param v_ref:
         top, or bottom
-    :param verbose:
-        number, verbosity of the log
     """
+    logger = logging.getLogger(__name__)
+    logger.info('Import ice core from source file: %s' % f_path)
 
-    module_logger.setLevel(verbose)
-    module_logger.info('Import ice core from list files: %s' % filepath)
+    if ic_dir is not None:
+        with open(f_path) as f:
+            ics = sorted([os.path.join(ic_dir, line.strip()) for line in f if not line.strip().startswith('#')])
+    else:
+        with open(f_path) as f:
+            ics = sorted([line.strip() for line in f if not line.strip().startswith('#')])
 
-    with open(filepath) as f:
-        ics = sorted([line.strip() for line in f])
+    print(ics)
 
-    return import_ic_list(ics, variables=variables, v_ref=v_ref, verbose=verbose)
+    return import_ic_list(ics, variables=variables, v_ref=v_ref)
 
 
 # read variable
@@ -321,6 +311,7 @@ def read_variable(ws_variable, variables=None, version=__CoreVersion__, v_ref='t
     :param v_ref:
         top, or bottom
     """
+    logger = logging.getLogger(__name__)
 
     if version == 1:
         row_data_start = 6
@@ -329,7 +320,7 @@ def read_variable(ws_variable, variables=None, version=__CoreVersion__, v_ref='t
         if ws_variable['C4'].value:
             v_ref = ws_variable['C4'].value
     else:
-        module_logger.error("ice core spreadsheet version not defined")
+        logger.error("ice core spreadsheet version not defined")
         return None
 
     variable_2_data = {'temperature': [row_data_start, 'A', 'B', 'C'],
@@ -357,15 +348,10 @@ def read_variable(ws_variable, variables=None, version=__CoreVersion__, v_ref='t
 
     profile = {}
     for variable in variables:
-        module_logger.info('(%s) importing %s' % (name, variable))
-
         columns_string = ['comment', 'variable']
         # step profile
         if variable_2_data[variable][1].__len__() == 3:
             columns_float = ['y_low', 'y_sup', 'y_mid']
-            # y_data = np.array([ws_variable[variable_2_data[variable][2][0] + str(row)].value
-            #                  for row in range(variable_2_data[variable][0], ws_variable.max_row+1)])
-
             y_low = np.array([ws_variable[variable_2_data[variable][1][0]+str(row)].value
                               for row in range(variable_2_data[variable][0], ws_variable.max_row+1)])
             y_sup = np.array([ws_variable[variable_2_data[variable][1][1]+str(row)].value
@@ -377,11 +363,11 @@ def read_variable(ws_variable, variables=None, version=__CoreVersion__, v_ref='t
                 if (np.array([isinstance(element, (float, int)) for element in y_low]).any() or
                         np.array([isinstance(element, (float, int)) for element in y_sup]).any()):
                     y_mid = (y_low+y_sup)/2
-                    module_logger.info(
+                    logger.info(
                         '\t(%s : %s) y_mid does not exit, calculating y_mid from section depth with success'
                         % (name, variable))
                 else:
-                    module_logger.warning(
+                    logger.warning(
                         '\t(%s : %s) y_mid does not exit, not able to calculate y_mid from section depth. Section'
                         'depth maybe not numeric' % (name, variable))
             data = np.array([y_low, y_sup, y_mid])
@@ -434,58 +420,84 @@ def read_variable(ws_variable, variables=None, version=__CoreVersion__, v_ref='t
 
             variable_profile = pd.DataFrame(data.transpose(), columns=columns_float + ['comment'])
 
+        # add ice core length
+        try:
+            length = ws_variable['C2'].value
+        except:
+            logger.info('%s no ice core length' % name)
+            length = np.nan
+        else:
+            if length == 'n/a':
+                logger.info('%s ice core length is not available (n/a)' % name)
+                length = np.nan
+            elif not isinstance(length, (int, float)):
+                logger.info('%s ice core length is not a number' % name)
+                length = np.nan
+        variable_profile['length'] = length
+
         # convert numeric to float
-        key_temp = [key for key in variable_profile.keys() if key not in ['comment', 'v_ref']]
+        key_temp = [key for key in variable_profile.keys() if key not in ['comment']]
         for key in key_temp:
             variable_profile[key] = pd.to_numeric(variable_profile[key], errors='coerce')
+
+        # add ice core note
+        try:
+            note = ws_variable['C3'].value
+        except:
+            logger.debug('%s no ice core note' % name)
+            note = None
+        variable_profile['note'] = note
+
+        # set vertical references
         variable_profile['v_ref'] = v_ref
 
-        key_temp = [key for key in key_temp if key not in ['y_low', 'y_sup', 'y_mid']]
-        l_empty = 0
-        for key in key_temp:
-            if not np.isnan(variable_profile[key]).all():
-                l_empty += 1
-        if l_empty > 0:
-            variable_profile['variable'] = variable
+        # set variable
+        variable_profile['variable'] = variable
 
-            for col in columns_float:
-                if col not in variable_profile.keys():
-                    variable_profile[col] = np.nan
-                else:
-                    variable_profile[col] = pd.to_numeric(variable_profile[col])
-            for col in columns_string:
-                if col not in variable_profile.keys():
-                    variable_profile[col] = None
+        variable_profile['name'] = name
 
-            note = ws_variable['C3'].value
-            length = ws_variable['C2'].value
-            if not isinstance(length, (float, int)):
-                length = np.nan
-
-            if v_ref == 'top':
-                variable_profile['v_ref'] = v_ref
-
+        if variable_profile[variable].notna().any():
             profile[variable] = [variable_profile, name, note, length]
-            module_logger.info('\t(%s : %s) variable imported with success' % (name, variable))
+            logger.debug('\t(%s) %s imported with success' % (name, variable))
         else:
-            module_logger.info('\t(%s : %s) variable not defined' % (name, variable))
+            logger.warning('\t(%s) %s unknown' % (name, variable))
     return profile
 
 
 # create list or source
-def generate_list(dirpath, fileext):
+def list_ic(dirpath, fileext):
     """
+    list all files with specific extension in a directory
+
     :param dirpath: str
     :param fileext: str
-    :return ics_list: list
+    :return ic_list: list
         list of ice core path
     """
-    ics_list = [f for f in os.listdir(dirpath) if f.endswith(fileext)]
-    ics_list = [os.path.join(os.path.realpath(dirpath), f) for f in ics_list]
-    return ics_list
+    logger = logging.getLogger(__name__)
+
+    ics_set = set([f for f in os.listdir(dirpath) if f.endswith(fileext)])
+    logger.info("Found %i ice core datafile in %s" % (ics_set.__len__(), dirpath))
+    return ics_set
 
 
-def generate_source(dirpath, fileext):
+def list_ic_path(dirpath, fileext):
+    """
+    list all files with specific extension in a directory
+
+    :param dirpath: str
+    :param fileext: str
+    :return ic_list: list
+        list of ice core path
+    """
+    logger = logging.getLogger(__name__)
+
+    ics_set = list_ic(dirpath=dirpath, fileext=fileext)
+    ic_paths_set = set([os.path.join(os.path.realpath(dirpath), f) for f in ics_set])
+    return ic_paths_set
+
+
+def make_ic_sourcefile(dirpath, fileext, source_filepath=None):
     """
     list all files with specific extension in a directory
 
@@ -494,19 +506,22 @@ def generate_source(dirpath, fileext):
     :return source_file: str
         filepath to the text file containing ice core filepath with absolute path.
     """
-    ics_list = generate_list(dirpath, fileext)
+    logger = logging.getLogger(__name__)
 
-    source_filepath = os.path.join(os.path.realpath(dirpath), 'ics_list.txt')
+    ic_paths_set = list_ic_path(dirpath, fileext)
+
+    if source_filepath is None:
+        source_filepath = os.path.join(os.path.realpath(dirpath), 'ic_list.txt')
 
     with open(source_filepath, 'w') as f:
-        for f_file in ics_list:
-            f.write(f_file + "\n")
+        for ic_path in ic_paths_set:
+            f.write(ic_path + "\n")
 
     return source_filepath
 
 
 # updater
-def update_spreadsheet(ic_path, v_ref='top', verbose=logging.WARNING, backup=True):
+def update_spreadsheet(ic_path, v_ref='top', backup=True):
     """
     update_spreadsheet update an ice core file to the latest ice core file version (__CoreVersion__).
 
@@ -524,25 +539,24 @@ def update_spreadsheet(ic_path, v_ref='top', verbose=logging.WARNING, backup=Tru
     USAGE:
         update_spreadhseet(ic_path)
     """
+    logger = logging.getLogger(__name__)
+
     import shutil
-
-    module_logger.setLevel(verbose)
-
     if not os.path.exists(ic_path):
-        module_logger.error("%s does not exists in core directory" % ic_path.split('/')[-1])
+        logger.error("%s does not exists in core directory" % ic_path.split('/')[-1])
         return 0
     else:
-        module_logger.info("\t ice core file path %s" % ic_path)
+        logger.info("\t ice core file path %s" % ic_path)
 
     wb = openpyxl.load_workbook(filename=ic_path)  # load the xlsx spreadsheet
-    ws_summary = wb.get_sheet_by_name('summary')  # load the data from the summary sheet
+    ws_summary = wb['summary']  # load the data from the summary sheet
 
     if isinstance(ws_summary['C3'].value, (float, int)):
         version = ws_summary['C3'].value
         if version < __CoreVersion__:
-            module_logger.info("Updating core data to latest version %.1f" % __CoreVersion__)
+            logger.info("Updating core data to latest version %.1f" % __CoreVersion__)
     else:
-        module_logger.error("\tice core spreadsheet version not unavailable")
+        logger.error("\t%s ice core fiel version not unavailable" % ic_path)
 
     # backup old version
     if backup:
@@ -559,8 +573,8 @@ def update_spreadsheet(ic_path, v_ref='top', verbose=logging.WARNING, backup=Tru
             ws_summary = delete_row(ws_summary, 22)
 
             # loop through variables
-            if "S_ice" in wb.get_sheet_names():
-                ws = wb.get_sheet_by_name("S_ice")
+            if "S_ice" in wb.sheetnames:
+                ws = wb["S_ice"]
                 # add reference row=4
                 ws = add_row(ws, 4)
                 ws['A4'] = 'vertical reference'
@@ -583,8 +597,8 @@ def update_spreadsheet(ic_path, v_ref='top', verbose=logging.WARNING, backup=Tru
                 ws['G6'] = 'κ'
                 delete_column(ws, 'K', row_start, ws.max_row)
 
-            if "T_ice" in wb.get_sheet_names():
-                ws = wb.get_sheet_by_name("T_ice")
+            if "T_ice" in wb.sheetnames:
+                ws = wb["T_ice"]
                 # add reference row=4
                 ws = add_row(ws, 4)
                 ws['A4'] = 'vertical reference'
@@ -595,8 +609,8 @@ def update_spreadsheet(ic_path, v_ref='top', verbose=logging.WARNING, backup=Tru
                 ws['A6'] = 'd'
                 ws['B6'] = 'T'
 
-            if "oil_content" in wb.get_sheet_names():
-                ws = wb.get_sheet_by_name("oil_content")
+            if "oil_content" in wb.sheetnames:
+                ws = wb["oil_content"]
                 # add reference row=4
                 ws = add_row(ws, 4)
                 ws['A4'] = 'vertical reference'
@@ -745,5 +759,3 @@ def print_row(ws, row):
         col_string += openpyxl.utils.get_column_letter(col) + ':' + str(
             ws.cell(row=row, column=col).value) + '\t'
     print(col_string)
-
-# make list
