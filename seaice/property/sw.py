@@ -5,8 +5,9 @@ property.sw.py contains function to compute physical property of sea water
 
 REFERENCES:
 R.C. Millard and K. Yang 1992. "CTD Calibration and Processing Methods used by Woods Hole   Oceanographic Institution"
-Draft April 14, 1992 (Personal communication)
+    Draft April 14, 1992 (Personal communication)
 CSIRO MatLAB Seawater Library, Phil Morgan, CMR (maintained by Lindsay Pender), last updated December 2003
+
 """
 import numpy as np
 import logging
