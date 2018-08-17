@@ -26,7 +26,7 @@ __all__ = ["freezingtemp", "salt", "salt_c", "conductivity2salinity"]
 
 module_logger = logging.getLogger(__name__)
 
-
+# TODO: inverse salinity2conductiviy
 # TODO: uniformisation of variable name
 def freezingtemp(s, p=10.1325, validity=True):
     """
@@ -317,7 +317,6 @@ def salt_c(C, T, P, validity=True):
         S = 35.000000 [PSU] for C = 42.914, T = 15 [degree C] and p = 0 [dbar]
         S = 37.245628 [PSU] for C = 51.4968, T = 20 [degree C] and p = 2000 [dbar]
         S = 29.995347 [PSU] for C = 27.8941, T = 5 [degree C] and p = 1500 [dbar]
-        S = 38.7880   [PSU] for c = 30.0, t = -2 [degree C] and p = 0 [dbar]
     """
 
     if isinstance(C, (int, float, list)):
@@ -370,4 +369,33 @@ def conductivity2salinity(C, T, P, validity=True):
         return 0
 
     S = salt_c(C, T, P, validity=validity)
+    return S
+
+
+def salinity2conductivity(s):
+
+    # R = C/c3515()
+    # rt = salrt(T)
+    # Rp = salrp(R, T, P)
+    # Rt = R / (Rp * rt)
+    # S = sals(Rt, T, validity=validity)
+
+    #sals()
+    # a = [2.7081, -7.0261, 14.0941, 25.3851, -0.1692, 0.0080]
+    # b = [-0.0144, 0.0636, -0.0375, -0.0066, -0.0056, 0.0005]
+    # k = 0.0162
+    #
+    # Rtx = np.sqrt(Rt)
+    # del_T = T - 15
+    # del_S = (del_T / (1 + k * del_T)) * np.polyval(b, Rtx)
+    # S = np.polyval(a, Rtx)
+    # S = S + del_S
+
+
+    from pynverse import inversefunc
+
+    f = (lambda x : conductivity2salinity(x, 25, 0))
+
+    inversefunc(f, y_values=18.57)
+
     return S

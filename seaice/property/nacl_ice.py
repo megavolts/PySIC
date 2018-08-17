@@ -17,6 +17,8 @@ __name__ = "nacl_ice"
 
 __all__ = ["salt_s", "conductivity2salinity"]
 
+# TODO: inverse salinity2conductiviy
+
 import logging
 import numpy as np
 from seaice.property import sw

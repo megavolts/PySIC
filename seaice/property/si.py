@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 from seaice.property import ice
 from seaice.property import brine
 
+
 def air_volume_fraction(t, s, rho_si='default'):
     """
     Calculates air volume fraction in sea ice [-, unitless]
@@ -457,7 +458,6 @@ def permeability_from_porosity(p):
     k = 3 * p**3*1e-8
 
     return k
-
 
 
 def permeability(t, s, rho_si='default', vf_a=0.005):
