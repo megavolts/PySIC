@@ -13,8 +13,8 @@ __version__ = "1.1"
 __maintainer__ = "Marc Oggier"
 __contact__ = "Marc Oggier"
 __email__ = "moggier@alaska.edu"
-__status__ = "development"
-__date__ = "2017/09/13"
+__status__ = "RC"
+__date__ = "2018/08/15"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 __name__ = "brine"
 
@@ -39,48 +39,18 @@ def density(t):
             Zubov, N.N. (1945), L'dy Arktiki [Arctic ice]. Moscow, Izdatel'stvo Glavsevmorputi.
     """
     if isinstance(t, (int, float, list)):
-        t = np.atleast_1d(t).astype(float)
+        t = np.atleast_1d(t)
     if (t > 0).any():
         module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
         t[t > 0] = np.nan
 
     # Physical constant
-    a = [8e-4, 1]
+    a = [0.8, 1000]
 
     s_b = salinity(t)
     rho_b = (a[1] + a[0] * s_b)
 
-    return rho_b * 10 ** 3
-
-
-def electric_conductivity(t):
-    """
-        Calculates the electric conductivity of brine
-
-        :param t : array_like, float
-            Temperature in degree Celsius [°C]
-
-        :return sigma: ndarray
-            The conductivity of the brine in [S/m]
-
-        :source :
-            ? ? ? ?
-
-        Fofonoff, Nick P., and Robert C. Millard. "Algorithms for computation of fundamental properties of seawater."
-        (1983).
-    """
-    if isinstance(t, (int, float, list)):
-        t = np.atleast_1d(t).astype(float)
-    if (t > 0).any():
-        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = np.nan
-
-    # Physical constant
-    a = [0.08755, 0.5193]
-
-    sigma_b = -t * np.exp(np.polyval(a, t))
-
-    return sigma_b
+    return rho_b
 
 
 def thermal_conductivity(t):
@@ -124,44 +94,44 @@ def salinity(t, method='cw'):
 
     :param t : array_like, float
         Temperature [degree C]
-    :param method : {'as','cw'}
-        * 'cw' : calculate with the equation of Cox & Weeks (1983)
-        * 'as' : calculate with Assur's model, valid if t => -23 [degree C]. If t < -23, 'cw' is used by default
-        Default is 'cw'
+    :param method : 'as', 'cw', Default 'cw'
+        'cw' : calculate with the equation of Cox & Weeks (1983)
+        'as' : calculate with Assur's model, valid if t => -23 [degree C]. If t < -23, 'cw' is used by default
 
     :return s_b: ndarray
         The computed salinity of the brine [PsU]
 
-    :sources:
-    'as' : Equation 2.8 in thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
-    'cw' : Equation 25 in Cox, G. F. N., & Weeks, W. F. (1986). Changes in the salinity and porosity of sea-ice samples
-    during shipping and storage. J. Glaciol, 32(112), 371–375
+    :references:
+        'as' : Equation 2.8 in thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
+        'cw' : Equation 25 in Cox, G. F. N., & Weeks, W. F. (1986). Changes in the salinity and porosity of sea-ice
+            samples during shipping and storage. J. Glaciol, 32(112), 371–375
     """
 
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
-        module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
+        module_logger.warning('For element with temperature T > 0°C: T = np.nan')
         t[t > 0] = np.nan
 
     if method == 'as':
         if (t >= -23).all():
             s_b = ((1 - 54.11 / t) ** (-1)) * 1000
         else:
-            module_logger.warning('t must be superior to -23[°C]. Using Cox & Weeks equesiton instead')
+            module_logger.warning('T must be superior to -23[°C]. Use Cox & Weeks equation instead')
             return 0
+
     elif method == 'cw':
         # physical constant
         a = np.empty((3, 4))
         b = np.empty((3, 2))
 
-        # coefficient for -54<t<=-44
+        # coefficient for -54 < t <= -44
         a[0, :] = [-4442.1, -277.86, -5.501, -0.03669]
         b[0] = [-54, -44]
-        # coefficient for -44<t<=-22.9
+        # coefficient for -44 < t <= -22.9
         a[1, :] = [206.24, -1.8907, -0.060868, -0.0010247]
         b[1] = [-44, -22.9]
-        # coefficient for -22.9<t<=-2
+        # coefficient for -22.9 < t <= -2
         a[2, :] = [-3.9921, -22.700, -1.0015, -0.019956]
         b[2] = [-22.9, -2]
 
@@ -175,33 +145,67 @@ def salinity(t, method='cw'):
     return s_b
 
 
+def electric_conductivity(t):
+    """
+        Calculates the electric conductivity of brine
+
+        :param t : array_like, float
+            Temperature in degree Celsius [°C]
+
+        :return sigma: ndarray
+            The conductivity of the brine in [S/m]
+
+        :source :
+            Stogryn, A., Desargant, G.J., 1985. The dielectric properties of brine in sea ice at microwave frequencies.
+                IEEE Trans. Antennas Propagat. AP-33, 523–532.
+    """
+    if isinstance(t, (int, float, list)):
+        t = np.atleast_1d(t)
+
+    # Physical constant
+    a = [[0.08755, 0.5193], [0.1100, 1.0334]]
+
+    sigma_b = np.nan*np.ones_like(t)
+
+    sigma_b[-22.9 <= t] = np.exp(np.polyval(a[0], t[-22.9 <= t]))
+    sigma_b[t < -22.9] = np.exp(np.polyval(a[1], t[t < -22.9]))
+
+    return sigma_b
+
+
+# TODO: electric_conductivity
 def salinity_from_conductivity(c, t):
     """
-    Calculates the salinity of brine from specifc conductance at sea level temperature (p = 0 dbar)
+    Calculates the salinity of brine from specific conductance at sea level (p = 0 dbar)
 
     :param t: array_like, float
         Temperature [degree C]
         If t is an array, c should be an array of same dimension
+
     :param c: array_like, float
         conductivity in Sievert by meters [S/m]
         If c is an array, t should be an array of same dimension
 
-    :return sigma_sw: ndarray
+    :return s_b: ndarray float
         Brine salinity [PSU]
 
-    :source :
-    Standard Methods for the Examination of Water and Wastewater, 20th edition, 1999.
-    http://www.chemiasoft.com/chemd/salinity_calculator
+    :check value:
+        S = 35.000000 [PSU] for R = 1, T = 15 [degree C] and p = 0 [dbar]
+        S = 37.245628 [PSU] for R = 1.2, T = 20 [degree C] and p = 2000 [dbar]
+        S = 29.995347 [PSU] for R = 0.65, T = 5 [degree C] and p = 1500 [dbar]
+
 
     """
-    if isinstance(t, (int, float)):
-        t = np.array(t)
-    if isinstance(t, list):
-        t = np.atleast_1d(t).astype(float)
-    if isinstance(c, (int, float)):
-        c = np.array(c)
-    if isinstance(c, list):
-        c = np.atleast_1d(c).astype(float)*1e-4   # from S/m in uS/cm
+    import seaice.property.sw as sw
+
+    # set pressure at sea level
+    p = 0
+
+
+    if isinstance(t, (int, float, list)):
+        t = np.atleast_1d(t)
+    if isinstance(c, (int, float, list)):
+        c = np.atleast_1d(c)*1e-1   # from S/m in mS/cm
 
     if t.shape != c.shape:
         module_logger.warning('t, c must all have the same dimensions')
@@ -216,7 +220,6 @@ def salinity_from_conductivity(c, t):
     rc = c / c_kcl
 
     rc_x = np.sqrt(rc)
-
 
     ds = (t - 15) / (1 + 0.0162 * (t - 15)) * np.polyval(b, rc_x)
     s = np.polyval(a, rc_x)

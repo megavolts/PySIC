@@ -115,7 +115,7 @@ def air_volume_fraction(t, s, rho_si='default'):
     return vf_a
 
 
-def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005):
+def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005, method='cw'):
     """
     Calculate the volume fraction of brine [-, unitless]
 
@@ -134,6 +134,8 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005):
         Air volume fraction content of sea ice.
         Default is 0.5‰, representative of 1st year sea ice before spring warming.
         If vf_a is an array, vf_a, t, s must have the same length.
+    :param method: 'cw' or 'fg', default 'cw'
+        Brine volume fraction can be computed with Cox and Weeks ('cw') or Frankenstein-Garner ('fg') method.
 
     :return vf_b: ndarray
         The calculated volume fraction of brine in the sea ice [-, unitless]
@@ -141,20 +143,22 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005):
     :sources:
     thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
     from equation 5 and 15 in Cox, G. F. N., & Weeks, W. F. (1983). Equations for determining the gas and brine volumes
-    in sea ice samples. Journal of Glaciology (Vol. 29, pp. 306–316).
+        in sea ice samples. Journal of Glaciology (Vol. 29, pp. 306–316).
+    Frankenstein, G., Garner, R., 1967. Equations for determining the brine volume of sea ice from −0.5 to −22.9 C,
+        Journal of Glaciology (Vol. 6, pp. 943–944).
     """
     # check parameters
     if isinstance(t, (int, float, list)):
-        t = np.atleast_1d(t).astype(float)
+        t = np.atleast_1d(t)
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
         t[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
-        s = np.atleast_1d([s]).astype(float)
+        s = np.atleast_1d(s)
 
     if isinstance(vf_a, (int, float, list)):
-        vf_a = np.atleast_1d([vf_a]).astype(float)
+        vf_a = np.atleast_1d(vf_a)
     if vf_a.size == 1:
         vf_a = vf_a * np.ones_like(s)
 
@@ -162,7 +166,7 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005):
         logger.info('rho_si computed from t and s')
         rho_si = density(t, s)
     elif isinstance(rho_si, (int, float, list)):
-        rho_si = np.atleast_1d([rho_si]).astype(float)
+        rho_si = np.atleast_1d(rho_si)
     if rho_si.size == 1:
         rho_si = rho_si * np.ones_like(s)
 
@@ -171,45 +175,57 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005):
         logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
         return 0
 
-    # Physical constant
-    a = np.empty((4, 4, 2))
+    if method == 'fg':
+        tlim = [-0.5, -2.06, -8.2, -22.9]
+        a = [[52.56, -2.28], [45.917, 0.930], [43.795, 1.189]]
+        vf_b = np.nan*np.ones_like(t)
 
-    # coefficient for -2t<=0
-    a[0, 0, :] = [-0.041221, 0.090312]
-    a[0, 1, :] = [-18.407, -0.016111]
-    a[0, 2, :] = [0.58402, 1.2291 * 10 ** (-4)]
-    a[0, 3, :] = [0.21454, 1.3603 * 10 ** (-4)]
+        vf_b[(tlim[1] < t) & (t <= tlim[0])] = s[(tlim[1] < t) & (t <= tlim[0])] * (a[0][0] / np.abs(t[(tlim[1] < t) & (t <= tlim[0])]) + a[0][1])
+        vf_b[(tlim[2] < t) & (t <= tlim[1])] = s[(tlim[2] < t) & (t <= tlim[1])] * (a[1][0] / np.abs(t[(tlim[2] < t) & (t <= tlim[1])]) + a[1][1])
+        vf_b[(tlim[3] <= t) & (t <= tlim[2])] = s[(tlim[3] <= t) & (t <= tlim[2])] * (a[2][0] / np.abs(t[(tlim[3] <= t) & (t <= tlim[2])]) + a[2][1])
 
-    # coefficient for -22.9<t<=-2
-    a[1, 0, :] = [-4.732, 0.08903]
-    a[1, 1, :] = [-22.45, -0.01763]
-    a[1, 2, :] = [-0.6397, -5.330 * 10 ** (-4)]
-    a[1, 3, :] = [-0.01074, -8.801 * 10 ** (-6)]
+        vf_b = vf_b/1000
 
-    # coefficient for -30<t<=-22.9
-    a[2, 0, :] = [9899, 8.547]
-    a[2, 1, :] = [1309, 1.089]
-    a[2, 2, :] = [55.27, 0.04518]
-    a[2, 3, :] = [0.7160, 5.819 * 10 ** (-4)]
+    else:
+        # Physical constant
+        a = np.empty((4, 4, 2))
 
-    b = np.empty((3, 2))
-    b[0] = [-2, 0]
-    b[1] = [-22.9, -2]
-    b[2] = [-30, -22.9]
+        # coefficient for -2t<=0
+        a[0, 0, :] = [-0.041221, 0.090312]
+        a[0, 1, :] = [-18.407, -0.016111]
+        a[0, 2, :] = [0.58402, 1.2291 * 10 ** (-4)]
+        a[0, 3, :] = [0.21454, 1.3603 * 10 ** (-4)]
 
-    vf_a = air_volume_fraction(t, s, rho_si)
-    rho_i = ice.density(t)
+        # coefficient for -22.9<t<=-2
+        a[1, 0, :] = [-4.732, 0.08903]
+        a[1, 1, :] = [-22.45, -0.01763]
+        a[1, 2, :] = [-0.6397, -5.330 * 10 ** (-4)]
+        a[1, 3, :] = [-0.01074, -8.801 * 10 ** (-6)]
 
-    f1 = np.nan * t
-    f2 = np.nan * t
-    for mm in range(0, 3):
-        p1 = [a[mm, 3, 0], a[mm, 2, 0], a[mm, 1, 0], a[mm, 0, 0]]
-        p2 = [a[mm, 3, 1], a[mm, 2, 1], a[mm, 1, 1], a[mm, 0, 1]]
+        # coefficient for -30<t<=-22.9
+        a[2, 0, :] = [9899, 8.547]
+        a[2, 1, :] = [1309, 1.089]
+        a[2, 2, :] = [55.27, 0.04518]
+        a[2, 3, :] = [0.7160, 5.819 * 10 ** (-4)]
 
-        f1[(b[mm, 0] <= t) & (t <= b[mm, 1])] = np.polyval(p1, t[(b[mm, 0] <= t) & (t <= b[mm, 1])])
-        f2[(b[mm, 0] <= t) & (t <= b[mm, 1])] = np.polyval(p2, t[(b[mm, 0] <= t) & (t <= b[mm, 1])])
+        b = np.empty((3, 2))
+        b[0] = [-2, 0]
+        b[1] = [-22.9, -2]
+        b[2] = [-30, -22.9]
 
-    vf_b = ((1 - vf_a) * rho_i * s * 1e-3 / (f1 - rho_i * s * f2 * 1e-3))
+        vf_a = air_volume_fraction(t, s, rho_si)
+        rho_i = ice.density(t)
+
+        f1 = np.nan * t
+        f2 = np.nan * t
+        for mm in range(0, 3):
+            p1 = [a[mm, 3, 0], a[mm, 2, 0], a[mm, 1, 0], a[mm, 0, 0]]
+            p2 = [a[mm, 3, 1], a[mm, 2, 1], a[mm, 1, 1], a[mm, 0, 1]]
+
+            f1[(b[mm, 0] <= t) & (t <= b[mm, 1])] = np.polyval(p1, t[(b[mm, 0] <= t) & (t <= b[mm, 1])])
+            f2[(b[mm, 0] <= t) & (t <= b[mm, 1])] = np.polyval(p2, t[(b[mm, 0] <= t) & (t <= b[mm, 1])])
+
+        vf_b = ((1 - vf_a) * rho_i * s * 1e-3 / (f1 - rho_i * s * f2 * 1e-3))
 
     return vf_b
 
@@ -697,10 +713,9 @@ def thermal_diffusivity(t, s, method_l='prindle', method_cp='untersteiner', rho_
             salinity [PsU]
             If s is an array, t should be an array of the same length
         :param method_l : 'pringle', 'maykut'. Default: prindle
-            Use 'pringle' or 'maykut'
-            both sea ice specitic heat capacity and thermal conductivity
+            Compute thermal conductivity according to 'pringle' or 'maykut'
         :param method_cp : 'untersteiner', 'ono'. Default:'untersteiner'
-            thermal conductivity could be either calculated with 'unterseiner' or 'ono' approach
+            Compute specific heat capacity according to 'unterseiner' or 'ono'
         :param vf_a: optional, float, Default: 0.005
             air volume fraction of sea ice. Default value is 0.5‰, representative of 1st year sea ice before spring
             warming. If rho_si is an array, vf_a, t, s must have the same length.
@@ -713,6 +728,7 @@ def thermal_diffusivity(t, s, method_l='prindle', method_cp='untersteiner', rho_
 
         :source :
             material thermal diffusivity is given by sigma = lambda/(rho c_p)
+            
     """
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)

@@ -14,34 +14,35 @@ import logging
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
-__version__ = "1.1"
+__version__ = "1.1.0"
 __maintainer__ = "Marc Oggier"
 __contact__ = "Marc Oggier"
 __email__ = "moggier@alaska.edu"
-__status__ = "final"
-__date__ = "2017/09/13"
+__status__ = "RC"
+__date__ = "2018/8/16"
 __name__ = "sw"
 
-__all__ = ["freezingtemp", "salinity_from_conductivity"]
+__all__ = ["freezingtemp", "salt", "salt_c", "conductivity2salinity"]
 
 module_logger = logging.getLogger(__name__)
 
 
-def freezingtemp(s, p=10.1325, range=True):
+# TODO: uniformisation of variable name
+def freezingtemp(s, p=10.1325, validity=True):
     """
         Computes freezing temperature of seawater [degree C]
 
         Validity if 4 < s < 40 [psu]. Estimated error at p = 500 [dbar] is 0.003 [degree C]
 
         :param s : array_like, float
-            Salinity of seawater [PsU]
+            Salinity of seawater [PSU ]
 
         :param p : array_like, float
             Seawater pressure [dbar].
-            Default is atmospheric pressure at sea level p = 10.1325
+            Default is atmospheric pressure at sea level p = 10.1325 [dbar]
 
-        :param range: boolean
-            For all data out of the validity, it returns np.nan if True and computed value if False
+        :param validity: boolean
+            For all data out of the validity, it returns np.nan if True and computed the value if False
             Default is True
 
         :return t_f: ndarray
@@ -57,20 +58,20 @@ def freezingtemp(s, p=10.1325, range=True):
     """
 
     if isinstance(s, (int, float, list)):
-        s = np.atleast_1d([s]).astype(float)
+        s = np.atleast_1d(s)
 
     if isinstance(p, (int, float, list)):
-        p = np.atleast_1d([p]).astype(float)
+        p = np.atleast_1d(p)
 
     if s.shape != p.shape:
         module_logger.warning('s, p must all have the same dimensions')
         return 0
 
-    if s[s < 2].any() or s[42 < s].any():
-        if range:
-            module_logger.info('s must be 2 < s < 42. Replacing erronous value with nan-value')
-            s[s < 2] = np.nan
-            s[42 < s] = np.nan
+    if s[s < 4].any() or s[40 < s].any():
+        if validity:
+            module_logger.info('For element with salinity out of range 4 < s < 40,  s=np.nan')
+            s[s < 4] = np.nan
+            s[40 < s] = np.nan
         else:
             module_logger.warning('some s value re out of validity domain')
 
@@ -84,83 +85,20 @@ def freezingtemp(s, p=10.1325, range=True):
 
 def c3515():
     """
-    Returns conductivity of sea water at salinity s=35 PSU, temperature T=15 C and pressure p=0 dbar in mS/cm
+    Returns conductivity of sea water at salinity s = 35 PSU, temperature T = 15 C and pressure p = 0 dbar in mS/cm
 
     :return: ndarray
-        Conductivity of sea water at s=35 PSU, T=15 C and p=0 in mS/cm
-
-    :references:
-        R.C. Millard and K. Yang 1992. "CTD Calibration and Processing Methods used by Woods Hole Oceanographic
-        Institution" Draft April 14, 1992 (Personal communication)
-        CSIRO MatLAB Seawater Library, Phil Morgan, CMR (maintained by Lindsay Pender), last updated December 2003
+        Conductivity of sea water at s = 35 PSU, T = 15 C and p = 0 in mS/cm
     """
     return np.array(42.914)
 
 
-def salrt(T):
-    """
-    Computes conductivity ratio rt(T) = C(35, T, 0)/(35,15,0) at constant pressure p = 0 dbar and salinity s = 35 PSU
-
-    :param T: ndarray
-        temperature [℃ (ITS-90)]
-    :return: ndarray
-        conductivity ratio rt(T) at S=35 and p=0
-    """
-    if isinstance(T, (int, float, list)):
-        T = np.atleast_1d([T]).astype(float)
-
-    c = [1.0031e-9, -6.9698e-7, 1.104259e-4, 2.00564e-2, 0.6766097]
-
-    rt = np.polyval(c, T)
-    return rt
-
-
-def sals(Rt, T):
-    '''
-    Computes salinity of sea water as a function of Rt and T at constant pressure p = 0 dbar
-
-    :param Rt: ndarray
-        Conductivity ratio, Rt(S, T) = C(S, T, 0)/C(35, T, 0)
-    :param T: ndarray
-        temperature [degree C (IPTS-68)]
-    :return S:ndarray
-        salinity [PSU (PSS-78)]
-
-    :References: ndarray
-       Fofonoff, P. and Millard, R.C. Jr
-       Unesco 1983. Algorithms for computation of fundamental properties of
-       seawater, 1983. _Unesco Tech. Pap. in Mar. Sci._, No. 44, 53 pp.
-    '''
-
-    if isinstance(Rt, (int, float, list)):
-        Rt = np.atleast_1d([Rt]).astype(float)
-
-    if isinstance(T, (int, float, list)):
-        T = np.atleast_1d([T]).astype(float)
-
-    if Rt.shape != T.shape:
-        module_logger.warning('s, p must all have the same dimensions')
-        return 0
-
-    a = [2.7081, -7.0261, 14.0941, 25.3851, -0.1692, 0.0080]
-    b = [-0.0144, 0.0636, -0.0375, -0.0066, -0.0056, 0.0005]
-    k = 0.0162
-
-    Rtx = np.sqrt(Rt)
-    del_T = T - 15
-    del_S = (del_T / (1 + k * del_T)) * np.polyval(b, Rtx)
-    S = np.polyval(a, Rtx)
-    S = S + del_S
-
-    return S
-
-
 def salrp(R, T, P):
-    '''
+    """
     Computes equation Rp(S,T,P) = C(S,T,P)/C(S,T,0) used in calculating salinity in UNESCO 1983 polynomial
 
     :param R:
-        Conductivity ratio, Rt(S, T) = C(S, T, 0)/C(35, T, 0) [no units]
+        Conductivity ratio  R = C(S,T,P)/C(35,15,0) [no units]
 
     :param T:
         temperature [degree C (IPTS-68)]
@@ -171,9 +109,19 @@ def salrp(R, T, P):
     :references:
         Equation 4 (p.8)
         Fofonoff, P. and Millard, R.C. Jr, Unesco 1983. Algorithms for computation of fundamental properties of seawater,
-        1983. _Unesco Tech. Pap. in Mar. Sci._, No. 44, 53 pp.
+            1983. _Unesco Tech. Pap. in Mar. Sci._, No. 44, 53 pp.
+    """
 
-    '''
+    if isinstance(R, (int, float, list)):
+        R = np.atleast_1d(R)
+    if isinstance(T, (int, float, list)):
+        T = np.atleast_1d(T)
+    if isinstance(P, (int, float, list)):
+        P = np.atleast_1d(P)
+
+    if R.shape != T.shape or R.shape != P.shape or T.shape != P.shape:
+        module_logger.error('s, p, t must all have the same dimensions')
+        return 0
 
     d1 = 3.426e-2
     d2 = 4.464e-4
@@ -189,67 +137,237 @@ def salrp(R, T, P):
     return Rp
 
 
-
-def salinity_from_conductivity(t, c):
+def salrp_c(C, T, P):
     """
-    Calculates the salinity of sea water from specifc conductance
+    Computes equation Rp(S,T,P) = C(S,T,P)/C(S,T,0) used in calculating salinity in UNESCO 1983 polynomial
 
-    :param t: array_like, float
-        Temperature [degree C]
-        If t is an array, c should be an array of same dimension
-    :param c: array_like, float
-        conductivity in microSievert by centimeters [uS/cm]
-        If c is an array, t should be an array of same dimension
+    :param R:
+        Conductivity C [mS/cm]
 
-    :return sigma_sw: ndarray
-        seawater salinity [PSU]
+    :param T:
+        temperature [degree C (IPTS-68)]
 
-    :source :
-    Standard Methods for the Examination of Water and Wastewater, 20th edition, 1999.
-    http://www.chemiasoft.com/chemd/salinity_calculator
+    :return P:
+        pressure [dbar]
 
-    :validity:
-    2 < s < 42
+    :references:
+        Equation 4 (p.8)
+        Fofonoff, P. and Millard, R.C. Jr, Unesco 1983. Algorithms for computation of fundamental properties of seawater,
+            1983. _Unesco Tech. Pap. in Mar. Sci._, No. 44, 53 pp.
     """
 
-    if isinstance(t, (int, float, list)):
-        t = np.atleast_1d(t).astype(float)
+    if isinstance(C, (int, float, list)):
+        C = np.atleast_1d(C)
+    if isinstance(T, (int, float, list)):
+        T = np.atleast_1d(T)
+    if isinstance(P, (int, float, list)):
+        P = np.atleast_1d(P)
 
-    if isinstance(c, (int, float, list)):
-        c = np.atleast_1d([c])  # from S/m in uS/cm
-
-    if t.shape != c.shape:
-        module_logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
+    if C.shape != T.shape or C.shape != P.shape or T.shape != P.shape:
+        module_logger.error('s, p, t must all have the same dimensions')
         return 0
 
-    # Physical constant
-    a = np.empty((6, 2))
-    a[0, :] = [0.0080, 0.0005]
-    a[1, :] = [-0.1692, -0.0056]
-    a[2, :] = [25.3851, -0.0066]
-    a[3, :] = [14.0941, -0.0375]
-    a[4, :] = [-7.0261, 0.0636]
-    a[5, :] = [2.7081, -0.0144]
+    R = C/c3515()
+    Rp = salrp(R, T, P)
+    return Rp
 
-    b = [-0.0267243, 4.6636947, 861.3027640, 29035.1640851]
+
+def salrt(T):
+    """
+    Computes equation rt(T) = C(35, T, 0)/(35,15,0) used in calculating salinity with UNESCO 1983 polynomial
+
+    :param T: ndarray
+        temperature [degree C (ITS-90)]
+    :return: ndarray
+        conductivity ratio rt(T) at S=35 and p=0
+
+    :check value:
+        rt = 1.0000000 for R = 1, T = 15 [degree C] and p = 0 [dbar]
+        rt = 1.1164927 for R = 1.2, T = 20 [degree C] and p = 2000 [dbar]
+        rt = 0.77956585for R = 0.65, T = 5 [degree C] and p = 1500 [dbar]
+
+    """
+    if isinstance(T, (int, float, list)):
+        T = np.atleast_1d(T)
+
+    c = [1.0031e-9, -6.9698e-7, 1.104259e-4, 2.00564e-2, 0.6766097]
+
+    rt = np.polyval(c, T)
+    return rt
+
+
+def sals(Rt, T, validity=True):
+    """
+    Computes salinity of sea water as a function of Rt and T at constant pressure p = 0 dbar
+    Validity domain is -2 <= T <= 35 [degree C] and 2 <= S <= 42 [PSU]
+
+    :param Rt: array-like, float
+        Conductivity ratio, Rt(S, T) = C(S, T, 0)/C(35, T, 0)
+    :param T: array-like, float
+        Temperature [degree C (IPTS-68)]
+    :param validity: bool
+        Validity
+    :return S:ndarray float
+        salinity [PSU (PSS-78)]
+
+    :References: ndarray
+       Fofonoff, P. and Millard, R.C. Jr
+       Unesco 1983. Algorithms for computation of fundamental properties of
+       seawater, 1983. _Unesco Tech. Pap. in Mar. Sci._, No. 44, 53 pp.
+    """
+
+    if isinstance(Rt, (int, float, list)):
+        Rt = np.atleast_1d(Rt)
+    if isinstance(T, (int, float, list)):
+        T = np.atleast_1d(T)
+
+    if Rt.shape != T.shape:
+        module_logger.warning('s, p must all have the same dimensions')
+        return 0
+
+    if T[T < -2].any() or T[35 < T].any():
+        if validity:
+            module_logger.info('For element with salinity out of range -2 < T < 35,  T = np.nan')
+            T[T < -2] = np.nan
+            T[35 < T] = np.nan
+        else:
+            module_logger.warning('Some temperature value are out of the validity domain: -2 < T < 35 [C]')
+
+    a = [2.7081, -7.0261, 14.0941, 25.3851, -0.1692, 0.0080]
+    b = [-0.0144, 0.0636, -0.0375, -0.0066, -0.0056, 0.0005]
     k = 0.0162
 
-    c_kcl = np.polyval(b, t)
-    rc = c / c_kcl
+    Rtx = np.sqrt(Rt)
+    del_T = T - 15
+    del_S = (del_T / (1 + k * del_T)) * np.polyval(b, Rtx)
+    S = np.polyval(a, Rtx)
+    S = S + del_S
 
-    rc_x = np.sqrt(rc)
+    if S[S < 2].any() or S[42 < S].any():
+        if validity:
+            module_logger.info('For element with salinity out of range 2 < S < 42,  S = np.nan')
+            S[S < 2] = np.nan
+            S[42 < S] = np.nan
+        else:
+            module_logger.warning('Some computed salinity value are out of the validity domain: 2 < S < 42 [PSU])')
 
-    del_t = t - 15
-    ds = del_t / (1 + k * del_t) * np.polyval(a[:, 1], rc_x)
-    s = np.polyval(a[:, 0], rc_x) + ds
-
-    s = s+ds
-
-    if s[s > 42].__len__() > 0 or s[s < 2].__len__() > 0:
-        module_logger.warning("%s some salinites are out of the validity domain" % __name__)
-        s[s > 42] = np.nan
-        s[s < 2] = np.nan
-
-    return s
+    return S
 
 
+def salt(R, T, P, validity=True):
+    """
+    Computes salinity from conductivity ratio. UNESCO 1983 polynomial.
+    Validity domain is -2 <= T <= 35 [degree C] and 2 <= S <= 42 [PSU]
+
+    :param R: array-like, float
+       Conductivity ratio     R =  C(S,T,P)/C(35,15,0) [no units]
+    :param T: array-like, float
+        temperature [degree C (IPTS-68)]
+    :param P: array-like, float
+        pressure [dbar]
+    :param validity: boolean, Default True
+        For all data out of the validity, it returns np.nan if True, value are not overriden if False
+
+    :return S:ndarray float
+        salinity [PSU (PSS-78)]
+
+    :check value:
+        S = 35.000000 [PSU] for R = 1, T = 15 [degree C] and p = 0 [dbar]
+        S = 37.245628 [PSU] for R = 1.2, T = 20 [degree C] and p = 2000 [dbar]
+        S = 29.995347 [PSU] for R = 0.65, T = 5 [degree C] and p = 1500 [dbar]
+    """
+
+    if isinstance(R, (int, float, list)):
+        R = np.atleast_1d(R)
+    if isinstance(T, (int, float, list)):
+        T = np.atleast_1d(T)
+    if isinstance(P, (int, float, list)):
+        P = np.atleast_1d(P)
+
+    if R.shape != T.shape or R.shape != P.shape or P.shape != T.shape:
+        module_logger.warning('s, p must all have the same dimensions')
+        return 0
+
+    rt = salrt(T)
+    Rp = salrp(R, T, P)
+    Rt = R / (Rp * rt)
+    S = sals(Rt, T, validity=validity)
+
+    return S
+
+
+def salt_c(C, T, P, validity=True):
+    """
+    Computes salinity from conductivity ratio. UNESCO 1983 polynomial.
+    Validity domain is -2 <= T <= 35 [degree C] and 2 <= S <= 42 [PSU]
+
+    :param C: array-like, float
+        Conductivity [mS/cm]
+    :param T: array-like, float
+        temperature [degree C (IPTS-68)]
+    :param P: array-like, float
+        pressure [dbar]
+    :param validity: boolean, Default True
+        For all data out of the validity, it returns np.nan if True, value are not overriden if False
+
+    :return S:ndarray float
+        salinity [PSU (PSS-78)]
+
+    :check value:
+        S = 35.000000 [PSU] for C = 42.914, T = 15 [degree C] and p = 0 [dbar]
+        S = 37.245628 [PSU] for C = 51.4968, T = 20 [degree C] and p = 2000 [dbar]
+        S = 29.995347 [PSU] for C = 27.8941, T = 5 [degree C] and p = 1500 [dbar]
+        S = 38.7880   [PSU] for c = 30.0, t = -2 [degree C] and p = 0 [dbar]
+    """
+
+    if isinstance(C, (int, float, list)):
+        C = np.atleast_1d(C)
+    if isinstance(T, (int, float, list)):
+        T = np.atleast_1d(T)
+    if isinstance(P, (int, float, list)):
+        P = np.atleast_1d(P)
+
+    if C.shape != T.shape or C.shape != P.shape or P.shape != T.shape:
+        module_logger.warning('s, p must all have the same dimensions')
+        return 0
+
+    R = C/c3515()
+    rt = salrt(T)
+    Rp = salrp(R, T, P)
+    Rt = R / (Rp * rt)
+    S = sals(Rt, T, validity=validity)
+
+    return S
+
+
+# aliases:
+def conductivity2salinity(C, T, P, validity=True):
+    """
+    Computes salinity from electrical conductivity . UNESCO 1983 polynomial.
+    Validity domain is -2 <= T <= 35 [degree C] and 2 <= S <= 42 [PSU]
+
+    :param C: array-like, float
+        Conductivity [mS/cm]
+    :param T: array-like, float
+        temperature [degree C (IPTS-68)]
+    :param P: array-like, float
+        pressure [dbar]
+    :param validity: boolean, Default True
+        For all data out of the validity, it returns np.nan if True, value are not overriden if False
+
+    :return S:ndarray float
+        salinity [PSU (PSS-78)]
+    """
+    if isinstance(C, (int, float, list)):
+        C = np.atleast_1d(C)
+    if isinstance(T, (int, float, list)):
+        T = np.atleast_1d(T)
+    if isinstance(P, (int, float, list)):
+        P = np.atleast_1d(P)
+
+    if C.shape != T.shape or C.shape != P.shape or P.shape != T.shape:
+        module_logger.warning('s, p must all have the same dimensions')
+        return 0
+
+    S = salt_c(C, T, P, validity=validity)
+    return S
