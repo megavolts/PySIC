@@ -74,7 +74,8 @@ def thermal_conductivity(t):
         AK, June 11-14, 1991. (Ed. by J. P. Zarling & s. L. Faussett), pp. 187-218, University of Alaska, Fairbanks
     """
     if isinstance(t, (int, float, list)):
-        t = np.atleast_1d(t).astype(float)
+        t = np.atleast_1d(t)
+
     if (t > 0).any():
         module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
         t[t > 0] = np.nan
@@ -90,7 +91,7 @@ def thermal_conductivity(t):
 
 def salinity(t, method='cw'):
     """
-    Calculates the salinity of the brine according to either Assur's model or Cox & Weeks equation.
+    Calculates the salinity of the brine at a given temperature according to either Assur's model or Cox & Weeks equation.
 
     :param t : array_like, float
         Temperature [degree C]
@@ -108,7 +109,8 @@ def salinity(t, method='cw'):
     """
 
     if isinstance(t, (int, float, list)):
-        t = np.atleast_1d(t).astype(float)
+        t = np.atleast_1d(t)
+
     if (t > 0).any():
         module_logger.warning('For element with temperature T > 0°C: T = np.nan')
         t[t > 0] = np.nan
@@ -171,57 +173,3 @@ def electric_conductivity(t):
     sigma_b[t < -22.9] = np.exp(np.polyval(a[1], t[t < -22.9]))
 
     return sigma_b
-
-
-# TODO: electric_conductivity
-def salinity_from_conductivity(c, t):
-    """
-    Calculates the salinity of brine from specific conductance at sea level (p = 0 dbar)
-
-    :param t: array_like, float
-        Temperature [degree C]
-        If t is an array, c should be an array of same dimension
-
-    :param c: array_like, float
-        conductivity in Sievert by meters [S/m]
-        If c is an array, t should be an array of same dimension
-
-    :return s_b: ndarray float
-        Brine salinity [PSU]
-
-    :check value:
-        S = 35.000000 [PSU] for R = 1, T = 15 [degree C] and p = 0 [dbar]
-        S = 37.245628 [PSU] for R = 1.2, T = 20 [degree C] and p = 2000 [dbar]
-        S = 29.995347 [PSU] for R = 0.65, T = 5 [degree C] and p = 1500 [dbar]
-
-
-    """
-    import seaice.property.sw as sw
-
-    # set pressure at sea level
-    p = 0
-
-
-    if isinstance(t, (int, float, list)):
-        t = np.atleast_1d(t)
-    if isinstance(c, (int, float, list)):
-        c = np.atleast_1d(c)*1e-1   # from S/m in mS/cm
-
-    if t.shape != c.shape:
-        module_logger.warning('t, c must all have the same dimensions')
-        return 0
-
-    # Physical constant
-    a = [2.7081, -7.0261, 14.0941, 25.3851, -0.1692, 0.0080]
-    b = [-0.0144, 0.0636, -0.0375, -0.0066, -0.0056, 0.0005]
-    c = [-0.0267243, 4.6636947, 861.3027640, 29035.1640851]
-
-    c_kcl = np.polyval(c, t)
-    rc = c / c_kcl
-
-    rc_x = np.sqrt(rc)
-
-    ds = (t - 15) / (1 + 0.0162 * (t - 15)) * np.polyval(b, rc_x)
-    s = np.polyval(a, rc_x)
-
-    return s+ds

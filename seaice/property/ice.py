@@ -38,7 +38,7 @@ def density(t):
     """
 
     if isinstance(t, (int, float, list)):
-        t = np.atleast_1d(t).astype(float)
+        t = np.atleast_1d(t)
     if (t > 0).any():
         module_logger.warning('For element with temperature T > 0°C, T=np.nan')
         t[t > 0] = np.nan
@@ -72,7 +72,7 @@ def thermal_conductivity(t):
     """
 
     if isinstance(t, (int, float, list)):
-        t = np.atleast_1d(t).astype(float)
+        t = np.atleast_1d(t)
     if (t > 0).any():
         module_logger.warning('Some element of t > 0°C. Replacing them with nan-value')
         t[t > 0] = np.nan

@@ -135,15 +135,16 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005, method='cw'):
         Air volume fraction content of sea ice.
         Default is 0.5‰, representative of 1st year sea ice before spring warming.
         If vf_a is an array, vf_a, t, s must have the same length.
-    :param method: 'cw' or 'fg', default 'cw'
-        Brine volume fraction can be computed with Cox and Weeks ('cw') or Frankenstein-Garner ('fg') method.
+    :param method: 'cw', 'fg', 'fg-simplified', default 'cw'
+        Brine volume fraction can be computed with Cox and Weeks ('cw'), with Frankenstein-Garner full or simplified method
+        ('fg', 'fg-simplified'). Cf. sources
 
     :return vf_b: ndarray
         The calculated volume fraction of brine in the sea ice [-, unitless]
 
     :sources:
     thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
-    from equation 5 and 15 in Cox, G. F. N., & Weeks, W. F. (1983). Equations for determining the gas and brine volumes
+    Equation 5 and 15 in Cox, G. F. N., & Weeks, W. F. (1983). Equations for determining the gas and brine volumes
         in sea ice samples. Journal of Glaciology (Vol. 29, pp. 306–316).
     Frankenstein, G., Garner, R., 1967. Equations for determining the brine volume of sea ice from −0.5 to −22.9 C,
         Journal of Glaciology (Vol. 6, pp. 943–944).
@@ -184,7 +185,13 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005, method='cw'):
         vf_b[(tlim[1] < t) & (t <= tlim[0])] = s[(tlim[1] < t) & (t <= tlim[0])] * (a[0][0] / np.abs(t[(tlim[1] < t) & (t <= tlim[0])]) + a[0][1])
         vf_b[(tlim[2] < t) & (t <= tlim[1])] = s[(tlim[2] < t) & (t <= tlim[1])] * (a[1][0] / np.abs(t[(tlim[2] < t) & (t <= tlim[1])]) + a[1][1])
         vf_b[(tlim[3] <= t) & (t <= tlim[2])] = s[(tlim[3] <= t) & (t <= tlim[2])] * (a[2][0] / np.abs(t[(tlim[3] <= t) & (t <= tlim[2])]) + a[2][1])
+        vf_b = vf_b/1000
 
+    elif method == 'fg-simplified':
+        tlim = [-0.5, -22.9]
+        a = [49.18, 0.53]
+        vf_b = np.nan*np.ones_like(t)
+        vf_b[(tlim[1] < t) & (t <= tlim[0])] = s[(tlim[1] < t) & (t <= tlim[0])] * (a[0] / np.abs(t[(tlim[1] < t) & (t <= tlim[0])]) + a[1])
         vf_b = vf_b/1000
 
     else:
