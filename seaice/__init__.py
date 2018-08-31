@@ -30,7 +30,7 @@ import seaice.property.brine
 import seaice.property.ice
 import seaice.property.si
 import seaice.property.sw
-import seaice.property.nacl
+import seaice.property.nacl_ice
 
 #from seaice.core.corestack import CoreStack
 

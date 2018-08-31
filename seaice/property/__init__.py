@@ -157,6 +157,8 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
     if 'temperature' in s_profile.keys():
         s_profile = s_profile.drop('temperature', axis=1)
     s_profile = pd.merge(s_profile, t_profile2, on=['y_mid'])
+    # add name of t_profile
+    s_profile.t_name = T_core_name
 
     # compute properties
     prop_profile = pd.DataFrame()
@@ -166,7 +168,7 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
 
         prop = prop_list[f_prop]
         function = getattr(seaice.property.si, prop.replace(" ", "_"))
-        prop_data = function(np.array(s_profile['temperature']), np.array(s_profile['salinity']))
+        prop_data = function(np.array(s_profile['salinity']), np.array(s_profile['temperature']))
 
         prop_data = pd.DataFrame(np.vstack((prop_data, s_profile['y_mid'])).transpose(), columns=[prop, 'y_mid'])
         comment_core = 'physical properties computed from ' + S_core_name + '(S) and ' + T_core_name + '(T)'

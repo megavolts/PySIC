@@ -13,7 +13,7 @@ __version__ = "1.1"
 __maintainer__ = "Marc Oggier"
 __contact__ = "Marc Oggier"
 __email__ = "moggier@alaska.edu"
-__status__ = "development"
+__status__ = "RC"
 __date__ = "2017/09/13"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 __name__ = "si"
@@ -26,30 +26,26 @@ from seaice.property import ice
 from seaice.property import brine
 
 
-def air_volume_fraction(t, s, rho_si='default'):
+def air_volume_fraction(s, t, rho_si='default'):
     """
     Calculates air volume fraction in sea ice [-, unitless]
     If no sea ice density value are given, it will return 0.005, the air volume fraction expected in 1st year sea ice,
     before warming.
+    s, t, rho_si must have the same dimension
 
-    :param t : array_like, float
-        Temperature [degree C]
-        If t is an array, s should be an array of the same length
     :param s : array_like, float
         Salinity [PsU]
-        If s is an array, t should be an array of the same length
+    :param t : array_like, float
+        Temperature [degree C]
     :param rho_si : float, array_like, 'default', optional
-        Density of the ice [kg/m3].
-        Default is calculated from t, s.
-        Use 'default' to compute density from t, s.
-        If rho_si is an array, rho_si, t, s must have the same length.
+        Density of the ice [kg/m3]. By default, rho_si computed from s, t.
 
-    :return vf_a: ndarray
+    :return vf_a: ndarray float
         The calculated air volume fraction array [-, unitless]
 
-    :sources:
+    :references :
     Equation 14 in Cox, G. F. N., & Weeks, W. F. (1983). Equations for determining the gas and brine volumes in sea ice
-    samples. Journal of Glaciology (Vol. 29, pp. 306–316).
+        samples. Journal of Glaciology (Vol. 29, pp. 306–316).
     """
 
     # check array lengths
@@ -64,14 +60,14 @@ def air_volume_fraction(t, s, rho_si='default'):
 
     if rho_si is 'default':
         logger.info('rho_si computed from t and s')
-        rho_si = density(t, s)
+        rho_si = density(s, t)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
     if rho_si.size == 1:
         rho_si = rho_si*np.ones_like(s)
 
     if t.shape != s.shape or t.shape != rho_si.shape or s.shape != rho_si.shape:
-        logger.warning('t, s, rho_si must all have the same dimensions')
+        logger.warning('s, t, rho_si must all have the same dimensions')
         return 0
 
     # Physical constant
@@ -116,7 +112,7 @@ def air_volume_fraction(t, s, rho_si='default'):
     return vf_a
 
 
-def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005, method='cw'):
+def brine_volume_fraction(s, t, rho_si='default', vf_a=0.005, method='cw'):
     """
     Calculate the volume fraction of brine [-, unitless]
 
@@ -129,12 +125,12 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005, method='cw'):
         Salinity [PsU]
         If s is an array, t should be an array of the same length.
     :param rho_si : float, array_like, 'default', optional
-        Density of the ice [kg/m3]. The default is calculated from t, s.
-        If rho_si is an array, rho_si, t, s must have the same length.
+        Density of the ice [kg/m3]. The default is calculated from s, t.
+        If rho_si is an array, rho_si, s, t must have the same length.
     :param vf_a: float, array_like, optional
         Air volume fraction content of sea ice.
         Default is 0.5‰, representative of 1st year sea ice before spring warming.
-        If vf_a is an array, vf_a, t, s must have the same length.
+        If vf_a is an array, vf_a, s, t must have the same length.
     :param method: 'cw', 'fg', 'fg-simplified', default 'cw'
         Brine volume fraction can be computed with Cox and Weeks ('cw'), with Frankenstein-Garner full or simplified method
         ('fg', 'fg-simplified'). Cf. sources
@@ -166,7 +162,7 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005, method='cw'):
 
     if rho_si is 'default':
         logger.info('rho_si computed from t and s')
-        rho_si = density(t, s)
+        rho_si = density(s, t)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si)
     if rho_si.size == 1:
@@ -174,7 +170,7 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005, method='cw'):
 
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \
                     s.shape != vf_a.shape or rho_si.shape != vf_a.shape:
-        logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
+        logger.warning('s, t, rho_si, vf_a must all have the same dimensions')
         return 0
 
     if method == 'fg':
@@ -221,7 +217,7 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005, method='cw'):
         b[1] = [-22.9, -2]
         b[2] = [-30, -22.9]
 
-        vf_a = air_volume_fraction(t, s, rho_si)
+        vf_a = air_volume_fraction(s, t, rho_si)
         rho_i = ice.density(t)
 
         f1 = np.nan * t
@@ -238,7 +234,7 @@ def brine_volume_fraction(t, s, rho_si='default', vf_a=0.005, method='cw'):
     return vf_b
 
 
-def density(t, s, vf_a=0.005):
+def density(s, t, vf_a=0.005):
     """
         Calculates density of sea water [kg/m3]
 
@@ -247,7 +243,7 @@ def density(t, s, vf_a=0.005):
             If t is an array, s, t must be the same length
         :param s : array_like, float
             Salinity [PSU]
-            If s is an array, t, s must be the same length
+            If s is an array, s, t must be the same length
         :param vf_a : optional, array_like, float. Default 0.005
             Air volume fraction [-, unitless]
             Default value is 0.5‰, representative of 1st year sea ice before spring warming. If Vf_a is an array, vf_a,
@@ -280,7 +276,7 @@ def density(t, s, vf_a=0.005):
         vf_a = vf_a * np.ones_like(t)
 
     if t.shape != s.shape or t.shape != vf_a.shape or s.shape != vf_a.shape:
-        logger.warning('t, s, vf_a must all have the same dimensions unless vf_a is a singleton')
+        logger.warning('s, t, vf_a must all have the same dimensions unless vf_a is a singleton')
         return 0
 
     # Physical constant
@@ -325,7 +321,7 @@ def density(t, s, vf_a=0.005):
     return rho_si * 10 ** 3  # rho_si in SI, kg m^{-3}
 
 
-def electric_conductivity(t, s, rho_si='default', vf_a=0.005):
+def electric_conductivity(s, t, rho_si='default', vf_a=0.005):
     """
     Calculate the electric conductivity of sea ice for a given temperature and salinity
 
@@ -335,12 +331,12 @@ def electric_conductivity(t, s, rho_si='default', vf_a=0.005):
         salinity in practical salinity unit [PsU]
     :param rho_si : optional, array_like, float, 'default'. Default: 'default
         density of the ice in gram per cubic centimeter [g cm^{-3}]. Defautl value is computed from t and s
-        If rho_si is an array, rho_si, t, s must have the same length.
+        If rho_si is an array, rho_si, s, t must have the same length.
     :param vf_a: float, array_like, optional, float
         Air volume fraction content of sea ice.
         The default is 0.005, representative of 1st year sea ice before spring
         warming.
-        If vf_a is an array, vf_a, t, s must have the same length.
+        If vf_a is an array, vf_a, s, t must have the same length.
 
     :return sigma_si: ndarray
         conductivity of seaice in microsiemens/meter [S/m]
@@ -361,7 +357,7 @@ def electric_conductivity(t, s, rho_si='default', vf_a=0.005):
 
     if rho_si is 'default':
         logger.info('rho_si computed from t and s')
-        rho_si = density(t, s)
+        rho_si = density(s, t)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
     if rho_si.size == 1:
@@ -374,18 +370,18 @@ def electric_conductivity(t, s, rho_si='default', vf_a=0.005):
 
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \
                     s.shape != vf_a.shape or rho_si.shape != vf_a.shape:
-        logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
+        logger.warning('s, t, rho_si, vf_a must all have the same dimensions')
         return 0
 
     sigma_b = brine.electric_conductivity(t)
-    vf_b = brine_volume_fraction(t, s, rho_si=rho_si, vf=vf_a)
+    vf_b = brine_volume_fraction(s, t, rho_si=rho_si, vf=vf_a)
 
     sigma_si = sigma_b*vf_b**2.88
 
     return sigma_si
 
 
-def latentheat(t, s, transformation='solidification', s0=35.):
+def latentheat(s, t, transformation='solidification', s0=35.):
     """
         Calculates latent heat of sea ice during solidification (freezing, f) or melting (m).
 
@@ -423,7 +419,7 @@ def latentheat(t, s, transformation='solidification', s0=35.):
         s0 = s0 * np.ones_like(s)
 
     if t.shape != s.shape or t.shape != s0.shape or s.shape != s0.shape:
-        logger.warning('t, s, s0 must all have the same dimensions, unless s0 is a singleton')
+        logger.warning('s, t, s0 must all have the same dimensions, unless s0 is a singleton')
         return 0
 
     # Pysical Constant
@@ -467,23 +463,23 @@ def permeability_from_porosity(p):
     return k
 
 
-def permeability(t, s, rho_si='default', vf_a=0.005):
+def permeability(s, t, rho_si='default', vf_a=0.005):
     """
         Calculate sea ice permeability k in function of temperature (°C) and salinity (PSU), according to Golden et al.
         hierarchical model for columnar sea ice.
 
         :param t : array_like, float
             temperature [degree °C]
-            If t is an array, t, s must be of same length
+            If t is an array, s, t must be of same length
         :param s : array_like, float
             salinity in practical salinity unit [PsU]
             If s is an array, s, t must be of same length
         :param rho_si : optional, array_like, float or 'default'. Default: 'default'
             denstiy of sea ice [kg/m3].
-            If default, rho_si is computed from t and s. If rho_si is an array, rho_si, t, s must be of same length
+            If default, rho_si is computed from t and s. If rho_si is an array, rho_si, s, t must be of same length
         :param vf_a: optional, float, Default: 0.005
             air volume fraction of sea ice. Default value is 0.5‰, representative of 1st year sea ice before spring
-            warming. If rho_si is an array, vf_a, t, s must have the same length.
+            warming. If rho_si is an array, vf_a, s, t must have the same length.
 
         :return k: ndarray
             permeability [m2, unitless]
@@ -504,7 +500,7 @@ def permeability(t, s, rho_si='default', vf_a=0.005):
 
     if rho_si is 'default':
         logger.info('rho_si computed from t and s')
-        rho_si = density(t, s)
+        rho_si = density(s, t)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
     if rho_si.size == 1:
@@ -517,15 +513,15 @@ def permeability(t, s, rho_si='default', vf_a=0.005):
 
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \
                     s.shape != vf_a.shape or rho_si.shape != vf_a.shape:
-        logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
+        logger.warning('s, t, rho_si, vf_a must all have the same dimensions')
         return 0
 
-    k = permeability_from_porosity(brine_volume_fraction(t, s, rho_si, vf_a=vf_a))
+    k = permeability_from_porosity(brine_volume_fraction(s, t, rho_si, vf_a=vf_a))
 
     return k
 
 
-def resistivity(t, s, rho_si='default', vf_a=0.005):
+def resistivity(s, t, rho_si='default', vf_a=0.005):
     """
     Return electric resistivity of sea ice at a given temperature and salinity [s/m == us/m]
 
@@ -535,12 +531,12 @@ def resistivity(t, s, rho_si='default', vf_a=0.005):
         salinity in practical salinity unit [PsU]
     :param rho_si : optional, array_like, float or 'default'. Default: 'default'
         denstiy of sea ice [kg/m3].
-        If default, rho_si is computed from t and s. If rho_si is an array, rho_si, t, s must be of same length
+        If default, rho_si is computed from t and s. If rho_si is an array, rho_si, s, t must be of same length
     :param vf_a: float, array_like, optional, float
         Air volume fraction content of sea ice.
         The default is 0.005, representative of 1st year sea ice before spring
         warming.
-        If vf_a is an array, vf_a, t, s must have the same length.
+        If vf_a is an array, vf_a, s, t must have the same length.
 
     :return rhoel_si: ndarray
         resistiviy of seaice in microsiemens/meter [s/m]
@@ -562,7 +558,7 @@ def resistivity(t, s, rho_si='default', vf_a=0.005):
 
     if rho_si is 'default':
         logger.info('rho_si computed from t and s')
-        rho_si = density(t, s)
+        rho_si = density(s, t)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
     if rho_si.size == 1:
@@ -575,21 +571,21 @@ def resistivity(t, s, rho_si='default', vf_a=0.005):
 
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \
                     s.shape != vf_a.shape or rho_si.shape != vf_a.shape:
-        logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
+        logger.warning('s, t, rho_si, vf_a must all have the same dimensions')
         return 0
 
-    rhoel_si = 1/electric_conductivity(t, s, rho_si=rho_si, vf_a=vf_a)
+    rhoel_si = 1/electric_conductivity(s, t, rho_si=rho_si, vf_a=vf_a)
 
     return rhoel_si
 
 
-def specific_heat_capacity(t, s, method='untersteiner'):
+def specific_heat_capacity(s, t, method='untersteiner'):
     """
         Calculate specific heat capacity of sea ice in function of temperature and salinity
 
         :param t : array_like, float
             temperature [degree C]
-            If t is an array, t, smust be of same length
+            If t is an array, s, tmust be of same length
         :param s : array_like, float
             salinity [PsU]
             If s is an array, s, t must be of same length
@@ -620,7 +616,7 @@ def specific_heat_capacity(t, s, method='untersteiner'):
         s = np.atleast_1d(s).astype(float)
 
     if t.shape != s.shape:
-        logger.warning('t, s must all have the same dimensions')
+        logger.warning('s, t must all have the same dimensions')
         return 0
 
     # Pysical Constant
@@ -642,7 +638,7 @@ def specific_heat_capacity(t, s, method='untersteiner'):
     return c_si * 10 ** 3  # return [J/kgK]
 
 
-def thermal_conductivity(t, s, method='pringle', vf_a=0.005):
+def thermal_conductivity(s, t, method='pringle', vf_a=0.005):
     """
         Calculates bulk thermal conductivity of sea ice in function of temperautre and salinity.s
 
@@ -659,7 +655,7 @@ def thermal_conductivity(t, s, method='pringle', vf_a=0.005):
         :param vf_a: float, array_like, optional, float
             Air volume fraction content of sea ice. The default is 0.005, representative of 1st year sea ice before spring
             warming.
-            If vf_a is an array, vf_a, t, s must have the same length.
+            If vf_a is an array, vf_a, s, t must have the same length.
 
         :return lambda_si ndarray
             seaice thermal conductivity [W/mK]
@@ -690,7 +686,7 @@ def thermal_conductivity(t, s, method='pringle', vf_a=0.005):
         vf_a = vf_a * np.ones_like(s)
 
     if t.shape != s.shape or t.shape != vf_a.shape or s.shape != vf_a.shape:
-        logger.warning('t, s, vf_a must all have the same dimensions unless vf_a is a singleton')
+        logger.warning('s, t, vf_a must all have the same dimensions unless vf_a is a singleton')
         return 0
 
     if method == 'maykut':
@@ -699,7 +695,7 @@ def thermal_conductivity(t, s, method='pringle', vf_a=0.005):
         lambda_si = ice.thermal_conductivity(t) + a * s / t
 
     elif method == 'pringle':
-        rho_si = density(t, s, vf_a=vf_a)
+        rho_si = density(s, t, vf_a=vf_a)
         rho_i = ice.density(t)
 
         lambda_si = rho_si / rho_i * (2.11 - 0.011*t + 0.09*s/t - (rho_si - rho_i)*1e-3)
@@ -707,7 +703,7 @@ def thermal_conductivity(t, s, method='pringle', vf_a=0.005):
     return lambda_si
 
 
-def thermal_diffusivity(t, s, method_l='prindle', method_cp='untersteiner', rho_si='default', vf_a=0.005):
+def thermal_diffusivity(s, t, method_l='prindle', method_cp='untersteiner', rho_si='default', vf_a=0.005):
     """
         Calculates the thermal diffusivity of sea ice in function of temperature or salinity. 'prindle' (default) or
         'ono' method could be chosen to compute latent heat and 'untersteiner' or 'maykut' method could be chosen to
@@ -725,10 +721,10 @@ def thermal_diffusivity(t, s, method_l='prindle', method_cp='untersteiner', rho_
             Compute specific heat capacity according to 'unterseiner' or 'ono'
         :param vf_a: optional, float, Default: 0.005
             air volume fraction of sea ice. Default value is 0.5‰, representative of 1st year sea ice before spring
-            warming. If rho_si is an array, vf_a, t, s must have the same length.
+            warming. If rho_si is an array, vf_a, s, t must have the same length.
         :param rho_si : optional, array_like, float, Default
             density of the ice in gram per cubic centimeter [kg/m3]. Defautl value is computed from t and s..
-            If rho_si is an array, rho_si, t, s must have the same length.
+            If rho_si is an array, rho_si, s, t must have the same length.
 
         :return sigma_si:
             thermal diffusivity of sea ice [m2/s]
@@ -748,7 +744,7 @@ def thermal_diffusivity(t, s, method_l='prindle', method_cp='untersteiner', rho_
 
     if rho_si is 'default':
         logger.info('rho_si computed from t and s')
-        rho_si = density(t, s)
+        rho_si = density(s, t)
     elif isinstance(rho_si, (int, float, list)):
         rho_si = np.atleast_1d(rho_si).astype(float)
     if rho_si.size == 1:
@@ -761,11 +757,11 @@ def thermal_diffusivity(t, s, method_l='prindle', method_cp='untersteiner', rho_
 
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \
                     s.shape != vf_a.shape or rho_si.shape != vf_a.shape:
-        logger.warning('t, s, rho_si, vf_a must all have the same dimensions')
+        logger.warning('s, t, rho_si, vf_a must all have the same dimensions')
         return 0
 
-    sigma_si = thermal_conductivity(t, s, method=method_l, vf_a=vf_a) /\
-               (specific_heat_capacity(t, s, method=method_cp) *density(t, s, vf_a=vf_a))
+    sigma_si = thermal_conductivity(s, t, method=method_l, vf_a=vf_a) /\
+               (specific_heat_capacity(s, t, method=method_cp) *density(s, t, vf_a=vf_a))
 
     return sigma_si
 
