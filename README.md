@@ -20,3 +20,18 @@ $ cd seaice
 $ python example.py
 ```
 
+## Variable
+
+### salinity
+- salinity [ppt or g/kg] : salinity of the solution 
+- conductivity  [mS/cm] : conductivity of the solution
+- conductivity temperature [°C] : temperature of the solution  when conductivity is measured
+- specific conductance [mS/cm] : temperature compensated conductivity
+
+### temperature
+
+
+## Abreviation
+- ms : milliSiemens
+- cm : centimeter
+- °C : degree Celsius
