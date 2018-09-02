@@ -15,7 +15,7 @@ __status__ = "RC"
 __date__ = "2018/8/16"
 __name__ = "nacl_ice"
 
-__all__ = ["salt_s", "conductivity2salinity"]
+__all__ = ["salt_s", "conductivity2salinity", "brine_volume_fraction", "brine_salinity", "brine_density"]
 
 # TODO: inverse salinity2conductiviy
 
@@ -106,7 +106,7 @@ def c_cor_sw2nacl(c, t):
     return c_cor
 
 
-def salt_s(c, t, p, validity=True):
+def salt_s(c, t, p=10.1325, validity=True):
     """
     Returns corrected conductivity of NaCl solution from conductivity measured with a conductivity probe calibrated for
         seawater.
@@ -116,7 +116,7 @@ def salt_s(c, t, p, validity=True):
         Conductivity of nacl solution as measured with conductivity probe calibrated for standard seawater [mS/sm]
     :param t: array_like, float
         Temperature [degree C (IPTS-68)]
-    :param p: array-like, float
+    :param p: array-like, float. Default p = 10.1325 [dbar]
         pressure [dbar]
     :param validity: bool, Default True
         If True returns np.nan for all data out of the validity domain. If false, compute value anyway
@@ -131,8 +131,8 @@ def salt_s(c, t, p, validity=True):
     :check value:
         S = 36.51074 [g / kg] for c = 30.0, t = -2[C]
     """
-    if p is None:
-        p = np.zeros_like(t)
+    if p == 10.1325:
+        p = p * np.ones_like(t)
 
     if isinstance(c, (int, float, list)):
         c = np.atleast_1d(c)
@@ -191,6 +191,9 @@ def brine_salinity(t):
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t)
 
+    # replace all np.nan value by 999
+    t[np.isnan(t)] = 999
+
     s_b = np.nan * np.ones_like(t)
 
     s0 = [-0.00016906084, -0.0147756544, -0.584425205, -18.265, 0]
@@ -221,9 +224,9 @@ def brine_volume_fraction(s, t):
     from seaice.property import ice
 
     if isinstance(s, (int, float, list)):
-        s = np.atleast_1d(s)
+        s = np.atleast_1d(s).astype(float)
     if isinstance(t, (int, float, list)):
-        t = np.atleast_1d(t)
+        t = np.atleast_1d(t).astype(float)
 
     if s.shape != t.shape:
         module_logger.error('s and t must all have the same dimensions')
@@ -244,7 +247,7 @@ def brine_volume_fraction(s, t):
 
 
 # aliases
-def conductivity2salinity(c, t, p, validity=True):
+def conductivity2salinity(c, t, p=10.1325, validity=True):
     """
     Returns corrected conductivity of NaCl solution from conductivity measured with a conductivity probe calibrated for
         seawater.
@@ -254,7 +257,7 @@ def conductivity2salinity(c, t, p, validity=True):
         Conductivity of nacl solution as measured with conductivity probe calibrated for standard seawater [mS/sm]
     :param t: array_like, float
         Temperature [degree C (IPTS-68)]
-    :param p: array-like, float
+    :param p: array-like, float, Default p=10.1325 [dbar]
         pressure [dbar]
     :param validity: bool, Default True
         If True returns np.nan for all data out of the validity domain. If false, compute value anyway
@@ -267,5 +270,5 @@ def conductivity2salinity(c, t, p, validity=True):
         e < 0.3% for 0.06 < S < 60 g/kg
         e < 3 % for S < 200/kg
     """
-    s_nacl = salt_s(c, t, p, validity=validity)
+    s_nacl = salt_s(c, t, p=p, validity=validity)
     return s_nacl

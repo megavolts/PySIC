@@ -53,7 +53,7 @@ def air_volume_fraction(s, t, rho_si='default'):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = np.nan
+        t[t > 0] = 999
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
@@ -150,7 +150,7 @@ def brine_volume_fraction(s, t, rho_si='default', vf_a=0.005, method='cw'):
         t = np.atleast_1d(t)
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = np.nan
+        t[t > 0] = 999
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s)
@@ -265,7 +265,7 @@ def density(s, t, vf_a=0.005):
         t = np.atleast_1d([t]).astype(float)
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = np.nan
+        t[t > 0] = 999  # use 999 rather np.nan
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
@@ -493,7 +493,7 @@ def permeability(s, t, rho_si='default', vf_a=0.005):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = np.nan
+        t[t > 0] = 999
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)

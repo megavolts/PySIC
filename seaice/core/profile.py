@@ -133,18 +133,17 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                     plt.show()
             # step profile (salinity-like)
             else:
+                _profile = profile[profile.variable == variable]
                 if v_ref == 'bottom':
-                    # yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
-                    #     ['y_sup', 'y_low', variable])
-                    yx = profile.loc[profile.variable == variable, ['y_sup', 'y_low', variable]].sort_values(by='y_low').values
+                    yx = _profile[['y_sup', 'y_low', variable]].sort_values(by='y_low')
                     if yx[0, 0] > yx[0, 1]:
-                        # yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
-                        #     ['y_low', 'y_sup', variable])
-                        yx = profile.loc[profile.variable == variable, ['y_low', 'y_sup', variable]].sort_values(by='y_sup').values
+                        yx = _profile[['y_low', 'y_sup', variable]].sort_values(by='y_low')
                 else:
-                    # yx = profile[profile.variable == variable].set_index('y_mid', drop=False).sort_index().as_matrix(
-                    #     ['y_low', 'y_sup', variable])
-                    yx = profile.loc[profile.variable == variable, ['y_sup', 'y_low', variable]].sort_values(by='y_low').values
+                    yx = _profile[['y_low', 'y_sup', variable]].sort_values(by='y_low')
+
+
+                # drop all np.nan value
+                yx = yx.dropna(axis=0).values
 
                 # if missing section, add an emtpy section with np.nan as property value
                 yx_new = []
@@ -173,6 +172,9 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                     value.update(new_value)
 
                     yx[:, 2] = value
+
+
+
 
                 x_step = []
                 y_step = []
@@ -263,9 +265,9 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                         elif L_nan != 0:
                             S = np.nan
                             w = 0
-                        #print(L)
-                        #print(S)
-                        #print(w)
+                        # print(L)
+                        # print(S)
+                        # print(w)
                         if yx[a[0], 0] - y_bins[ii_bin] > TOL and not fill_extremity:
                             y_step.append(yx[a[0], 0])
                             y_step.append(y_bins[ii_bin + 1])
@@ -278,6 +280,7 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                         x_step.append(S)
                         x_step.append(S)
                         w_step.append(w)
+                        w = 1
 
                 temp = pd.DataFrame(columns=profile.columns.tolist()+['weight'], index=range(np.unique(y_step).__len__() - 1))
                 temp.update(pd.DataFrame(np.vstack(
@@ -288,7 +291,7 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                                          index=temp.index[0:np.unique(y_step).__len__() - 1]))
 
                 # core attribute
-                profile_prop = profile.loc[profile.variable == variable].head(1)
+                profile_prop = _profile.head(1).copy()
                 profile_prop['variable'] = variable
                 profile_prop = profile_prop.drop('y_low', 1)
                 profile_prop = profile_prop.drop('y_mid', 1)
@@ -310,14 +313,16 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                         x.append(yx[ii, 2])
                     plt.step(x, y, 'bx', label='original')
                     plt.step(x_step, y_step, 'ro', linestyle='--', label='discretized')
-                    if 'name' in profile_prop.keys():
-                        plt.title(profile_prop.name.unique()[0] + ' - ' + variable)
+                    if 'name' in _profile.keys():
+                        plt.title(_profile.name.unique()[0] + ' - ' + variable)
+                    else:
+                        plt.title(variable)
                     plt.legend()
                     plt.show()
+
             temp = temp.apply(pd.to_numeric, errors='ignore')
 
             discretized_profile = discretized_profile.append(temp)
-
     return discretized_profile
 
 

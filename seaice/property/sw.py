@@ -300,7 +300,7 @@ def salt(r, t, p, validity=True):
     return s
 
 
-def salt_c(c, t, p, validity=True):
+def salt_c(c, t, p=None, validity=True):
     """
     Computes salinity from conductivity ratio. UNESCO 1983 polynomial.
     Validity domain is -2 <= t <= 35 [degree C] and 2 <= s <= 42 [PSU]
@@ -310,7 +310,7 @@ def salt_c(c, t, p, validity=True):
     :param t: array-like, float
         Temperature [degree C (IPTS-68)]
     :param p: array-like, float
-        Pressure [dbar]
+        Pressure [dbar], default p=0
     :param validity: bool, Default True
         If True returns np.nan for all data out of the validity domain. If false, compute value anyway
 
@@ -323,12 +323,15 @@ def salt_c(c, t, p, validity=True):
         s = 29.995347 [PSU] for c = 27.8941, t = 5 [degree C] and p = 1500 [dbar]
     """
 
+
     if isinstance(c, (int, float, list)):
         c = np.atleast_1d(c)
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t)
     if isinstance(p, (int, float, list)):
         p = np.atleast_1d(p)
+    elif p is None:
+        p = np.zeros_like(c)
 
     if c.shape != t.shape or c.shape != p.shape or p.shape != t.shape:
         module_logger.warning('c, p, t must all have the same dimensions')
@@ -349,7 +352,7 @@ def salinity2conductivity(s, t=None, p=None):
     :param t: array-like, float
         Temperature [degree C (IPTS-68)]. If undeclared, t = 15 [degree C] by default
     :param p: array-like, float
-        Pressure [dbar]. If undeclared, p = 0 [dbar] by default
+        Pressure [dbar]. If undeclared, p = 10.1325 [dbar] by default
 
     :return c: ndarray float
         Specific conductivity [mS/cm]
@@ -361,8 +364,8 @@ def salinity2conductivity(s, t=None, p=None):
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)
     if p is None:
-        p = 15 * np.ones_like(s)
-    if isinstance(s, (int, float, list)):
+        p = 10.1325 * np.ones_like(s)
+    elif isinstance(s, (int, float, list)):
         p = np.atleast_1d(p).astype(float)
 
     if (s <= 0).any() or (1000 < s).any():
@@ -387,13 +390,13 @@ def salinity2conductivity(s, t=None, p=None):
     def f(cf, sf, pf, tf):
         return sf - conductivity2salinity(cf, pf, tf, validity=validity)
 
-    c = [optimize.newton(f, s0, args=(x[0], x[1], x[2],)) if not np.isnan(x[0]) else np.nan for x in stp]
+    c = [optimize.newton(f, s0, args=(x[0], x[1], x[2],))[0] if not np.isnan(x[0]) else np.nan for x in stp]
 
-    return np.array(c)
+    return c
 
 
 # aliases:
-def conductivity2salinity(c, t, p, validity=True):
+def conductivity2salinity(c, t, p=None, validity=True):
     """
     Computes salinity from electrical conductivity . UNESCO 1983 polynomial.
     Validity domain is -2 <= t <= 35 [degree C] and 2 <= s <= 42 [PSU]
@@ -410,5 +413,5 @@ def conductivity2salinity(c, t, p, validity=True):
     :return s: ndarray float
         Salinity [PSU (PSS-78)]
     """
-    s = salt_c(c, t, p, validity=validity)
+    s = salt_c(c, t, p=p, validity=validity)
     return s

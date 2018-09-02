@@ -143,7 +143,7 @@ class CoreStack(pd.DataFrame):
         for core in self.name.unique():
             data_binned = data_binned.append(
                 discretize_profile(self[self.name == core], y_bins=y_bins, y_mid=y_mid, variables=variables,
-                                   display_figure=display_figure, fill_gap=fill_gap, fill_extremity=fill_extremity))
+                                   display_figure=display_figure, fill_gap=fill_gap, fill_extremity=fill_extremity), sort=True)
         data_binned.reset_index(drop=True, inplace=True)
         # TODO: check that format of column match before and after discretization
         return CoreStack(data_binned)
