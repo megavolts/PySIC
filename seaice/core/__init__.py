@@ -348,7 +348,6 @@ def read_variable(ws_variable, variables=None, version=__CoreVersion__, v_ref='t
 
     profile = {}
     for variable in variables:
-        columns_string = ['comment', 'variable']
         # step profile
         if variable_2_data[variable][1].__len__() == 3:
             columns_float = ['y_low', 'y_sup', 'y_mid']

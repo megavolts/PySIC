@@ -270,5 +270,6 @@ def conductivity2salinity(c, t, p=10.1325, validity=True):
         e < 0.3% for 0.06 < S < 60 g/kg
         e < 3 % for S < 200/kg
     """
+
     s_nacl = salt_s(c, t, p=p, validity=validity)
     return s_nacl

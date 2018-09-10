@@ -10,12 +10,31 @@ import numpy as np
 import seaice
 import matplotlib.pyplot as plt
 
+
+
+
 # LOGGING
 debug = 'vv'
 
+# -------------------------------------------------------------------------------------------------------------------- #
+# VARIABLES
+# -------------------------------------------------------------------------------------------------------------------- #
+if os.uname()[1] == 'adak' :
+    data_RSOIT = '/home/megavolts/git/seaice/data_sample'
+else:
+    logging.warning("Unknown computer. Cannot find data folder root.")
+
 vertical_resolution = 5/100
 
-# logging
+# -------------------------------------------------------------------------------------------------------------------- #
+# CONFIG
+# -------------------------------------------------------------------------------------------------------------------- #
+
+ic_dir = '/home/megavolts/git/seaice/data_sample/ice_cores'
+
+# -------------------------------------------------------------------------------------------------------------------- #
+# LOGGING
+# -------------------------------------------------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
@@ -38,35 +57,25 @@ levels = [logging.WARNING, logging.INFO, logging.DEBUG, logging.CRITICAL]
 level = levels[min(len(levels)-1, debug.__len__())]  # capped to number of levels
 logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(message)s")
 
-if os.uname()[1] == 'islay':
-    data_RSOI = '/mnt/data_local/UAF/data/RSOI/'
-elif os.uname()[1] == 'arran':
-    data_RSOI = '/mnt/data_lvm/RSOI/'
-else:
-    logging.warning("Unknown computer. Cannot find data folder root.")
-logger.info('alaph_core.py is run on %s' % os.uname()[1])
-
-logger.info('Reloading seaice.core.py')
-
-ic_dir = '/home/megavolts/git/seaice/data_sample/ice_cores'
-# ic_path = os.path.join(ic_dir, 'testing-nogap_extremity-TS.xlsx')
-# ic_path = os.path.join(ic_dir, 'testing-nogap_noextremity-TS.xlsx')
-ic_path = os.path.join(ic_dir, 'testing-gap_extremity-TS.xlsx')
-#ic_path = os.path.join(ic_dir, 'testing-gap_noextremity-TS.xlsx')
+logger.info('seaice testing module is running on %s' % os.uname()[1])
 
 fill_gap = False
 fill_extremity = False
 display_figure = True
 y_mid = None
-variables = ['salinity', 'temperature']
+variables = None
+
+# import a single ice core from a specific path
+ic_path = '/home/megavolts/git/seaice/data_sample/ice_cores/testing-gap_extremity-TS.xlsx'
+
+
 ic_data = seaice.core.import_ic_path(ic_path, variables=variables, v_ref='top')
 y_bins = np.arange(0, max(ic_data.length())+vertical_resolution, vertical_resolution)
 profile = ic_data.profile
 ics_stack = seaice.core.corestack.discretize_profile(profile, y_bins, display_figure=False, fill_gap=fill_gap,
                                                      fill_extremity=fill_extremity)
 
-
-
+# import all ice cores from a directory
 ics_dict = seaice.core.import_ic_sourcefile(seaice.core.make_ic_sourcefile(ic_dir, '.xlsx'))
 ics_stack = seaice.core.corestack.stack_cores(ics_dict)
 ics_stack = ics_stack.set_vertical_reference('bottom')

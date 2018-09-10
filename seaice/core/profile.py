@@ -22,7 +22,7 @@ __comment__ = "profile.py contained function to handle property profile"
 __CoreVersion__ = 1.1
 
 __all__ = ["discretize_profile", "set_vertical_reference", "select_profile", "set_vertical_reference",
-           "delete_profile"]
+           "delete_profile", "uniformize_section"]
 
 TOL = 1e-6
 def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display_figure=False, fill_gap=False, fill_extremity=False):
@@ -136,14 +136,14 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                 _profile = profile[profile.variable == variable]
                 if v_ref == 'bottom':
                     yx = _profile[['y_sup', 'y_low', variable]].sort_values(by='y_low')
-                    if yx[0, 0] > yx[0, 1]:
+                    if (yx.y_sup.head(1) > yx.y_low.head(1)).all():
                         yx = _profile[['y_low', 'y_sup', variable]].sort_values(by='y_low')
                 else:
                     yx = _profile[['y_low', 'y_sup', variable]].sort_values(by='y_low')
 
-
                 # drop all np.nan value
-                yx = yx.dropna(axis=0).values
+
+                yx = yx.dropna(axis=0, subset=['y_low', 'y_sup'], thresh=2).values
 
                 # if missing section, add an emtpy section with np.nan as property value
                 yx_new = []
@@ -172,9 +172,6 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
                     value.update(new_value)
 
                     yx[:, 2] = value
-
-
-
 
                 x_step = []
                 y_step = []
@@ -474,3 +471,46 @@ def is_continuous_profile(profile):
 
     else:
         return 0
+
+
+
+def uniformize_section(profile, profile_target):
+    """
+
+    :param profile: seaice.core.profile
+        Profile with section bin to be match to target profile
+    :param profile_target: seaice.core.profile
+        Profile with section bin to match
+    :return: seaice.core.profile
+        Profile with section bin matched to target profile
+    """
+
+    if not is_continuous_profile(profile_target):
+        if not profile_target.y_mid.isna().all():
+            y_mid = profile_target.y_mid.dropna().values
+        else:
+            y_mid = (profile_target.y_low +profile_target.y_sup/2).dropna().values
+
+    else:
+        y_mid = profile_target.y_mid.dropna().values
+
+    if is_continuous_profile(profile):
+        profile = profile.sort_values(by='y_mid').reindex()
+    else:
+        profile = profile.sort_values(by='y_low')
+        if profile.y_mid.isna().any():
+            profile['y_mid'] = (profile.y_low +profile.y_sup/2).dropna().values
+
+
+    # replace the 2 following lines
+    variable = profile.variable.unique()[0]
+    interp_data = np.interp(y_mid, profile['y_mid'].values, profile[variable].values, left=np.nan, right=np.nan)
+    profile_new = pd.DataFrame(np.transpose([interp_data, y_mid, [variable]*y_mid.__len__()]), columns=[variable, 'y_mid', 'variable'])
+
+    # copy attribute from profile to new_profile:
+    not_target_attribute = list(profile.variable.unique()) + ['y_mid']
+    attribute = [atr for atr in profile.keys() if atr not in not_target_attribute]
+    _attribute = profile_target[attribute].head(1)
+    profile_new[attribute] = _attribute
+    profile_new[variable] = profile_new[variable].astype(float)
+    return profile_new

@@ -141,9 +141,10 @@ class CoreStack(pd.DataFrame):
 
         data_binned = pd.DataFrame()
         for core in self.name.unique():
-            data_binned = data_binned.append(
-                discretize_profile(self[self.name == core], y_bins=y_bins, y_mid=y_mid, variables=variables,
-                                   display_figure=display_figure, fill_gap=fill_gap, fill_extremity=fill_extremity), sort=True)
+            if display_figure:
+                print(core)
+            data_binned = data_binned.append(discretize_profile(self[self.name == core], y_bins=y_bins, y_mid=y_mid, variables=variables,
+                           display_figure=display_figure, fill_gap=fill_gap, fill_extremity=fill_extremity), sort=True)
         data_binned.reset_index(drop=True, inplace=True)
         # TODO: check that format of column match before and after discretization
         return CoreStack(data_binned)
@@ -178,6 +179,10 @@ class CoreStack(pd.DataFrame):
                 if c not in col:
                     col.append(c)
         return sorted(col)
+
+    def get_variable(self):
+
+        return self.profile.variable.unique()
 
 
 # Ice core operation

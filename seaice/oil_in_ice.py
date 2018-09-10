@@ -27,6 +27,7 @@ def profile_plotting(profile_config):
 
     return 0
 
+
 def corrected_salinity():
     """
 
@@ -34,6 +35,7 @@ def corrected_salinity():
     """
     Scorr = None
     return S
+
 
 def corrected_brine_volume_fraction():
     """

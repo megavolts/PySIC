@@ -68,7 +68,7 @@ def scale_profile(profile, h_ice_f):
 
 
 def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='step', resize_core=False,
-                                display_figure=True, attribut_core='S', prop_name=None):
+                                display_figure=True, attribut_core='S', prop_name=None, ice_type='sw'):
     """
     :param s_profile:
     :param t_profile:
@@ -77,6 +77,7 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
     :param resize_core: 'S', 'T', 'None' (default)
     :param attribut_core: 'S' (default), 'T'
     :param display_figure:
+    :param ice_type:
     :return:
     """
     logger = logging.getLogger(__name__)
@@ -167,7 +168,12 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
             print('property %s not defined in the ice core property module' % property)
 
         prop = prop_list[f_prop]
-        function = getattr(seaice.property.si, prop.replace(" ", "_"))
+        if ice_type is 'nacl':
+            function = getattr(seaice.property.nacl_ice, prop.replace(" ", "_"))
+            #TODO: check if prop exist, if prop does not exist use si
+        else:
+            function = getattr(seaice.property.si, prop.replace(" ", "_"))
+
         prop_data = function(np.array(s_profile['salinity']), np.array(s_profile['temperature']))
 
         prop_data = pd.DataFrame(np.vstack((prop_data, s_profile['y_mid'])).transpose(), columns=[prop, 'y_mid'])

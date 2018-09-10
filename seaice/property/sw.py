@@ -343,7 +343,7 @@ def salt_c(c, t, p=None, validity=True):
     return s
 
 
-def salinity2conductivity(s, t=None, p=None):
+def salinity2conductivity(s, t=15, p= 10.1325):
     """
     Returns the specific conductivity at 15 [degree C] as function of the salinity
 
@@ -359,12 +359,12 @@ def salinity2conductivity(s, t=None, p=None):
     """
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
-    if t is None:
-        t = 15 * np.ones_like(s)
+    if t == 15:
+        t = t * np.ones_like(s)
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)
-    if p is None:
-        p = 10.1325 * np.ones_like(s)
+    if p == 10.1325:
+        p = p * np.ones_like(s)
     elif isinstance(s, (int, float, list)):
         p = np.atleast_1d(p).astype(float)
 
