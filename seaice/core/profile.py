@@ -24,7 +24,12 @@ __CoreVersion__ = 1.1
 __all__ = ["discretize_profile", "set_vertical_reference", "select_profile", "set_vertical_reference",
            "delete_profile", "uniformize_section"]
 
+
+
 TOL = 1e-6
+
+
+
 def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display_figure=False, fill_gap=False, fill_extremity=False):
     """
     :param profile:
@@ -85,7 +90,7 @@ def discretize_profile(profile, y_bins=None, y_mid=None, variables=None, display
             logger.debug("\t %s profile is discretized" % variable)
 
             # continuous profile (temperature-like)
-            if is_continuous_profile(profile[profile.variable == variable]):
+            if is_continuous(profile[profile.variable == variable]):
                 yx = profile.loc[profile.variable == variable, ['y_mid', variable]].set_index('y_mid').sort_index()
                 y2 = y_mid
                 x2 = np.interp(y2, yx.index, yx[variable], left=np.nan, right=np.nan)
@@ -462,7 +467,7 @@ def s_nan(yx, ii_yx, fill_gap=True):
     return s
 
 
-def is_continuous_profile(profile):
+def is_continuous(profile):
     if ('y_low' in profile and profile.y_low.isnull().all() and
                 profile.y_low.__len__() > 0):
         return 1
@@ -471,7 +476,6 @@ def is_continuous_profile(profile):
 
     else:
         return 0
-
 
 
 def uniformize_section(profile, profile_target):
@@ -485,7 +489,7 @@ def uniformize_section(profile, profile_target):
         Profile with section bin matched to target profile
     """
 
-    if not is_continuous_profile(profile_target):
+    if not is_continuous(profile_target):
         if not profile_target.y_mid.isna().all():
             y_mid = profile_target.y_mid.dropna().values
         else:
@@ -494,7 +498,7 @@ def uniformize_section(profile, profile_target):
     else:
         y_mid = profile_target.y_mid.dropna().values
 
-    if is_continuous_profile(profile):
+    if is_continuous(profile):
         profile = profile.sort_values(by='y_mid').reindex()
     else:
         profile = profile.sort_values(by='y_low')

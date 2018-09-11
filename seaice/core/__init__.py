@@ -28,6 +28,9 @@ import seaice
 
 __all__ = ["import_ic_path", "import_ic_list", "import_ic_sourcefile", "list_ic", "list_ic_path", "make_ic_sourcefile"]
 
+
+subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
+
 variable_2_sheet = {'temperature': 'T_ice',
                     'salinity': 'S_ice',
                     'conductivity': 'S_ice',
@@ -44,7 +47,6 @@ variable_2_sheet = {'temperature': 'T_ice',
                     # 'chlorophyl a': 'algal_pigment',
                     # 'Phae': 'algal_pigment'
                     }
-
 
 
 def import_ic_path(ic_path, variables=None, v_ref='top'):
@@ -73,6 +75,7 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
     else:
         logger.error("(%s) ice core spreadsheet version not unavailable" % name)
 
+    # convert ice core spreadsheet to last version
     if version < __CoreVersion__:
         update_spreadsheet(ic_path, v_ref=v_ref)
         logger.info("Updating ice core spreadsheet %s to last version (%s)" % (name, str(__CoreVersion__)))
@@ -183,58 +186,59 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
     if ws_summary['C33'].value is not None:
         core.add_comment(ws_summary['C33'].value)
 
-    # variable
+    # import all variables
     if variables is None:
         sheets = [sheet for sheet in ws_name if (sheet not in ['summary', 'abreviation', 'locations', 'lists', 'Vf_oil_calculation']) and
                      (sheet.lower().find('fig') == -1)]
-        core_flag = []
         for sheet in sheets:
             ws_variable = wb[sheet]
-            profile = read_variable(ws_variable, variables=None, version=version, v_ref=v_ref)
-            for variable in profile.keys():
-                if not profile[variable][1] == core.name:
-                    logger.error('\t(%s) core name %s and profile name %s does not match'
-                                        % (ic_path, core.name, profile[variable][1]))
-                else:
-                    core.add_profile(profile[variable][0])
-                    if core.name not in core_flag and profile[variable][3] is not None and\
-                            ~np.isnan(profile[variable][3]):
-                        core_flag.append(core.name)
-                    core.add_comment(profile[variable][2])
+            profile = read_profile(ws_variable, variables=None, version=version, v_ref=v_ref)
 
-        if core.variables().__len__() < 1:
-            logger.info('(%s) no variable to import' % name)
-        else:
-            logger.info('\t(%s) variables %s imported with success' % (name, ", ".join(core.variables())))
+            if profile.get_name() is not core.name:
+                logger.error('\t(%s) core name %s and profile name %s does not match'
+                             % (ic_path, core.name, profile.name()))
+            elif not profile.empty:
+                core.add_profile(profile)
+                _temp = [variable for variable in profile.get_variable() if profile[variable].notnull().any()]
+                logger.info(' (%s) data imported with success: %s' % (profile.get_name(), ", ".join(_temp)))
+            else:
+                _temp = [variable for variable in profile.get_variable() if profile[variable].isnull().all()]
+                if _temp.__len__() > 1:
+                    logger.info(' (%s) no data to import: %s ' % (profile.get_name(), ", ".join(_temp)))
+                else:
+                    logger.info('(%s) no variable to import' % name)
     else:
         if not isinstance(variables, list):
             if variables.lower().find('state variable')+1:
                 variables = ['temperature', 'salinity']
             else:
                 variables = [variables]
-        logger.info("(%s) Variables are %s" % (name, ', '.join(variables)))
 
-        core_flag = []
+        _imported_variables = []
         for variable in variables:
-            if variable_2_sheet[variable] in ws_name:
-                ws_variable = wb[variable_2_sheet[variable]]
-                profile = read_variable(ws_variable, variables=variable, version=version, v_ref=v_ref)
-                if profile.keys().__len__() == 0:
-                    logger.warning('\t(%s) no data exist for %s' % (core.name, variable))
-                elif profile[variable][1] is not core.name:
-                    logger.error('\t(%s) core name %s and profile name %s does not match'
-                                        % (ic_path, core.name, profile[variable][1]))
-                else:
-                    core.add_profile(profile[variable][0])
-                    if core.name not in core_flag and profile[variable][3] is not None and ~np.isnan(
-                            profile[variable][3]):
-                        core_flag.append(core.name)
-                    core.add_comment(profile[variable][2])
-            else:
-                logger.info('\tsheet %s does not exists' % variable)
+            if variable_2_sheet[variable] in ws_name and variable not in _imported_variables:
+                sheet = variable_2_sheet[variable]
+                ws_variable = wb[sheet]
 
-    # weather
-    # TODO:adding a weather class and reading the information
+                variable2import = [var for var in variables if var in inverse_dict(variable_2_sheet)[sheet]]
+
+                profile = read_profile(ws_variable, variables=variable2import, version=version, v_ref=v_ref)
+
+                if profile.get_name() is not core.name:
+                    logger.error('\t(%s) core name %s and profile name %s does not match'
+                                 % (ic_path, core.name, profile.name()))
+                elif not profile.empty:
+                    core.add_profile(profile)
+                    _temp = [variable for variable in profile.get_variable() if profile[variable].notnull().any()]
+                    logger.info(' (%s) data imported with success: %s' % (profile.get_name(), ", ".join(_temp)))
+                else:
+                    _temp = [variable for variable in profile.get_variable() if profile[variable].isnull().all()]
+                    if _temp.__len__() > 1:
+                        logger.info(' (%s) no data to import: %s ' % (profile.get_name(), ", ".join(_temp)))
+                    else:
+                        logger.info('(%s) no variable to import' % name)
+
+                _imported_variables +=variable2import
 
     return core
 
@@ -301,8 +305,8 @@ def import_ic_sourcefile(f_path, variables=None, ic_dir=None, v_ref='top'):
     return import_ic_list(ics, variables=variables, v_ref=v_ref)
 
 
-# read variable
-def read_variable(ws_variable, variables=None, version=__CoreVersion__, v_ref='top'):
+# read profile
+def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='top'):
     """
     :param ws_variable:
         openpyxl.worksheet
@@ -321,145 +325,106 @@ def read_variable(ws_variable, variables=None, version=__CoreVersion__, v_ref='t
             v_ref = ws_variable['C4'].value
     else:
         logger.error("ice core spreadsheet version not defined")
-        return None
 
-    variable_2_data = {'temperature': [row_data_start, 'A', 'B', 'C'],
-                       'salinity': [row_data_start, 'ABC', 'D', 'J'],
-                       'conductivity': [row_data_start, 'ABC', 'EF', 'J'],
-                       'specific conductance': [row_data_start, 'ABC', 'G', 'J'],
-                       'd18O': [row_data_start, 'ABC', 'H', 'J'],
-                       'dD': [row_data_start, 'ABC', 'I', 'J'],
-                       'oil weight fraction': [row_data_start, 'ABC', 'G', 'H'],
-                       'oil volume fraction': [row_data_start, 'ABC', 'F', 'H'],
-                       'oil content': [row_data_start, 'ABC', 'DEFGH', 'I'],
-                       'oil mass': [row_data_start, 'ABC', 'ED', 'H']
-                       # 'seawater': [row_data_start, 'ABC', 'D', 'E'],
-                       # 'sediment': [row_data_start, 'ABC', 'D', 'E'],
-                       # 'Chla': [row_data_start, 'ABC', 'D', 'E'],
-                       # 'Phae': [row_data_start, 'ABC', 'D', 'E']
-                       }
-
-    if variables is None:
-        variables = [key for key in variable_2_data.keys() if variable_2_sheet[key] == ws_variable.title]
-    if not isinstance(variables, list):
-        variables = [variables]
+    # TODO: add other sheets for seawater, sediment, CHla, Phae, stratigraphy
+    sheet_2_data = {'S_ice': [row_data_start, 'ABC', 'DEFG', 'J'],
+                        'T_ice': [row_data_start, 'A', 'B', 'C'],
+                        'Vf_oil': [row_data_start, 'ABC', 'DEFG', 'H']}
 
     name = ws_variable['C1'].value
 
-    profile = {}
-    for variable in variables:
-        # step profile
-        if variable_2_data[variable][1].__len__() == 3:
-            columns_float = ['y_low', 'y_sup', 'y_mid']
-            y_low = np.array([ws_variable[variable_2_data[variable][1][0]+str(row)].value
-                              for row in range(variable_2_data[variable][0], ws_variable.max_row+1)])
-            y_sup = np.array([ws_variable[variable_2_data[variable][1][1]+str(row)].value
-                              for row in range(variable_2_data[variable][0], ws_variable.max_row+1)])
-            y_mid = np.array([ws_variable[variable_2_data[variable][1][2] + str(row)].value
-                              for row in range(variable_2_data[variable][0], ws_variable.max_row+1)])
+    # define section
+    # Step profile
+    headers = ['y_low', 'y_mid', 'y_sup']
+    if sheet_2_data[ws_variable.title][1].__len__() == 3:
+        y_low = np.array([ws_variable[sheet_2_data[ws_variable.title][1][0] + str(row)].value
+                          for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
+        y_sup = np.array([ws_variable[sheet_2_data[ws_variable.title][1][1] + str(row)].value
+                          for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
+        y_mid = np.array([ws_variable[sheet_2_data[ws_variable.title][1][2] + str(row)].value
+                          for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
+        # if y_mid is not defined, y_mid = (y_low+y_sup)/2
+        if np.isnan(y_mid).any():
+            if (np.isnan(y_mid).any() or np.isnan(y_mid).any()):
+                y_mid = (y_low + y_sup) / 2
+                logger.info(
+                    '\t(%s ) not all y_mid exits, calculating y_mid = (y_low+y_sup)/2'
+                    % ws_variable.title)
+            else:
+                logger.warning(
+                    '\t(%s) not all y_mid exists, some element of y_low or y_sup are not defined. Unable to'
+                    'compute y_mid = (y_low+y_sup)/2' % ws_variable.title)
+    # Continuous profile
+    else:
+        y_mid = np.array([ws_variable[sheet_2_data[ws_variable.title][1] + str(row)].value
+                          for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
+        y_low = np.nan*np.ones(y_mid.__len__())
+        y_sup = np.nan * np.ones(y_mid.__len__())
+    data = np.array([y_low, y_mid, y_sup])
 
-            if not np.array([isinstance(element, (float, int)) for element in y_mid]).any():
-                if (np.array([isinstance(element, (float, int)) for element in y_low]).any() or
-                        np.array([isinstance(element, (float, int)) for element in y_sup]).any()):
-                    y_mid = (y_low+y_sup)/2
-                    logger.info(
-                        '\t(%s : %s) y_mid does not exit, calculating y_mid from section depth with success'
-                        % (name, variable))
-                else:
-                    logger.warning(
-                        '\t(%s : %s) y_mid does not exit, not able to calculate y_mid from section depth. Section'
-                        'depth maybe not numeric' % (name, variable))
-            data = np.array([y_low, y_sup, y_mid])
+    # read data
+    min_col = sheet_2_data[ws_variable.title][2][0]
+    min_col = openpyxl.utils.column_index_from_string(min_col)
+    max_col = sheet_2_data[ws_variable.title][2][-1]
+    max_col = openpyxl.utils.column_index_from_string(max_col)
+    min_row = sheet_2_data[ws_variable.title][0]
+    max_row = min_row + y_mid.__len__()-1
 
-            for col_variable in range(0, variable_2_data[variable][2].__len__()):
-                data = np.vstack((data, np.array([ws_variable[variable_2_data[variable][2][col_variable] +
-                                                              str(row)].value
-                                                  for row in range(variable_2_data[variable][0],
-                                                                   ws_variable.max_row+1)])))
-                if version is 1:
-                    if col_variable is 0:
-                        columns_float.append(variable)
-                    else:
-                        columns_float.append(
-                            ws_variable[variable_2_data[variable][2][col_variable] + str(row_data_start - 3)].value)
+    _data = [[cell.value for cell in row] for row in ws_variable.iter_cols(min_col, max_col, min_row, max_row)]
+    data = np.vstack([data, np.array(_data).astype(float)])
+    del _data
 
-                elif version >= 1.1:
-                    columns_float.append(ws_variable[variable_2_data[variable][2][col_variable] +
-                                                     str(row_data_start-3)].value)
+    header_offset = 3
+    variable_headers = [ws_variable[col + str(row_data_start - header_offset)].value for col in
+                sheet_2_data[ws_variable.title][2]]
+    headers += variable_headers
 
-            data = np.vstack((data, np.array([ws_variable[variable_2_data[variable][3] + str(row)].value
-                                              for row in range(variable_2_data[variable][0], ws_variable.max_row+1)])))
-
-            variable_profile = pd.DataFrame(data.transpose(), columns=columns_float + ['comment'])
-
-        # continuous variable_profile
-        else:
-            columns_float = ['y_mid']
-            y_mid = np.array([ws_variable[variable_2_data[variable][1]+str(row)].value
-                              for row in range(variable_2_data[variable][0], ws_variable.max_row+1)])
-
-            for col_variable in range(0, variable_2_data[variable][2].__len__()):
-                data = np.vstack((y_mid, np.array([ws_variable[variable_2_data[variable][2][col_variable] +
-                                                               str(row)].value
-                                                   for row in range(variable_2_data[variable][0],
-                                                                    ws_variable.max_row+1)])))
-                if version is 1:
-                    if col_variable is 0:
-                        columns_float.append(variable)
-                    else:
-                        columns_float.append(
-                            ws_variable[variable_2_data[variable][2][col_variable] + str(row_data_start - 3)].value)
-
-                elif version >= 1.1:
-                    columns_float.append(ws_variable[variable_2_data[variable][2][col_variable] +
-                                                     str(row_data_start-3)].value)
-
-            data = np.vstack((data, np.array([ws_variable[(variable_2_data[variable][3] + str(row))].value
-                                              for row in range(variable_2_data[variable][0], ws_variable.max_row+1)])))
-
-            variable_profile = pd.DataFrame(data.transpose(), columns=columns_float + ['comment'])
-
-        # add ice core length
-        try:
-            length = ws_variable['C2'].value
-        except:
-            logger.info('%s no ice core length' % name)
+    # ice thickness
+    try:
+        length = float(ws_variable['C2'].value)
+    except:
+        logger.info('(%s) no ice core length' % name)
+        length = np.nan
+    else:
+        if length == 'n/a':
+            logger.info('(%s) ice core length is not available (n/a)' % name)
             length = np.nan
-        else:
-            if length == 'n/a':
-                logger.info('%s ice core length is not available (n/a)' % name)
-                length = np.nan
-            elif not isinstance(length, (int, float)):
-                logger.info('%s ice core length is not a number' % name)
-                length = np.nan
-        variable_profile['length'] = length
+        elif not isinstance(length, (int, float)):
+            logger.info('%s ice core length is not a number' % name)
+            length = np.nan
 
-        # convert numeric to float
-        key_temp = [key for key in variable_profile.keys() if key not in ['comment']]
-        for key in key_temp:
-            variable_profile[key] = pd.to_numeric(variable_profile[key], errors='coerce')
+    headers += ['length']
+    data = np.vstack([data, length*np.ones(data.shape[1])])
 
-        # add ice core note
-        try:
-            note = ws_variable['C3'].value
-        except:
-            logger.debug('%s no ice core note' % name)
-            note = None
-        variable_profile['note'] = note
+    # assemble profile dataframe
+    profile = pd.DataFrame(data.transpose(), columns=headers)
 
-        # set vertical references
-        variable_profile['v_ref'] = v_ref
+    # add comment to dataframe
+    comment = [ws_variable[sheet_2_data[ws_variable.title][3][0]+str(row)].value for row in range(min_row, max_row+1)]
+    profile['comment'] = comment
 
-        # set variable
-        variable_profile['variable'] = variable
+    # set vertical references
+    profile['v_ref'] = v_ref
 
-        variable_profile['name'] = name
+    # set ice core name for profile
+    profile['name'] = name
 
-        if variable_profile[variable].notna().any():
-            profile[variable] = [variable_profile, name, note, length]
-            logger.debug('\t(%s) %s imported with success' % (name, variable))
-        else:
-            logger.warning('\t(%s) %s unknown' % (name, variable))
+    # set variables after removing subvariables
+    if variables is not None:
+        for variable in variable_headers:
+            if variable in subvariable_dict:
+                for sub_var in subvariable_dict[variable]:
+                    variable_headers.remove(sub_var)
+    profile['variable'] = ', '.join(variable_headers)
+
+    profile = seaice.Profile(profile)
+
+    # remove variable not in variables
+    if variables is not None:
+        for variable in profile.get_variable():
+            if variable not in variables:
+                profile.delete_variable(variable)
+
     return profile
 
 
@@ -758,3 +723,16 @@ def print_row(ws, row):
         col_string += openpyxl.utils.get_column_letter(col) + ':' + str(
             ws.cell(row=row, column=col).value) + '\t'
     print(col_string)
+
+
+def inverse_dict(map):
+    """
+    return the inverse of a dictionnary with non-unique values
+    :param map: dictionnary
+    :return inv_map: dictionnary
+    """
+    revdict = {}
+    for k, v in map.items():
+        revdict.setdefault(v, []).append(k)
+
+    return revdict

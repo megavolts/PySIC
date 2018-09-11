@@ -36,6 +36,10 @@ import seaice.property.nacl_ice
 
 TOL = 1e-6
 
+subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
+
+
+# TODO: add function Core.check() to check the integrity of the ice core and profiles
 
 class Core:
     """
@@ -221,5 +225,72 @@ class Core:
             pd.DataFrame, profile to add
         :return:
         """
-        self.profile = self.profile.append(profile, sort=False)
-        self.profile.reset_index(inplace=True, drop=True)
+        if self.profile.empty:
+            self.profile = Profile(profile)
+        else:
+            self.profile = Profile(pd.merge(self.profile, profile, how='outer'))
+
+
+class Profile(pd.DataFrame):
+    """
+
+    """
+
+    def __getstate__(self):
+        d = self.__dict__.copy()
+        if 'logger' in d.keys():
+            d['logger'] = d['logger'].name
+        return d
+
+    def __setstate__(self, d):
+        if 'logger' in d.keys():
+            d['logger'] = logging.getLogger(d['logger'])
+
+        self.__dict__.update(d)
+    def __init__(self, *args, **kwargs):
+        super(Profile, self).__init__(*args, **kwargs)
+        self.logger = logging.getLogger(__name__)
+
+    def get_variable(self):
+        variables = []
+        for var_group in self.variable.unique():
+            variables += var_group.split(', ')
+        return variables
+
+
+    def delete_variable(self, variable):
+        new_variables = self.get_variable()
+        if variable in self.get_variable():
+            print(variable)
+            self.drop(variable, axis=1, inplace=True)
+            new_variables.remove(variable)
+            if variable in subvariable_dict.keys():
+                for _subvar in subvariable_dict[variable]:
+                    self.drop(_subvar, axis=1, inplace=True)
+
+                # write variable
+        self['variable'] = ', '.join(new_variables)
+
+    def delete_variable(self, variables):
+        if not isinstance(variables, list):
+            variables = [variables]
+
+        new_variables = self.get_variable()
+        for variable in variables:
+            if variable in self.get_variable():
+                print(variable)
+                self.drop(variable, axis=1, inplace=True)
+                new_variables.remove(variable)
+                if variable in subvariable_dict.keys():
+                    for _subvar in subvariable_dict[variable]:
+                        self.drop(_subvar, axis=1, inplace=True)
+
+                # write variable
+        self['variable'] = ', '.join(new_variables)
+
+    def get_name(self):
+        name = self.name.unique()
+        if name.__len__() > 1:
+            print(' %s more than one name in the profile: ' % (name[0], ', '.join(name)))
+        return self.name.unique()[0]
+
