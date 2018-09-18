@@ -67,62 +67,39 @@ def scale_profile(profile, h_ice_f):
     return profile
 
 
-def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='step', resize_core=False,
-                                display_figure=True, attribut_core='S', prop_name=None, ice_type='sw'):
+def compute_phys_prop_from_core(s_profile, t_profile, si_prop, resize_core=False,
+                                display_figure=True, ice_type='sw'):
     """
     :param s_profile:
     :param t_profile:
     :param si_prop:
     :param si_prop_format: 'linear' or 'step' (default)
     :param resize_core: 'S', 'T', 'None' (default)
-    :param attribut_core: 'S' (default), 'T'
+    :param attribut_core: 'salinity' (default), 'temperature'
     :param display_figure:
     :param ice_type:
     :return:
     """
+
+    if not isinstance(si_prop, list):
+        si_prop = [si_prop]
+
     logger = logging.getLogger(__name__)
-
-    # parameters check
-    if isinstance(si_prop_format, dict):
-        for prop in si_prop:
-            if prop not in si_prop_format.keys():
-                print("no format for prop %s, please define linear or step" % prop)
-                si_prop.remove(prop)
-        si_prop_dict = si_prop_format
-    elif not isinstance(si_prop, dict):
-        if not isinstance(si_prop, list):
-            si_prop = [si_prop]
-        if not isinstance(si_prop_format, list):
-            si_prop_format = [si_prop_format]
-
-        if si_prop_format.__len__() == 1:
-            si_prop_dict = {}
-            for prop in si_prop:
-                si_prop_dict[prop] = si_prop_format[0]
-        elif si_prop_format.__len__() == si_prop.__len__():
-            si_prop_dict = {}
-            for n_prop in range(si_prop.__len__()):
-                si_prop_dict[si_prop[n_prop]] = si_prop_format[n_prop]
-        else:
-            logger.error("length of si_prop format does not match length of si_prop. si_prop should be length 1"
-                         "or should match length si_prop")
 
     # check parameters
     if 'salinity' not in s_profile.keys() or not s_profile['salinity'].notnull().any():
-        print("no salinity data")
-        return pd.DataFrame()
+        logger.error("salinity profile does not have salinity data")
     else:
         S_core_name = s_profile.name.values[0]
         s_profile.loc[:, 'salinity'] = pd.to_numeric(s_profile['salinity']).values
 
     if 'temperature' not in t_profile.keys() or not t_profile['temperature'].notnull().any():
-        print("no temperature data")
-        return pd.DataFrame()
+        logger.error("temperature profile does not have temperature data")
     else:
         T_core_name = t_profile.name.values[0]
         t_profile.loc[:, 'temperature'] = pd.to_numeric(t_profile['temperature']).values
 
-    if resize_core in ['S', S_core_name]:
+    if resize_core in ['salinity']:
         if s_profile.length.notnull().all():
             profile_length = s_profile.length.unique()[0]
         elif s_profile.ice_thickness.notnull().all():
@@ -133,7 +110,8 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
             print("todo: need warning text")
         if not t_profile.length.unique() == profile_length:
             t_profile = scale_profile(t_profile, profile_length)
-    elif resize_core in ['T', T_core_name]:
+        keep_index = True
+    elif resize_core in ['temperature']:
         if t_profile.length.notnull().all():
             profile_length = t_profile.length.unique()[0]
         elif t_profile.ice_thickness.notnull().all():
@@ -144,26 +122,33 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
             print("todo: need warning text")
         if not t_profile.length.unique() == profile_length:
             s_profile = scale_profile(s_profile, profile_length)
+    elif resize_core is False:
+        keep_index = True
 
     # interpolate temperature profile to match salinity profile
     y_mid = s_profile.y_mid.dropna().values
     if y_mid.__len__() < 1:
         y_mid = (s_profile.y_low / 2. + s_profile.y_sup / 2).dropna().astype(float)
 
+    if 'temperature' in s_profile.keys():
+        s_profile = s_profile.drop('temperature', axis=1)
+
     # replace the 2 following lines
     t_profile = t_profile.sort_values(by='y_mid')
     interp_data = np.interp(y_mid, t_profile['y_mid'].values, t_profile['temperature'].values, left=np.nan, right=np.nan)
-    t_profile2 = pd.DataFrame(np.transpose([interp_data, y_mid]), columns=['temperature', 'y_mid'])
 
-    if 'temperature' in s_profile.keys():
-        s_profile = s_profile.drop('temperature', axis=1)
-    s_profile = pd.merge(s_profile, t_profile2, on=['y_mid'])
+    if keep_index:
+        t_profile2 = pd.DataFrame(np.transpose([interp_data, y_mid]), columns=['temperature', 'y_mid'], index=s_profile.index)
+        s_profile = s_profile.join(t_profile2.temperature, how='outer')
+    else:
+        t_profile2 = pd.DataFrame(np.transpose([interp_data]), columns=['temperature', 'y_mid'])
+        s_profile = pd.merge(s_profile, t_profile2, on=['y_mid'])
+
     # add name of t_profile
-    s_profile.t_name = T_core_name
+    s_profile['t_name'] =  t_profile.get_name()[0]
 
     # compute properties
-    prop_profile = pd.DataFrame()
-    for f_prop in si_prop_dict.keys():
+    for f_prop in si_prop:
         if f_prop not in prop_list.keys():
             print('property %s not defined in the ice core property module' % property)
 
@@ -174,57 +159,23 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, si_prop_format='s
         else:
             function = getattr(seaice.property.si, prop.replace(" ", "_"))
 
-        prop_data = function(np.array(s_profile['salinity']), np.array(s_profile['temperature']))
+        # TODO: WIKI always add to salinity, properties is always a step
+        s_profile[f_prop] = function(np.array(s_profile['salinity']), np.array(s_profile['temperature']))
 
-        prop_data = pd.DataFrame(np.vstack((prop_data, s_profile['y_mid'])).transpose(), columns=[prop, 'y_mid'])
-        comment_core = 'physical properties computed from ' + S_core_name + '(S) and ' + T_core_name + '(T)'
-        prop_data.loc[:, 'variable'] = prop
-        if prop_name == 'S':
-            name = S_core_name
-        elif prop_name == 'T':
-            name = T_core_name
-        elif S_core_name is T_core_name:
-            name = S_core_name
-        elif prop_name is not None:
-            name = prop_name
-        else:
-            name = S_core_name + '/' + T_core_name
-
-        if attribut_core is 'S':
-            prop_data.loc[:, 'name'] = list(set(s_profile.name))[0]
-            var_drop = [var for var in ['salinity', 'temperature', 'variable', f_prop, 'name', 'core'] if
-                        var in s_profile.keys()]
-            core_frame = s_profile.drop(var_drop, axis=1)
-        elif attribut_core is 'T':
-            prop_data.loc[:, 'name'] = list(set(t_profile.name))[0]
-            var_drop = [var for var in ['salinity', 'temperature', 'variable', f_prop, 'name', 'core'] if
-                        var in t_profile.keys()]
-            core_frame = t_profile.drop(var_drop, axis=1)
-        prop_data.loc[:, 'name'] = name
-
-        if si_prop_dict[f_prop] == 'linear':
-            core_frame.loc[:, ['y_low', 'y_sup']] = np.nan
-        prop_data = pd.merge(prop_data, core_frame, how='inner', on=['y_mid'])
-
-        for index in prop_data.index:
-            if 'comment' in prop_data.keys():
-                if prop_data.loc[prop_data.index == index, 'comment'].isnull().all():
-                    prop_data.loc[prop_data.index == index, 'comment'] = comment_core
-                else:
-                    prop_data.loc[prop_data.index == index, 'comment'] += ';' + comment_core
-            else:
-                prop_data.loc[prop_data.index == index, 'comment'] = comment_core
+        # update variable:
+        new_var = s_profile.get_variable() + ['temperature', f_prop]
+        new_var = list(set(new_var))
+        s_profile['variable'] = ', '.join(new_var)
 
         if display_figure:
-            ax = seaice.core.plot.plot_profile_variable(prop_data, {'name': name, 'variable': prop},
+            ax = seaice.core.plot.plot_profile_variable(s_profile.copy(), variable_dict={'variable': prop},
                                                         ax=None, param_dict=None)
             ax.set_xlabel(prop)
             ax.set_ylabel('ice thickness)')
             ax.set_title(S_core_name)
             plt.show()
-
-        prop_profile = prop_profile.append(prop_data, ignore_index=True, verify_integrity=False, sort=False)
-    return prop_profile
+    # TODO: replace corestack by profile, REQUIRE: Profile should inherit Profile property (@property _constructor)
+    return s_profile
 
 
 def compute_phys_prop_from_core_name(ics_stack, S_core_name, T_core_name, si_prop, si_prop_format='step',

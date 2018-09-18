@@ -67,31 +67,32 @@ variables = None
 
 # import a single ice core from a specific path
 ic_path = '/home/megavolts/git/seaice/data_sample/ice_cores/testing-gap_extremity-TS.xlsx'
+#ic_path = '/home/megavolts/git/seaice/data_sample/ice_cores/testing-nogap_extremity-TS.xlsx'
 variables = None
 v_ref='top'
-
-ic_data = seaice.core.import_ic_path(ic_path, variables=variables, v_ref='top')
+ic_data = seaice.core.import_ic_path(ic_path, variables=variables, v_ref='top', drop_empty=True)
 y_bins = np.arange(0, max(ic_data.length())+vertical_resolution, vertical_resolution)
 profile = ic_data.profile
-
+profile = profile.set_vertical_reference(None, new_v_ref='bottom')
 
 ics_stack = seaice.core.corestack.discretize_profile(profile, y_bins, display_figure=True, fill_gap=fill_gap,
-                                                      fill_extremity=fill_extremity)
-#
-# # import all ice cores from a directory
-# ics_dict = seaice.core.import_ic_sourcefile(seaice.core.make_ic_sourcefile(ic_dir, '.xlsx'))
-# ics_stack = seaice.core.corestack.stack_cores(ics_dict)
-# ics_stack = ics_stack.set_vertical_reference('bottom')
-# y_bins = np.arange(0, max(max(ics_stack.y_sup), max(ics_stack.length), max(ics_stack.ice_thickness))+vertical_resolution,
-#                    vertical_resolution)
-# ics_stack = ics_stack.discretize(display_figure=False, y_bins=y_bins, variables=variables, fill_gap=fill_gap,
-#                                  fill_extremity=fill_extremity)
-#
-#
-# stats = ['mean', 'min', 'max', 'std']
-# groups = {'length': [0.25, 0.75], 'y_mid': y_bins}
-# ics_stat = ics_stack.section_stat(groups=groups, stats=stats, variables=variables)
-#
+                                                    fill_extremity=fill_extremity)
+
+# import all ice cores from a directory
+ics_dict = seaice.core.import_ic_sourcefile(seaice.core.make_ic_sourcefile(ic_dir, '.xlsx'), drop_empty=True)
+ics_stack = seaice.core.corestack.stack_cores(ics_dict)
+ics_stack = ics_stack.set_vertical_reference('bottom')
+y_bins = np.arange(0, max(max(ics_stack.y_sup), max(ics_stack.length), max(ics_stack.ice_thickness))+vertical_resolution,
+                   vertical_resolution)
+ics_stack = ics_stack.discretize(display_figure=True, y_bins=y_bins, fill_gap=fill_gap,
+                                 fill_extremity=fill_extremity)
+
+stats = ['mean', 'min', 'max', 'std']
+groups = [{'y_mid': y_bins}, {'length': [0.25, 0.5]}]
+variables = None
+# TODO make it works with other RSOI MOSIDEO cold ice percolatin
+ics_stat = ics_stack.section_stat(groups=groups, stats=stats, variables=variables)
+
 #
 # bins = [key for key, value in ics_stat.items() if key.lower().startswith('bin_')]
 # bin_value = [ics_stat[b].unique() for b in bins]

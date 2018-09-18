@@ -28,6 +28,43 @@ __all__ = ["plot_profile", "semilogx_profile", "plot_profile_variable", "semilog
 module_logger = logging.getLogger(__name__)
 
 
+def plot_profileV0(profile, ax=None, param_dict=None):
+    """
+    :param profile:
+    :param ax:
+    :param param_dict:
+    :return:
+    """
+
+    prop = [key for key in profile if key not in ['y_low', 'y_mid', 'y_sup']][0]
+
+    if ax is None:
+        plt.figure()
+        ax = plt.subplot(1, 1, 1)
+
+    # if profile not empty
+    if not profile.empty:
+        # step variable
+        if not profile.y_low.isnull().all():
+            x = []
+            y = []
+            for ii in profile.index.tolist():
+                y.append(profile['y_low'][ii])
+                y.append(profile['y_sup'][ii])
+                x.append(profile[prop][ii])
+                x.append(profile[prop][ii])
+
+        # continuous variable
+        else:
+            x = profile[prop].values
+            y = profile.y_mid.values
+        if param_dict is None:
+            ax.plot(x, y)
+        else:
+            ax.plot(x, y, **param_dict)
+    return ax
+
+
 def plot_profile(profile, ax=None, param_dict=None):
     """
     :param profile:
@@ -127,12 +164,33 @@ def plot_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
     :return:
     """
     if 'variable' not in variable_dict.keys():
-        module_logger.warning("a variable should be specified for plotting")
-        return 0
+        module_logger.error("a variable should be specified for plotting")
 
     profile = select_profile(ic_data, variable_dict)
     _ax = plot_profile(profile, ax=ax, param_dict=param_dict)
     return _ax
+
+
+def plot_stat_profile(ic_data, variable_dict, ax=None, param_dict=None):
+    """
+    :param ic_data:
+        pd.DataFrame
+    :param variable_dict:
+    :param ax:
+    :param param_dict:
+    :return:
+    """
+    if 'variable' not in variable_dict.keys():
+        module_logger.error("a variable should be specified for plotting")
+
+    stat = variable_dict['stats']
+    variable_dict.pop('stats')
+
+    profile = select_profile(ic_data, variable_dict)
+    _ax = plot_profile(profile, ax=ax, param_dict=param_dict)
+
+    return _ax
+
 
 
 def semilogx_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
@@ -354,17 +412,24 @@ def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=Fal
     :param param_dict:
     :return:
     """
-
     # TODO: check if all stat are present for the variable
 
-    variable_dict.update({'stats': 'min'})
+    prop = variable_dict['variable']
+
+    _profiles = select_profile(ic_data, variable_dict)
+
+    # minimum
     param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
-    ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_min']], param_dict=param_dict, ax=ax)
+
+    # mean
     variable_dict.update({'stats': 'mean'})
     param_dict.update({'color': 'k'})
     ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+
     variable_dict.update({'stats': 'max'})
     param_dict.update({'color': 'r'})
+
     ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
     variable_dict.pop('stats')
     ax = plot_mean_envelop(ic_data, variable_dict, ax=ax)

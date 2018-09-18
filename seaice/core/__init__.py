@@ -28,7 +28,7 @@ import seaice
 
 __all__ = ["import_ic_path", "import_ic_list", "import_ic_sourcefile", "list_ic", "list_ic_path", "make_ic_sourcefile"]
 
-
+TOL =1e-6
 subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
 
 variable_2_sheet = {'temperature': 'T_ice',
@@ -49,7 +49,7 @@ variable_2_sheet = {'temperature': 'T_ice',
                     }
 
 
-def import_ic_path(ic_path, variables=None, v_ref='top'):
+def import_ic_path(ic_path, variables=None, v_ref='top', drop_empty=False):
     """
     :param ic_path:
         string, path to the xlsx ice core spreadsheet
@@ -137,8 +137,7 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
             if isinstance(ws_summary.cell(row=10, column=3+n_temp).value, (float, int)):
                 freeboard = np.concatenate((freeboard, np.array([ws_summary.cell(row=10, column=3 + n_snow).value])))
             else:
-                logger.info("(%s)\tfreeboard cell %s not a float" % (name,
-                                                                            openpyxl.utils.get_column_letter(3 + n_temp)+str(9)))
+                logger.info("(%s)\tfreeboard cell %s not a float" % (name, openpyxl.utils.get_column_letter(3 + n_temp)+str(9)))
             n_temp += 1
         freeboard = pd.to_numeric(freeboard, errors='coerce')
     else:
@@ -194,19 +193,18 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
             ws_variable = wb[sheet]
             profile = read_profile(ws_variable, variables=None, version=version, v_ref=v_ref)
 
-            if profile.get_name() is not core.name:
-                logger.error('\t(%s) core name %s and profile name %s does not match'
-                             % (ic_path, core.name, profile.name()))
-            elif not profile.empty:
-                core.add_profile(profile)
-                _temp = [variable for variable in profile.get_variable() if profile[variable].notnull().any()]
-                logger.info(' (%s) data imported with success: %s' % (profile.get_name(), ", ".join(_temp)))
-            else:
-                _temp = [variable for variable in profile.get_variable() if profile[variable].isnull().all()]
-                if _temp.__len__() > 1:
-                    logger.info(' (%s) no data to import: %s ' % (profile.get_name(), ", ".join(_temp)))
+            if drop_empty:
+                profile.drop_empty_property()
+
+            if not profile.empty:
+                if profile.get_name() is not core.name:
+                    logger.error('\t(%s) core name %s and profile name %s does not match'
+                                 % (ic_path, core.name, profile.get_name()))
                 else:
-                    logger.info('(%s) no variable to import' % name)
+                    core.add_profile(profile)
+                    logger.info('(%s) data imported with success: %s' % (core.name, ", ".join(profile.get_property())))
+            else:
+                logger.info('(%s) no data to import from %s ' % (core.name, sheet))
     else:
         if not isinstance(variables, list):
             if variables.lower().find('state variable')+1:
@@ -229,8 +227,7 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
                                  % (ic_path, core.name, profile.name()))
                 elif not profile.empty:
                     core.add_profile(profile)
-                    _temp = [variable for variable in profile.get_variable() if profile[variable].notnull().any()]
-                    logger.info(' (%s) data imported with success: %s' % (profile.get_name(), ", ".join(_temp)))
+                    logger.info(' (%s) data imported with success: %s' % (profile.get_name(), profile.get_property()))
                 else:
                     _temp = [variable for variable in profile.get_variable() if profile[variable].isnull().all()]
                     if _temp.__len__() > 1:
@@ -243,7 +240,7 @@ def import_ic_path(ic_path, variables=None, v_ref='top'):
     return core
 
 
-def import_ic_list(ic_list, variables=None, v_ref='top'):
+def import_ic_list(ic_list, variables=None, v_ref='top', verbose=False, drop_empty=False):
     """
     :param ic_list:
             array, array contains absolute filepath for the cores
@@ -256,12 +253,14 @@ def import_ic_list(ic_list, variables=None, v_ref='top'):
     ic_dict = {}
     inexisting_ic_list = []
     for ic_path in ic_list:
+        if verbose:
+            print('Importing data from %s' % ic_path)
         if not os.path.exists(ic_path):
             logger.warning("%s does not exists in core directory" % ic_path.split('/')[-1])
             inexisting_ic_list.append(ic_path.split('/')[-1].split('.')[0])
         else:
-            ic_data = import_ic_path(ic_path, variables=variables, v_ref=v_ref)
-            if ic_data.variables().size is 0 :
+            ic_data = import_ic_path(ic_path, variables=variables, v_ref=v_ref, drop_empty=drop_empty)
+            if not ic_data.variables():
                 inexisting_ic_list.append(ic_path.split('/')[-1].split('.')[0])
                 logger.warning("%s have no properties profile" % (ic_data.name))
             else:
@@ -279,7 +278,7 @@ def import_ic_list(ic_list, variables=None, v_ref='top'):
     return ic_dict
 
 
-def import_ic_sourcefile(f_path, variables=None, ic_dir=None, v_ref='top'):
+def import_ic_sourcefile(f_path, variables=None, ic_dir=None, v_ref='top', drop_empty=False):
     """
     :param filepath:
             string, absolute path to the file containing either the absolute path of the cores (1 path by line) or the
@@ -302,11 +301,11 @@ def import_ic_sourcefile(f_path, variables=None, ic_dir=None, v_ref='top'):
 
     print(ics)
 
-    return import_ic_list(ics, variables=variables, v_ref=v_ref)
+    return import_ic_list(ics, variables=variables, v_ref=v_ref, drop_empty=drop_empty)
 
 
 # read profile
-def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='top'):
+def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='top', fill_missing=False):
     """
     :param ws_variable:
         openpyxl.worksheet
@@ -314,6 +313,8 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
     :param version:
     :param v_ref:
         top, or bottom
+    :param fill_missing:
+
     """
     logger = logging.getLogger(__name__)
 
@@ -326,105 +327,136 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
     else:
         logger.error("ice core spreadsheet version not defined")
 
-    # TODO: add other sheets for seawater, sediment, CHla, Phae, stratigraphy
     sheet_2_data = {'S_ice': [row_data_start, 'ABC', 'DEFG', 'J'],
-                        'T_ice': [row_data_start, 'A', 'B', 'C'],
-                        'Vf_oil': [row_data_start, 'ABC', 'DEFG', 'H']}
+                    'T_ice': [row_data_start, 'A', 'B', 'C'],
+                    'Vf_oil': [row_data_start, 'ABC', 'DEFG', 'H']}
+    # TODO: add other sheets for seawater, sediment, CHla, Phae, stratigraphy
+
+    #                'stratigraphy': [row_data_start, 'AB', 'C', 'D'],
+    #                'seawater': [row_data_start, 'A', 'DEFGF', 'G']}
 
     name = ws_variable['C1'].value
 
     # define section
-    # Step profile
     headers = ['y_low', 'y_mid', 'y_sup']
-    if sheet_2_data[ws_variable.title][1].__len__() == 3:
-        y_low = np.array([ws_variable[sheet_2_data[ws_variable.title][1][0] + str(row)].value
-                          for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
-        y_sup = np.array([ws_variable[sheet_2_data[ws_variable.title][1][1] + str(row)].value
-                          for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
-        y_mid = np.array([ws_variable[sheet_2_data[ws_variable.title][1][2] + str(row)].value
-                          for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
-        # if y_mid is not defined, y_mid = (y_low+y_sup)/2
-        if np.isnan(y_mid).any():
-            if (np.isnan(y_mid).any() or np.isnan(y_mid).any()):
-                y_mid = (y_low + y_sup) / 2
-                logger.info(
-                    '\t(%s ) not all y_mid exits, calculating y_mid = (y_low+y_sup)/2'
-                    % ws_variable.title)
-            else:
-                logger.warning(
-                    '\t(%s) not all y_mid exists, some element of y_low or y_sup are not defined. Unable to'
-                    'compute y_mid = (y_low+y_sup)/2' % ws_variable.title)
     # Continuous profile
+    if not ws_variable.title in sheet_2_data:
+        profile = seaice.core.profile.Profile()
     else:
-        y_mid = np.array([ws_variable[sheet_2_data[ws_variable.title][1] + str(row)].value
-                          for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
-        y_low = np.nan*np.ones(y_mid.__len__())
-        y_sup = np.nan * np.ones(y_mid.__len__())
-    data = np.array([y_low, y_mid, y_sup])
+        if sheet_2_data[ws_variable.title][1].__len__() == 1:
+            y_mid = np.array([ws_variable[sheet_2_data[ws_variable.title][1] + str(row)].value
+                              for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row + 1)]).astype(float)
+            y_low = np.nan * np.ones(y_mid.__len__())
+            y_sup = np.nan * np.ones(y_mid.__len__())
+        # Step profile
+        elif sheet_2_data[ws_variable.title][1].__len__() == 2:
+            y_low = np.array([ws_variable[sheet_2_data[ws_variable.title][1][0] + str(row)].value
+                              for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
+            y_sup = np.array([ws_variable[sheet_2_data[ws_variable.title][1][1] + str(row)].value
+                              for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
+            y_mid = (y_low + y_sup) / 2
+            y_mid = y_mid.astype(float)
+        else:
+            y_low = np.array([ws_variable[sheet_2_data[ws_variable.title][1][0] + str(row)].value
+                              for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
+            y_sup = np.array([ws_variable[sheet_2_data[ws_variable.title][1][1] + str(row)].value
+                              for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
+            y_mid = np.array([ws_variable[sheet_2_data[ws_variable.title][1][2] + str(row)].value
+                              for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
 
-    # read data
-    min_col = sheet_2_data[ws_variable.title][2][0]
-    min_col = openpyxl.utils.column_index_from_string(min_col)
-    max_col = sheet_2_data[ws_variable.title][2][-1]
-    max_col = openpyxl.utils.column_index_from_string(max_col)
-    min_row = sheet_2_data[ws_variable.title][0]
-    max_row = min_row + y_mid.__len__()-1
+            # if y_mid is not defined, y_mid = (y_low+y_sup)/2
+            if np.isnan(y_mid).any():
+                if (np.isnan(y_mid).any() or np.isnan(y_mid).any()):
+                    y_mid = (y_low + y_sup) / 2
+                    logger.info(
+                        '\t(%s ) not all y_mid exits, calculating y_mid = (y_low+y_sup)/2'
+                        % ws_variable.title)
+                else:
+                    logger.warning(
+                        '\t(%s) not all y_mid exists, some element of y_low or y_sup are not defined. Unable to'
+                        'compute y_mid = (y_low+y_sup)/2' % ws_variable.title)
 
-    _data = [[cell.value for cell in row] for row in ws_variable.iter_cols(min_col, max_col, min_row, max_row)]
-    data = np.vstack([data, np.array(_data).astype(float)])
-    del _data
+        data = np.array([y_low, y_mid, y_sup])
 
-    header_offset = 3
-    variable_headers = [ws_variable[col + str(row_data_start - header_offset)].value for col in
-                sheet_2_data[ws_variable.title][2]]
-    headers += variable_headers
+        # read data
+        min_col = sheet_2_data[ws_variable.title][2][0]
+        min_col = openpyxl.utils.column_index_from_string(min_col)
+        max_col = sheet_2_data[ws_variable.title][2][-1]
+        max_col = openpyxl.utils.column_index_from_string(max_col)
+        min_row = sheet_2_data[ws_variable.title][0]
+        max_row = min_row + y_mid.__len__()-1
 
-    # ice thickness
-    try:
-        length = float(ws_variable['C2'].value)
-    except:
-        logger.info('(%s) no ice core length' % name)
-        length = np.nan
-    else:
-        if length == 'n/a':
-            logger.info('(%s) ice core length is not available (n/a)' % name)
+        _data = [[cell.value if isinstance(cell.value, (float, int)) else np.nan for cell in row]
+                 for row in ws_variable.iter_cols(min_col, max_col, min_row, max_row)]
+        data = np.vstack([data, np.array(_data).astype(float)])
+        data = data.transpose()
+        header_offset = 3
+        variable_headers = [ws_variable[col + str(row_data_start - header_offset)].value
+                            for col in sheet_2_data[ws_variable.title][2]]
+        headers += variable_headers
+
+        # add comment to dataframe
+        headers_float = headers.copy()
+        headers += ['comment']
+        comment = [ws_variable[sheet_2_data[ws_variable.title][3][0] + str(row)].value
+                   for row in range(min_row, max_row + 1)]
+        data = np.hstack([data, np.atleast_2d(comment).transpose()])
+
+        # fill missing section with np.nan
+        if fill_missing:
+            idx = np.where(np.abs(y_low[1:-1]-y_sup[0:-2]) > TOL)[0]
+
+            for ii_idx in idx:
+                empty = [y_sup[ii_idx], (y_sup[ii_idx]+y_low[ii_idx+1])/2, y_low[ii_idx+1]]
+                empty += [np.nan] * (variable_headers.__len__()+1)
+            data = np.vstack([data, empty])
+
+        # assemble profile dataframe
+        profile = pd.DataFrame(data, columns=headers)
+        profile = profile.sort_values(by='y_low')
+
+        # ice thickness
+        try:
+            length = float(ws_variable['C2'].value)
+        except:
+            logger.info('(%s) no ice core length' % name)
             length = np.nan
-        elif not isinstance(length, (int, float)):
-            logger.info('%s ice core length is not a number' % name)
-            length = np.nan
+        else:
+            if length == 'n/a':
+                logger.info('(%s) ice core length is not available (n/a)' % name)
+                length = np.nan
+            elif not isinstance(length, (int, float)):
+                logger.info('%s ice core length is not a number' % name)
+                length = np.nan
+        profile['length'] = length
+        headers_float += ['length']
 
-    headers += ['length']
-    data = np.vstack([data, length*np.ones(data.shape[1])])
+        # clean profile if there is no depth entry
+        profile = profile.dropna(axis=0, subset=['y_low', 'y_mid', 'y_sup'])
 
-    # assemble profile dataframe
-    profile = pd.DataFrame(data.transpose(), columns=headers)
+        # set vertical references
+        profile['v_ref'] = v_ref
 
-    # add comment to dataframe
-    comment = [ws_variable[sheet_2_data[ws_variable.title][3][0]+str(row)].value for row in range(min_row, max_row+1)]
-    profile['comment'] = comment
+        # set ice core name for profile
+        profile['name'] = name
 
-    # set vertical references
-    profile['v_ref'] = v_ref
-
-    # set ice core name for profile
-    profile['name'] = name
-
-    # set variables after removing subvariables
-    if variables is not None:
+        # remove subvariables from variables
         for variable in variable_headers:
             if variable in subvariable_dict:
-                for sub_var in subvariable_dict[variable]:
-                    variable_headers.remove(sub_var)
-    profile['variable'] = ', '.join(variable_headers)
+                for subvariable in subvariable_dict[variable]:
+                    variable_headers.remove(subvariable)
+        profile['variable'] = ', '.join(variable_headers)
 
-    profile = seaice.Profile(profile)
+        # set depth and property type to float
+        profile[headers_float] = profile[headers_float].astype(float)
 
-    # remove variable not in variables
-    if variables is not None:
-        for variable in profile.get_variable():
-            if variable not in variables:
-                profile.delete_variable(variable)
+        profile = seaice.core.profile.Profile(profile)
 
+        # remove variable not in variables
+        if variables is not None:
+            for property in profile.get_property():
+                if property not in variables:
+                    profile.delete_property(variable)
     return profile
 
 
