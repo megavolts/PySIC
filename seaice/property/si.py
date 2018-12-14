@@ -18,7 +18,7 @@ __date__ = "2017/09/13"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 __name__ = "si"
 __all__ = ["air_volume_fraction", 'brine_volume_fraction', "density", "electric_conductivity", "latentheat",
-           "permeability", "permeability_from_porosity", "resistivity", "specific_heat_capacity", "thermal_conductivity", "thermal_diffusivity"]
+           "permeability", "", "resistivity", "specific_heat_capacity", "thermal_conductivity", "thermal_diffusivity"]
 
 logger = logging.getLogger(__name__)
 
