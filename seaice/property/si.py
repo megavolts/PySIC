@@ -158,6 +158,7 @@ def brine_volume_fraction(s, t, rho_si='default', vf_a=0.005, method='cw'):
     if isinstance(vf_a, (int, float, list)):
         vf_a = np.atleast_1d(vf_a)
     if vf_a.size == 1:
+        logger.info('Air volume fraction set to 0.0005')
         vf_a = vf_a * np.ones_like(s)
 
     if rho_si is 'default':
@@ -731,7 +732,7 @@ def thermal_diffusivity(s, t, method_l='prindle', method_cp='untersteiner', rho_
 
         :source :
             material thermal diffusivity is given by sigma = lambda/(rho c_p)
-            
+
     """
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)

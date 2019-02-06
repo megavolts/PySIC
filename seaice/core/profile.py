@@ -233,27 +233,27 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
         _profile = seaice.core.profile.Profile(profile[profile.variable == variable])
         _variables = []
         _del_variables = []
-        for _variable in _profile.get_variable():
-            # remove properties not linearly dependant of temperature
-            if not _variable in ['conductivity']:
-                logger.info('%s will be discretized' % _variable)
-                if not _variable in _variables:
-                    _variables.append(_variable)
-                # add other variable dependant
-                if _variable in subvariable_dict:
-                    for _subvar in subvariable_dict[_variable]:
-                        _variables.append(_subvar)
-            else:
-                logger.warning('%s variable cannot be discretized' % _variable)
-                _del_variables.append(_variable)
-                # add other variable dependant
-                if _variable in subvariable_dict:
-                    for _subvar in subvariable_dict[_variable]:
-                        _del_variables.append(_subvar)
-
+        # TODO: why did I do that ?
+        # for _variable in _profile.get_property():
+        #     # remove properties not linearly dependant of temperature
+        #     if not _variable in ['conductivity']:
+        #         logger.info('%s will be discretized' % _variable)
+        #         if not _variable in _variables:
+        #             _variables.append(_variable)
+        #         # add other variable dependant
+        #         if _variable in subvariable_dict:
+        #             for _subvar in subvariable_dict[_variable]:
+        #                 _variables.append(_subvar)
+        #     else:
+        #         logger.warning('%s variable cannot be discretized' % _variable)
+        #         _del_variables.append(_variable)
+        #         # add other variable dependant
+        #         if _variable in subvariable_dict:
+        #             for _subvar in subvariable_dict[_variable]:
+        #                 _del_variables.append(_subvar)
+        _variables = _profile.get_property()
         # index of variables
         n_var = _variables.__len__()
-
         #TODO switch between continuous or not continuous is evidence of continuous profile like temperature
         # continuous profile (temperature-like)
         if is_continuous(_profile):
@@ -534,7 +534,7 @@ def delete_variables(ics_stack, variables2del):
         variables2del = [variables2del]
     for variable in variables2del:
         if variable in ics_stack.keys():
-            if variable in ics_stack.get_variable():
+            if variable in ics_stack.get_property():
                 # delete variable column
                 ics_stack.drop(variable, axis=1, inplace=True)
 
@@ -563,7 +563,7 @@ def select_variable(ics_stack, variable):
             ics_stack = ics_stack[ics_stack.variable == group]
 
             # delete other variable
-            variables2del = [_var for _var in ics_stack.get_variable() if not _var == variable]
+            variables2del = [_var for _var in ics_stack.get_property() if not _var == variable]
             ics_stack = delete_variables(ics_stack, variables2del)
     return ics_stack
 
@@ -580,7 +580,7 @@ def select_profile(ics_stack, variable_dict):
     ii = 0
     for ii_key in variable_dict.keys():
         if ii_key is 'variable':
-            if variable_dict[ii_key] in ics_stack.get_variable():
+            if variable_dict[ii_key] in ics_stack.get_property():
                 ics_stack = select_variable(ics_stack, variable_dict[ii_key])
         elif ii_key in ics_stack.keys():
             ics_stack = ics_stack[ics_stack[ii_key] == variable_dict[ii_key]]

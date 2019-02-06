@@ -183,32 +183,12 @@ def plot_stat_profile(ic_data, variable_dict, ax=None, param_dict=None):
     if 'variable' not in variable_dict.keys():
         module_logger.error("a variable should be specified for plotting")
 
-    stat = variable_dict['stats']
     variable_dict.pop('stats')
 
     profile = select_profile(ic_data, variable_dict)
     _ax = plot_profile(profile, ax=ax, param_dict=param_dict)
 
     return _ax
-
-
-
-def semilogx_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
-    """
-    :param ic_data:
-        pd.DataFrame
-    :param variable_dict:
-    :param ax:
-    :param param_dict:
-    :return:
-    """
-    if 'variable' not in variable_dict.keys():
-        module_logger.warning("a variable should be specified for plotting")
-        return 0
-
-    profile = select_profile(ic_data, variable_dict)
-    ax = semilogx_profile(profile, ax=ax, param_dict=param_dict)
-    return ax
 
 
 def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
@@ -231,13 +211,13 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
     if 'variable' not in variable_dict.keys():
         module_logger.warning("a variable should be specified for plotting")
         return 0
+    else:
+        ii_variable = variable_dict['variable']
 
-    ii_variable = variable_dict['variable']
+    _profiles = select_profile(ic_data, variable_dict)
 
-    variable_dict.update({'stats': 'mean'})
-    x_mean = select_profile(ic_data, variable_dict).reset_index()
-    variable_dict.update({'stats': 'std'})
-    x_std = select_profile(ic_data, variable_dict).reset_index()
+    x_mean = _profiles[[ii_variable+'_min', 'y_low', 'y_sup']]
+    x_std = _profiles[[ii_variable+'_std', 'y_low', 'y_sup']]
 
     if x_mean.__len__() != 0:
         if x_std.__len__() < x_mean.__len__():
@@ -248,15 +228,15 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
             y_low = x_mean['y_low']
             y_sup = x_mean['y_sup']
             y = np.concatenate((y_low.tolist(), [y_sup.tolist()[-1]]))
-            x_std_l = x_mean[ii_variable] - x_std[ii_variable]
-            x_std_h = x_mean[ii_variable] + x_std[ii_variable]
+            x_std_l = _profiles[ii_variable+'_mean'] - _profiles[ii_variable+'_std']
+            x_std_h = _profiles[ii_variable+'_mean'] + _profiles[ii_variable+'_std']
 
             x_std_l = plt_step(x_std_l.tolist(), y).transpose()
             x_std_h = plt_step(x_std_h.tolist(), y).transpose()
         elif x_mean.y_low.isnull().all():
             y_std = x_mean['y_mid']
-            x_std_l = np.array([x_mean[ii_variable] - np.nan_to_num(x_std[ii_variable]), y_std])
-            x_std_h = np.array([x_mean[ii_variable] + np.nan_to_num(x_std[ii_variable]), y_std])
+            x_std_l = np.array([_profiles[ii_variable+'_mean'] - np.nan_to_num(_profiles[ii_variable+'_std']), y_std])
+            x_std_h = np.array([_profiles[ii_variable+'_mean'] + np.nan_to_num(_profiles[ii_variable+'_std']), y_std])
 
         if 'facecolor' not in param_dict.keys():
             param_dict['facecolor'] = {'black'}
@@ -269,9 +249,55 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
     return ax
 
 
+def semilogx_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
+    """
+    :param ic_data:
+        pd.DataFrame
+    :param variable_dict:
+    :param ax:
+    :param param_dict:
+    :return:
+    """
+    if ax is None:
+        plt.figure()
+        ax = plt.subplot(1, 1, 1)
+
+    if 'variable' not in variable_dict.keys():
+        module_logger.warning("a variable should be specified for plotting")
+        return 0
+    else:
+        variable = variable_dict['variable']
+
+    profile = select_profile(ic_data, variable_dict)
+
+    # if profile not empty
+    if not profile.empty:
+        # step variable
+        if not profile.y_low.isnull().all():
+            x = []
+            y = []
+            for ii in profile.index.tolist():
+                y.append(profile['y_low'][ii])
+                y.append(profile['y_sup'][ii])
+                x.append(profile[variable][ii])
+                x.append(profile[variable][ii])
+
+        # continuous variable
+        else:
+            x = profile[variable].values
+            y = profile.y_mid.values
+
+        if param_dict is None:
+            ax.semilogx(x, y)
+        else:
+            ax.semilogx(x, y, **param_dict)
+        return ax
+    else:
+        return 0
+
+
 def semilogx_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
     """
-
     :param ic_data:
     :param variable_dict:
     :param ax:
@@ -288,15 +314,17 @@ def semilogx_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
     if 'variable' not in variable_dict.keys():
         module_logger.warning("a variable should be specified for plotting")
         return 0
+    else:
+        ii_variable = variable_dict['variable']
 
-    ii_variable = variable_dict['variable']
+    _profiles = select_profile(ic_data, variable_dict)
 
-    variable_dict.update({'stats': 'mean'})
-    x_mean = select_profile(ic_data, variable_dict).reset_index()
-    variable_dict.update({'stats': 'std'})
-    x_std = select_profile(ic_data, variable_dict).reset_index()
+    x_mean = _profiles[[ii_variable+'_mean', 'y_low', 'y_sup']]
+    x_std = _profiles[[ii_variable+'_std', 'y_low', 'y_sup']]
 
-    if x_mean.__len__() != 0:
+    # profile is not empty
+    if not x_mean.empty:
+        # x_std and x_mean same length
         if x_std.__len__() < x_mean.__len__():
             index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
             x_std = x_std.append(pd.DataFrame(np.nan, columns=x_std.columns.tolist(), index=index))
@@ -305,8 +333,8 @@ def semilogx_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
             y_low = x_mean['y_low']
             y_sup = x_mean['y_sup']
             y = np.concatenate((y_low.tolist(), [y_sup.tolist()[-1]]))
-            x_std_l = x_mean[ii_variable] - x_std[ii_variable]
-            x_std_h = x_mean[ii_variable] + x_std[ii_variable]
+            x_std_l = x_mean[ii_variable+'_mean'] - x_std[ii_variable+'_std']
+            x_std_h = x_mean[ii_variable+'_mean'] + x_std[ii_variable+'_std']
 
             index_outlier = x_std_l[(x_std_l <= 0)].index.tolist()
             for ii in index_outlier:
@@ -425,14 +453,18 @@ def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=Fal
     # mean
     variable_dict.update({'stats': 'mean'})
     param_dict.update({'color': 'k'})
-    ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_mean']], param_dict=param_dict, ax=ax)
+#    ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
 
+    # maximum
     variable_dict.update({'stats': 'max'})
     param_dict.update({'color': 'r'})
+    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_max']], param_dict=param_dict, ax=ax)
+    #ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
 
-    ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    # std/mean envelop
     variable_dict.pop('stats')
-    ax = plot_mean_envelop(ic_data, variable_dict, ax=ax)
+    plot_mean_envelop(ic_data, variable_dict, ax=ax)
     if flag_number:
         variable_dict.update({'stats': 'mean'})
         ax = plot_number(ic_data, variable_dict=variable_dict, ax=ax, z_delta=0.01, every=1)
@@ -448,17 +480,22 @@ def plot_enveloplog(ic_data, variable_dict, ax=None, param_dict={}, flag_number=
     :return:
     """
 
+    prop = variable_dict['variable']
+
     # for log scale, replace smallest value by minimum*2
-    variable_dict.update({'stats': 'min'})
+
+    # minimum
+    variable_dict.update({'variable': prop+'_min'})
     param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
     ax = semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
-    variable_dict.update({'stats': 'mean'})
+    variable_dict.update({'variable': prop+'_mean'})
     param_dict.update({'color': 'k'})
     ax = semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
-    variable_dict.update({'stats': 'max'})
+    variable_dict.update({'variable': prop+'_max'})
     param_dict.update({'color': 'r'})
     ax = semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
-    variable_dict.pop('stats')
-    ax = semilogx_mean_envelop(ic_data, variable_dict, ax=ax)
+    # variable_dict.update({'variable': prop})
+    # param_dict = None
+    # ax = semilogx_mean_envelop(ic_data, variable_dict, ax=ax)
 
     return ax

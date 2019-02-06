@@ -96,8 +96,35 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, resize_core=False
     if 'temperature' not in t_profile.keys() or not t_profile['temperature'].notnull().any():
         logger.error("temperature profile does not have temperature data")
     else:
-        T_core_name = t_profile.name.values[0]
         t_profile.loc[:, 'temperature'] = pd.to_numeric(t_profile['temperature']).values
+
+    # sort profile by y_mid
+    s_profile.sort_values(by='y_mid', inplace=True)
+    t_profile.sort_values(by='y_mid', inplace=True)
+
+    # check if orientation have same direction:
+    if s_profile.v_ref.unique() != t_profile.v_ref.unique():
+        if not s_profile.ice_thickness.empty:
+            hi = s_profile.ice_thickness.unique()[0]
+
+            # if hi is not present in t_profile, interp temperature at hi
+            if not np.isin(hi, t_profile.y_mid):
+                t_temp = t_profile.head(1).reset_index()
+                t_temp.temperature = np.nan
+                t_temp.y_mid = hi
+                t_profile = t_profile.append(t_temp).sort_values('y_mid').reset_index(drop=True)
+                t_profile = t_profile.interpolate(method='linear', axis=0, sort=True)
+
+            # discard all temperature data longer than salinity core
+            t_profile = t_profile[t_profile.y_mid <= hi]
+            t_profile.ice_thickness = t_profile.y_mid.max()
+
+            # change direction of t_profile to match s_profile
+            direction = s_profile.v_ref.unique()[0]
+            t_profile = seaice.core.profile.set_profile_orientation(t_profile, direction)
+
+        else:
+            logger.error("%s has no ice thickness; impossible to correct direction", s_profile.name.unique())
 
     if resize_core in ['salinity']:
         if s_profile.length.notnull().all():
@@ -145,7 +172,7 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, resize_core=False
         s_profile = pd.merge(s_profile, t_profile2, on=['y_mid'])
 
     # add name of t_profile
-    s_profile['t_name'] =  t_profile.get_name()[0]
+    s_profile['t_name'] = t_profile.get_name()[0]
 
     # compute properties
     for f_prop in si_prop:

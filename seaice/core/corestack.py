@@ -140,7 +140,7 @@ class CoreStack(pd.DataFrame):
         """
 
         data_binned = pd.DataFrame()
-        for core in self.core_names():
+        for core in self.get_name():
             if display_figure:
                 print(core)
             data_binned = data_binned.append(discretize_profile(self[self.name == core], y_bins=y_bins, y_mid=y_mid,
