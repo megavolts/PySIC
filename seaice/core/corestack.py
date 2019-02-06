@@ -4,12 +4,14 @@
 seaice.core.coreset.py : CoreStack class
 
 """
+import datetime as dt
 import logging
+
 import numpy as np
 import pandas as pd
-import datetime as dt
-from seaice.core.profile import *
+
 import seaice
+from seaice.core.profile import *
 
 __name__ = "corestack"
 __author__ = "Marc Oggier"
@@ -140,7 +142,7 @@ class CoreStack(pd.DataFrame):
         """
 
         data_binned = pd.DataFrame()
-        for core in self.core_names():
+        for core in self.get_name():
             if display_figure:
                 print(core)
             data_binned = data_binned.append(discretize_profile(self[self.name == core], y_bins=y_bins, y_mid=y_mid,
@@ -322,9 +324,9 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
 
     for variable in variables:
         if 'w_'+variable not in ics_stack:
-            ics_stack['w_'+variable] = 1
+            ics_stack['w_' + variable] = np.ones([1, len(ics_stack.index)])
             logger.warning('No weight value are defined for %s. Setting weight value to 1' % variable)
-        if ics_stack['w_'+variable ].isna().any():
+        if ics_stack['w_' + variable].isna().any():
             ics_stack.loc[ics_stack['w_'+variable ].isna(), 'weight'] = 1
             logger.warning('some weight value are not defined for % s. Setting weight value to 1' % variable)
 
@@ -359,7 +361,7 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
                 if key is 'y_mid':
                     _cut_y_mid = pd.cut(ics_stack[key], group[key], labels=False)
                     _dim_y_mid = group[key].__len__() - 1
-                    _dict_y_mid = {key:group[key]}
+                    _dict_y_mid = {key: group[key]}
                 else:
                     cuts.append(pd.cut(ics_stack[key], group[key], labels=False))
                     dim.append(group[key].__len__() - 1)
@@ -406,6 +408,8 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
         for stat in stats:
             if stat in ['sum', 'mean']:
                 func = "kgroups.loc[~kgroups['wtd_" + prop +"'].isna(), 'wtd_" + prop +"' ]." + stat + "()"
+                w_func = "kgroups.loc[~kgroups['w_" + prop + "'].isna(), 'w_" + prop + "'].sum()"
+                n_func = "kgroups.loc[~kgroups['wtd_" + prop + "'].isna(), 'wtd_" + prop + "'].count()"
             elif stat in ['min', 'max', 'std']:
                 func = "kgroups.loc[~kgroups['wtd_" + prop +"'].isna(), '" + prop + "']." + stat + "()"
             else:
@@ -430,7 +434,18 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
                             new_k.append(cuts_dict[groups_order[_k_n]][k])
                         _k_n += 1
 
-                    stat_var[stat][tuple(np.array(new_k, dtype=int))] = eval(func)
+                    if stat in ['sum', 'mean']:
+                        # Take in account property measured only on a partial bins to computed weighted property
+                        # e.g. S measure on 2 samples
+                        # # 1 : 0-0.1, S = 10, w=1
+                        # # 2 : 0-0.1, S = 8, w=0.5
+                        # weighted mean : 0-0.1 = (10*1+8*0.5)/1.5*2
+                        wtd_stat = eval(func)
+                        w = eval(w_func)
+                        n = eval(n_func)
+                        stat_var[stat][tuple(np.array(new_k, dtype=int))] = wtd_stat * n / w
+                    else:
+                        stat_var[stat][tuple(np.array(new_k, dtype=int))] = eval(func)
 
                     if _core_var_flag:
                         core_var[int(np.prod(np.array(new_k) + 1) - 1)] = ', '.join(

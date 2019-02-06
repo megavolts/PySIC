@@ -20,7 +20,9 @@ __all__ = ["salt_s", "conductivity2salinity", "brine_volume_fraction", "brine_sa
 # TODO: inverse salinity2conductiviy
 
 import logging
+
 import numpy as np
+
 from seaice.property import sw
 
 module_logger = logging.getLogger(__name__)
@@ -112,10 +114,10 @@ def salt_s(c, t, p=10.1325, validity=True):
         seawater.
     Validity domain for s > 0.06 S/sm (about S > 0.03 g/kg)
 
-    :param c : array_like, float
-        Conductivity of nacl solution as measured with conductivity probe calibrated for standard seawater [mS/sm]
+    :param c: array_like, float
+        Conductivity of NaCl solution as measured with conductivity probe calibrated for standard seawater [mS/sm]
     :param t: array_like, float
-        Temperature [degree C (IPTS-68)]
+        Temperature of NaCl solution as measured with conductivity probe calibrated for standard seawater [degree C (IPTS-68)]
     :param p: array-like, float. Default p = 10.1325 [dbar]
         pressure [dbar]
     :param validity: bool, Default True
@@ -241,7 +243,7 @@ def brine_volume_fraction(s, t):
     # brine density
     rho_b = brine_density(s_b)
 
-    vfb_nacl = 1 / ((1+s_b / s-1) * rho_b / rho_i)
+    vfb_nacl = 1 / ((s_b / s - 1) * rho_b / rho_i + 1)
 
     return vfb_nacl
 
@@ -253,13 +255,13 @@ def conductivity2salinity(c, t, p=10.1325, validity=True):
         seawater.
     Validity domain for s > 0.06 S/sm (about S > 0.03 g/kg)
 
-    :param c : array_like, float
-        Conductivity of nacl solution as measured with conductivity probe calibrated for standard seawater [mS/sm]
-    :param t: array_like, float
-        Temperature [degree C (IPTS-68)]
+    :param c: array_like, float;
+        Conductivity of NaCl solution as measured with conductivity probe calibrated for standard seawater [mS/sm]
+    :param t: array_like, float;
+        Temperature of NaCl solution as measured with conductivity probe [degree C (IPTS-68)]
     :param p: array-like, float, Default p=10.1325 [dbar]
-        pressure [dbar]
-    :param validity: bool, Default True
+        Pressure [dbar]
+    :param validity: bool, Default True;
         If True returns np.nan for all data out of the validity domain. If false, compute value anyway
 
 
@@ -270,6 +272,33 @@ def conductivity2salinity(c, t, p=10.1325, validity=True):
         e < 0.3% for 0.06 < S < 60 g/kg
         e < 3 % for S < 200/kg
     """
+
+    s_nacl = salt_s(c, t, p=p, validity=validity)
+    return s_nacl
+
+
+def condutance2salinity(c, p=10.1325, validity=True):
+    """
+    Returns corrected conductivity of NaCl solution from conductivity measured with a conductivity probe calibrated for
+        seawater.
+    Validity domain for s > 0.06 S/sm (about S > 0.03 g/kg)
+
+    :param c: array_like, float;
+        Specific conductance, also known as temperature compensated conductivityas measured with conductivity probe calibrated for standard seawater [mS/sm]
+    :param p: array-like, float, Default p=10.1325 [dbar]
+        Pressure [dbar]
+    :param validity: bool, Default True;
+        If True returns np.nan for all data out of the validity domain. If false, compute value anyway
+
+    :return ssor: ndarray float
+        Salinity of NaCl solution [g/kg]
+
+    :error:
+        e < 0.3% for 0.06 < S < 60 g/kg
+        e < 3 % for S < 200/kg
+    """
+
+    t = 25 * np.ones_like(c)
 
     s_nacl = salt_s(c, t, p=p, validity=validity)
     return s_nacl

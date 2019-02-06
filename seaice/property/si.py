@@ -158,6 +158,7 @@ def brine_volume_fraction(s, t, rho_si='default', vf_a=0.005, method='cw'):
     if isinstance(vf_a, (int, float, list)):
         vf_a = np.atleast_1d(vf_a)
     if vf_a.size == 1:
+        logger.info('Air volume fraction set to 0.0005')
         vf_a = vf_a * np.ones_like(s)
 
     if rho_si is 'default':
@@ -325,17 +326,16 @@ def electric_conductivity(s, t, rho_si='default', vf_a=0.005):
     """
     Calculate the electric conductivity of sea ice for a given temperature and salinity
 
-    :param t : array_like, float
-        temperature in degree Celsius [°C]
-    :param s : array_like, float
-        salinity in practical salinity unit [PsU]
-    :param rho_si : optional, array_like, float, 'default'. Default: 'default
-        density of the ice in gram per cubic centimeter [g cm^{-3}]. Defautl value is computed from t and s
+    :param t: array_like, float
+        temperature of the sea ice in degree Celsius [°C]
+    :param s: array_like, float
+        bulk salinity of the sea ice in practical salinity unit [PsU]
+    :param rho_si: optional, array_like, float, 'default'. Default: 'default
+        density of the ice in gram per cubic centimeter [g cm^{-3}]. Default value is computed from t and s
         If rho_si is an array, rho_si, s, t must have the same length.
     :param vf_a: float, array_like, optional, float
         Air volume fraction content of sea ice.
-        The default is 0.005, representative of 1st year sea ice before spring
-        warming.
+        The default is 0.005, representative of 1st year sea ice before spring warming.
         If vf_a is an array, vf_a, s, t must have the same length.
 
     :return sigma_si: ndarray
@@ -731,7 +731,7 @@ def thermal_diffusivity(s, t, method_l='prindle', method_cp='untersteiner', rho_
 
         :source :
             material thermal diffusivity is given by sigma = lambda/(rho c_p)
-            
+
     """
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t).astype(float)
