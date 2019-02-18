@@ -20,6 +20,11 @@ $ cd seaice
 $ python example.py
 ```
 
+## Sheet:
+### Snow
+Source: Colbeck, S. (1985). The International Classification for Seasonal Snow on the Ground.
+Retrieved from http://unesdoc.unesco.org/images/0018/001864/186462e.pdf
+
 ## Variable
 
 ### salinity
