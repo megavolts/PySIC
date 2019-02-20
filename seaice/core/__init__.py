@@ -1,4 +1,4 @@
-#! /usr/bin/python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
 seaice.io.icxl.py : function to import import ice core data from xlsx spreadsheet
@@ -64,7 +64,7 @@ def import_ic_path(ic_path, variables=None, v_ref='top', drop_empty=False):
     if not os.path.exists(ic_path):
         logger.error("%s does not exists in core directory" % ic_path.split('/')[-1])
 
-    wb = openpyxl.load_workbook(filename=ic_path)  # load the xlsx spreadsheet
+    wb = openpyxl.load_workbook(filename=ic_path, keep_vba=False)  # load the xlsx spreadsheet
     ws_name = wb.sheetnames
     ws_summary = wb['summary']  # load the data from the summary sheet
 
@@ -74,12 +74,13 @@ def import_ic_path(ic_path, variables=None, v_ref='top', drop_empty=False):
         version = ws_summary['C3'].value
     else:
         logger.error("(%s) ice core spreadsheet version not unavailable" % name)
-
+    wb.close()
     # convert ice core spreadsheet to last version
     if version < __CoreVersion__:
+        wb.close()
         update_spreadsheet(ic_path, v_ref=v_ref)
         logger.info("Updating ice core spreadsheet %s to last version (%s)" % (name, str(__CoreVersion__)))
-        wb = openpyxl.load_workbook(filename=ic_path)  # load the xlsx spreadsheet
+        wb = openpyxl.load_workbook(filename=ic_path, keep_vba=True)  # load the xlsx spreadsheet
         ws_name = wb.sheetnames
         ws_summary = wb['summary']  # load the data from the summary sheet
         version = ws_summary['C3'].value
@@ -182,8 +183,8 @@ def import_ic_path(ic_path, variables=None, v_ref='top', drop_empty=False):
         m_col += 1
 
     # comment
-    if ws_summary['C33'].value is not None:
-        core.add_comment(ws_summary['C33'].value)
+    if ws_summary['A33'].value is not None:
+        core.add_comment(ws_summary['A33'].value)
 
     # import all variables
     if variables is None:
@@ -305,7 +306,7 @@ def import_ic_sourcefile(f_path, variables=None, ic_dir=None, v_ref='top', drop_
 
 
 # read profile
-def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='top', fill_missing=False):
+def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='top', drop_empty = True, fill_missing=False):
     """
     :param ws_variable:
         openpyxl.worksheet
@@ -320,8 +321,10 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
 
     if version == 1:
         row_data_start = 6
+        row_header = 4
     elif version == 1.1:
         row_data_start = 8
+        row_header = 5
         if ws_variable['C4'].value:
             v_ref = ws_variable['C4'].value
     else:
@@ -331,32 +334,26 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
                     'T_ice': [row_data_start, 'A', 'B', 'C'],
                     'Vf_oil': [row_data_start, 'ABC', 'DEFG', 'H']}
     # TODO: add other sheets for seawater, sediment, CHla, Phae, stratigraphy
-
     #                'stratigraphy': [row_data_start, 'AB', 'C', 'D'],
     #                'seawater': [row_data_start, 'A', 'DEFGF', 'G']}
 
-    name = ws_variable['C1'].value
 
     # define section
-    headers = ['y_low', 'y_mid', 'y_sup']
+    headers_depth = ['y_low', 'y_mid', 'y_sup']
     # Continuous profile
     if not ws_variable.title in sheet_2_data:
         profile = seaice.core.profile.Profile()
     else:
+        name = ws_variable['C1'].value
+        # Continuous profile
         if sheet_2_data[ws_variable.title][1].__len__() == 1:
             y_mid = np.array([ws_variable[sheet_2_data[ws_variable.title][1] + str(row)].value
                               for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row + 1)]).astype(float)
             y_low = np.nan * np.ones(y_mid.__len__())
             y_sup = np.nan * np.ones(y_mid.__len__())
+
         # Step profile
-        elif sheet_2_data[ws_variable.title][1].__len__() == 2:
-            y_low = np.array([ws_variable[sheet_2_data[ws_variable.title][1][0] + str(row)].value
-                              for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
-            y_sup = np.array([ws_variable[sheet_2_data[ws_variable.title][1][1] + str(row)].value
-                              for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
-            y_mid = (y_low + y_sup) / 2
-            y_mid = y_mid.astype(float)
-        else:
+        elif sheet_2_data[ws_variable.title][1].__len__() >= 2:
             y_low = np.array([ws_variable[sheet_2_data[ws_variable.title][1][0] + str(row)].value
                               for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
             y_sup = np.array([ws_variable[sheet_2_data[ws_variable.title][1][1] + str(row)].value
@@ -364,25 +361,27 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
             y_mid = np.array([ws_variable[sheet_2_data[ws_variable.title][1][2] + str(row)].value
                               for row in range(sheet_2_data[ws_variable.title][0], ws_variable.max_row+1)]).astype(float)
 
-            # if y_mid is not defined, y_mid = (y_low+y_sup)/2
+            # check if y_mid are not nan:
             if np.isnan(y_mid).any():
-                if (np.isnan(y_mid).any() or np.isnan(y_mid).any()):
-                    y_mid = (y_low + y_sup) / 2
-                    logger.info(
-                        '\t(%s ) not all y_mid exits, calculating y_mid = (y_low+y_sup)/2'
-                        % ws_variable.title)
-                else:
-                    logger.warning(
-                        '\t(%s) not all y_mid exists, some element of y_low or y_sup are not defined. Unable to'
-                        'compute y_mid = (y_low+y_sup)/2' % ws_variable.title)
+                y_mid = (y_low + y_sup) / 2
+                logger.info('(%s - %s ) not all y_mid exits, calculating y_mid = (y_low+y_sup)/2'
+                            % (name, ws_variable.title))
+            elif np.any(np.abs(((y_low + y_sup)/ 2) - y_mid > 1e-12)):
+                    logger.error('(%s - %s ) y_mid are not mid point between y_low and y_sup. \\'
+                                 'Replacing with y_mid = (y_low+y_sup)/2'
+                                 % (name, ws_variable.title))
+            else:
+                logger.info('(%s - %s ) y_low, y_mid and y_sup read with success'
+                            % (name, ws_variable.title))
 
         data = np.array([y_low, y_mid, y_sup])
 
         # read data
         min_col = sheet_2_data[ws_variable.title][2][0]
         min_col = openpyxl.utils.column_index_from_string(min_col)
-        max_col = sheet_2_data[ws_variable.title][2][-1]
-        max_col = openpyxl.utils.column_index_from_string(max_col)
+
+        max_col = ws_variable.max_column
+
         min_row = sheet_2_data[ws_variable.title][0]
         max_row = min_row + y_mid.__len__()-1
 
@@ -390,30 +389,35 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
                  for row in ws_variable.iter_cols(min_col, max_col, min_row, max_row)]
         data = np.vstack([data, np.array(_data).astype(float)])
         data = data.transpose()
-        header_offset = 3
-        variable_headers = [ws_variable[col + str(row_data_start - header_offset)].value
-                            for col in sheet_2_data[ws_variable.title][2]]
-        headers += variable_headers
 
-        # add comment to dataframe
-        headers_float = headers.copy()
-        headers += ['comment']
-        comment = [ws_variable[sheet_2_data[ws_variable.title][3][0] + str(row)].value
-                   for row in range(min_row, max_row + 1)]
-        data = np.hstack([data, np.atleast_2d(comment).transpose()])
+        variable_headers = [ws_variable.cell(row_header, col).value for col in range(min_col, max_col+1)]
 
         # fill missing section with np.nan
         if fill_missing:
             idx = np.where(np.abs(y_low[1:-1]-y_sup[0:-2]) > TOL)[0]
-
             for ii_idx in idx:
                 empty = [y_sup[ii_idx], (y_sup[ii_idx]+y_low[ii_idx+1])/2, y_low[ii_idx+1]]
                 empty += [np.nan] * (variable_headers.__len__()+1)
             data = np.vstack([data, empty])
 
         # assemble profile dataframe
-        profile = pd.DataFrame(data, columns=headers)
-        profile = profile.sort_values(by='y_low')
+        profile = pd.DataFrame(data, columns=headers_depth+variable_headers)
+
+        # drop property with all nan value
+        _profile_notnull = profile[variable_headers].dropna(axis=1, how='all')
+        profile = pd.concat([profile[headers_depth + ['comments']], _profile_notnull], axis=1, sort=False)
+
+        # remove empty line:
+        profile = profile.dropna(axis=0, subset=['y_low', 'y_mid', 'y_sup'], how='all')
+
+        # get all property variable (e.g. salinity, temperature, ...)
+        property = [var for var in _profile_notnull.columns if var not in ['comments']]
+
+        # remove subvariable (e.g. conductivity temperature measurement for conductivity
+        property = [prop for prop in property if prop not in inverse_dict(subvariable_dict)]
+
+        # set variable to string of property
+        profile['variable'] = [', '.join(property)]*len(profile.index)
 
         # ice thickness
         try:
@@ -428,26 +432,16 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
             elif not isinstance(length, (int, float)):
                 logger.info('%s ice core length is not a number' % name)
                 length = np.nan
-        profile['length'] = length
-        headers_float += ['length']
-
-        # clean profile if there is no depth entry
-        profile = profile.dropna(axis=0, subset=['y_low', 'y_mid', 'y_sup'])
+        profile['length'] = [length]*len(profile.index)
 
         # set vertical references
-        profile['v_ref'] = v_ref
+        profile['v_ref'] = [v_ref]*len(profile.index)
 
         # set ice core name for profile
-        profile['name'] = name
-
-        # remove subvariables from variables
-        for variable in variable_headers:
-            if variable in subvariable_dict:
-                for subvariable in subvariable_dict[variable]:
-                    variable_headers.remove(subvariable)
-        profile['variable'] = ', '.join(variable_headers)
+        profile['name'] = [name]*len(profile.index)
 
         # set depth and property type to float
+        headers_float = [h for h in profile.columns if h not in ['comments', 'v_ref', 'name', 'profile', 'variable']]
         profile[headers_float] = profile[headers_float].astype(float)
 
         profile = seaice.core.profile.Profile(profile)
@@ -457,40 +451,58 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
             for property in profile.get_property():
                 if property not in variables:
                     profile.delete_property(variable)
+
     return profile
 
 
 # create list or source
-def list_ic(dirpath, fileext):
+def list_folder(dirpath, fileext='.xlsx', level=0):
     """
     list all files with specific extension in a directory
 
-    :param dirpath: str
-    :param fileext: str
+    :param dirpath: str; directory to scan for ice core
+    :param fileext: str, default .xlsx; file extension for ice core data
+    :param level: numeric, default 0; level of recursitivy in directory search
     :return ic_list: list
         list of ice core path
     """
+    _ics = []
+
     logger = logging.getLogger(__name__)
 
-    ics_set = set([f for f in os.listdir(dirpath) if f.endswith(fileext)])
+    def walklevel(some_dir, level=level):
+        some_dir = some_dir.rstrip(os.path.sep)
+        assert os.path.isdir(some_dir)
+        num_sep = some_dir.count(os.path.sep)
+        for root, dirs, files in os.walk(some_dir):
+            yield root, dirs, files
+            num_sep_this = root.count(os.path.sep)
+            if num_sep + level <= num_sep_this:
+                del dirs[:]
+
+    for dirName, subdirList, fileList in walklevel(dirpath, level=level):
+        _ics.extend([dirName + '/' + f for f in fileList if f.endswith(fileext)])
+
+    ics_set = set(_ics)
     logger.info("Found %i ice core datafile in %s" % (ics_set.__len__(), dirpath))
+
     return ics_set
 
-
-def list_ic_path(dirpath, fileext):
-    """
-    list all files with specific extension in a directory
-
-    :param dirpath: str
-    :param fileext: str
-    :return ic_list: list
-        list of ice core path
-    """
-    logger = logging.getLogger(__name__)
-
-    ics_set = list_ic(dirpath=dirpath, fileext=fileext)
-    ic_paths_set = set([os.path.join(os.path.realpath(dirpath), f) for f in ics_set])
-    return ic_paths_set
+#
+# def list_ic_path(dirpath, fileext):
+#     """
+#     list all files with specific extension in a directory
+#
+#     :param dirpath: str
+#     :param fileext: str
+#     :return ic_list: list
+#         list of ice core path
+#     """
+#     logger = logging.getLogger(__name__)
+#
+#     ics_set = list_ic(dirpath=dirpath, fileext=fileext)
+#     ic_paths_set = set([os.path.join(os.path.realpath(dirpath), f) for f in ics_set])
+#     return ic_paths_set
 
 
 def make_ic_sourcefile(dirpath, fileext, source_filepath=None):
@@ -544,7 +556,7 @@ def update_spreadsheet(ic_path, v_ref='top', backup=True):
     else:
         logger.info("\t ice core file path %s" % ic_path)
 
-    wb = openpyxl.load_workbook(filename=ic_path)  # load the xlsx spreadsheet
+    wb = openpyxl.load_workbook(filename=ic_path, keep_vba=False)  # load the xlsx spreadsheet
     ws_summary = wb['summary']  # load the data from the summary sheet
 
     if isinstance(ws_summary['C3'].value, (float, int)):
@@ -552,68 +564,91 @@ def update_spreadsheet(ic_path, v_ref='top', backup=True):
         if version < __CoreVersion__:
             logger.info("Updating core data to latest version %.1f" % __CoreVersion__)
     else:
-        logger.error("\t%s ice core fiel version not unavailable" % ic_path)
-
-    # backup old version
-    if backup:
-        backup_dir = os.path.join(os.path.dirname(ic_path), 'version-'+str(version))
-        if not os.path.exists(backup_dir):
-            os.makedirs(backup_dir)
-        shutil.copyfile(ic_path, os.path.join(backup_dir, os.path.basename(ic_path)))
+        logger.error("\t%s ice core file version not unavailable" % ic_path)
 
     while version < __CoreVersion__:
-        # update from 1.0 to 1.1
+
+        # backup old version
+        if backup:
+            backup_dir = os.path.join(os.path.dirname(ic_path), 'version-' + str(version))
+            ic_bkp = os.path.join(backup_dir, os.path.basename(ic_path))
+
+            if not os.path.exists(backup_dir):
+                os.makedirs(backup_dir)
+            shutil.move(ic_path, ic_bkp)
+
+         # update from 1.0 to 1.1
         if version == 1:
+            # update from 1.0 to 1.1
             version = 1.1
             ws_summary['C3'] = version
-            ws_summary = delete_row(ws_summary, 22)
+            # remove rows "core number in series"
+            ws_summary.delete_rows(22, 1)
 
-            # loop through variables
             if "S_ice" in wb.sheetnames:
-                ws = wb["S_ice"]
+                ws = wb['S_ice']
+
                 # add reference row=4
-                ws = add_row(ws, 4)
+                ws.insert_rows(4)
                 ws['A4'] = 'vertical reference'
                 ws['C4'] = v_ref
 
+                # remove "sample number" column
+                if ws['M5'].value == 'sample number':
+                    ws.delete_cols(openpyxl.utils.cell.column_index_from_string('M'))
+
+                # remove salinity for temperature
+                range = "F5:" + openpyxl.utils.cell.get_column_letter(ws.max_column) + str(ws.max_row)
+                ws.move_range(range, rows=0, cols=-1)
+
+                # move d180 dD after conductance with T_sigma (conductivity) suppresion
+                range = "E5:G" + str(ws.max_row)
+                ws.move_range(range, rows=0, cols=6)
+                range = "H5:" + openpyxl.utils.cell.get_column_letter(ws.max_column) + str(ws.max_row)
+                ws.move_range(range, rows=0, cols=-3)
+
                 # add notation row=6
-                ws = add_row(ws, 6)
-                row_start = 4
-                ws = delete_column(ws, 'E', row_start, ws.max_row)
+                ws.insert_rows(6)
+
+                ws['A6'] = 'd_1'
+                ws['B6'] = 'd_2'
+                ws['C6'] = 'd'
                 ws['D5'] = 'salinity'
                 ws['D6'] = 'S'
-                ws = move_column(ws, 'E', 'J', row_start, ws.max_row)
                 ws['E5'] = 'conductivity'
                 ws['E6'] = 'σ'
-                ws = move_column(ws, 'F', 'K', row_start, ws.max_row)
+                ws['E7'] = 'mS/cm'
                 ws['F5'] = 'conductivity measurement temperature'
                 ws['F6'] = 'T_σ'
-                ws = move_column(ws, 'G', 'J', row_start, ws.max_row)
                 ws['G5'] = 'specific conductance'
                 ws['G6'] = 'κ'
-                delete_column(ws, 'K', row_start, ws.max_row)
+                ws['G7'] = 'mS/cm'
+                ws['H6'] = 'd180'
+                ws['I6'] = 'dD'
+                ws['J6'] = ''
 
             if "T_ice" in wb.sheetnames:
                 ws = wb["T_ice"]
+
                 # add reference row=4
-                ws = add_row(ws, 4)
+                ws.insert_rows(4)
                 ws['A4'] = 'vertical reference'
                 ws['C4'] = v_ref
 
                 # add notation row=6
-                ws = add_row(ws, 6)
+                ws.insert_rows(6)
                 ws['A6'] = 'd'
                 ws['B6'] = 'T'
 
             if "oil_content" in wb.sheetnames:
                 ws = wb["oil_content"]
                 # add reference row=4
-                ws = add_row(ws, 4)
+                ws.insert_rows(4)
                 ws['A4'] = 'vertical reference'
                 ws['C4'] = v_ref
 
                 # add notation row=6
-                ws = add_row(ws, 6)
+                ws.insert_rows(6)
                 ws['A6'] = 'd_1'
                 ws['B6'] = 'd_2'
                 ws['C6'] = 'd'
@@ -621,140 +656,17 @@ def update_spreadsheet(ic_path, v_ref='top', backup=True):
                 ws['E6'] = 'h_menisc'
                 ws['F6'] = 'd_menisc'
                 ws['G6'] = 'd_center'
-        wb.save(ic_path)
 
+            if "S-figure" in wb.sheetnames:
+                ws = wb['S-figure']
+                wb.remove_sheet(ws)
 
-def add_row(ws, row_number):
-    """
-    :param ws:
-    :param row_number:
-    :return:
-    """
-    max_row = ws.max_row
-    for row in range(row_number, ws.max_row + 1):
-        new_row = row_number + max_row + 1 - row
-        old_row = row_number + max_row - row
-        for col in range(1, ws.max_column+1):
-            ws.cell(row=new_row, column=col).value = ws.cell(row=old_row, column=col).value
-    for col in range(1, ws.max_column+1):
-        ws.cell(row=row_number, column=col).value = ""
-    return ws
+            if "T-figure" in wb.sheetnames:
+                ws = wb['T-figure']
+                wb.remove_sheet(ws)
 
-
-def delete_row(ws, row_number):
-    """
-
-    :param ws:
-    :param row_number:
-    :return:
-    """
-    max_row = ws.max_row
-    for row in range(row_number, max_row):
-        new_row = row
-        old_row = row+1
-        for col in range(1, ws.max_column+1):
-            ws.cell(row=new_row, column=col).value = ws.cell(row=old_row, column=col).value
-    for col in range(1, ws.max_column+1):
-        ws.cell(row=max_row+1, column=col).value = ""
-    return ws
-
-
-def delete_column(ws, target_col, start_row=None, end_row=None):
-    """
-    :param ws:
-    :param target_col:
-    :param start_row:
-    :param end_row:
-    :return:
-    """
-    if start_row is None:
-        start_row = ws.min_row
-    if end_row is None:
-        end_row = ws.max_row
-    if not isinstance(target_col, int):
-        target_col = openpyxl.utils.column_index_from_string(target_col)
-
-    max_col = ws.max_column
-    if np.alltrue([ws.cell(row=row, column=ws.max_column).value is None for row in range(start_row, ws.max_row)]):
-        max_col = max_col - 1
-
-    if not target_col == max_col:
-        for col in range(target_col, max_col):
-            new_col = col
-            old_col = col + 1
-            for row in range(start_row, end_row + 1):
-                ws.cell(row=row, column=new_col).value = ws.cell(row=row, column=old_col).value
-    for row in range(start_row, end_row + 1):
-        ws.cell(row=row, column=max_col).value = ""
-
-    return ws
-
-
-def move_column(ws, target_col, source_col, start_row=None, end_row=None):
-    """
-    :param ws:
-    :param target_col:
-    :param source_col:
-    :param start_row:
-    :param end_row:
-    :return:
-    """
-
-    if start_row is None:
-        start_row = ws.min_row
-    if end_row is None:
-        end_row = ws.max_row
-    if not isinstance(target_col, int):
-        target_col = openpyxl.utils.column_index_from_string(target_col)
-    if not isinstance(source_col, int):
-        source_col = openpyxl.utils.column_index_from_string(source_col)
-
-    max_col = ws.max_column
-    if np.alltrue([ws.cell(row=row, column=ws.max_column).value is None for row in range(start_row, ws.max_row)]):
-        max_col = max_col - 1
-
-    # insert column in target column
-    for col in range(target_col, max_col+1):
-        new_col = target_col + max_col - col + 1
-        old_col = target_col + max_col - col
-        # print(openpyxl.utils.get_column_letter(old_col), openpyxl.utils.get_column_letter(new_col))
-        for row in range(start_row, end_row + 1):
-            ws.cell(row=row, column=new_col).value = ws.cell(row=row, column=old_col).value
-
-    # copy source col to target column
-    if target_col < source_col:
-        source_col = source_col + 1
-    for row in range(start_row, end_row + 1):
-        ws.cell(row=row, column=target_col).value = ws.cell(row=row, column=source_col).value
-
-    ws = delete_column(ws, source_col, start_row, end_row)
-
-    return ws
-
-
-def print_column(ws, col):
-    """
-    :param ws:
-    :param col:
-    :return:
-    """
-    if ~isinstance(col, int):
-        col = openpyxl.utils.column_index_from_string(col)
-    for row in range(1, ws.max_row + 1):
-        print(row, ws.cell(row=row, column=col).value)
-
-
-def print_row(ws, row):
-    """
-    :param ws:
-    :param row:
-    :return:
-    """
-    col_string = ''
-    for col in range(1, ws.max_column + 1):
-        col_string += openpyxl.utils.get_column_letter(col) + ':' + str(
-            ws.cell(row=row, column=col).value) + '\t'
-    print(col_string)
+    wb.save(ic_path)
+    wb.close()
 
 
 def inverse_dict(map):
@@ -765,6 +677,11 @@ def inverse_dict(map):
     """
     revdict = {}
     for k, v in map.items():
-        revdict.setdefault(v, []).append(k)
-
+        if isinstance(v, list):
+            for vi in v:
+                revdict[vi] = revdict.get(vi, [])
+                revdict[vi].append(k)
+        else:
+            revdict[v] = revdict.get(v, [])
+            revdict[v].append(k)
     return revdict
