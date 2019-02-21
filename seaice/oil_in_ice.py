@@ -44,5 +44,3 @@ def corrected_brine_volume_fraction():
     """
     Bvfcorr = None
     return Bvfcorr
-
-

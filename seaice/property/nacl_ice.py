@@ -15,7 +15,7 @@ __status__ = "RC"
 __date__ = "2018/8/16"
 __name__ = "nacl_ice"
 
-__all__ = ["salt_s", "conductivity2salinity", "brine_volume_fraction", "brine_salinity", "brine_density"]
+__all__ = ["salt_s", "conductivity2salinity", "brine_porosity", "brine_salinity", "brine_density"]
 
 # TODO: inverse salinity2conductiviy
 
@@ -76,7 +76,7 @@ def c_cor_sw2nacl(c, t):
         c_cor = 29.9921 [mS/sm] for s = 30.0 [mS/sm], t = -2[C]
 
     :references:
-        Maus, S., personal communisation during MOSIDEO projest
+        Maus, S., personal communication during MOSIDEO projest
         Vanysek, P., (2001), “Equivalent conductivity of electrolytes in aqueous solution,” in CRC Handbook of Chemistry
             and Physics, D. R. Lide, Ed., 87th ed. : CRC Press, pp. 5-75
         Kaufmann, D.W., (1960) Sodium Chloride, 743 pp., Reinhold, New York
@@ -154,7 +154,7 @@ def salt_s(c, t, p=10.1325, validity=True):
     return s_nacl
 
 
-def brine_density(s_nacl):
+def brine_density(s_nacl, t=None, method='chris'):
     """
         Computes density of NaCl brine from salinity
 
@@ -166,15 +166,26 @@ def brine_density(s_nacl):
     """
     if isinstance(s_nacl, (int, float, list)):
         s_nacl = np.atleast_1d(s_nacl)
+    if method == 'sonke':
+        a = [6.82e-7, 1.43e-4, 0.764, 999.843]
+        rho_nacl = np.polyval(a, s_nacl)
+    else:
+        if t is None:
+            # logger.error('no temperature available')
+            print('Temperature is expected')
+            return 0
+        if (s_nacl < 10).any():
+            # logger.error('no temperature available')
+            print('Temperature is expected')
+            return 0
 
-    a = [6.82e-7, 1.43e-4, 0.764, 999.843]
-    
-    rho_nacl = np.polyval(a, s_nacl)
+        rho_nacl = 1.000 + 0.00076 * s_nacl - 0.0004 * t
+        rho_nacl = 1000 * rho_nacl
 
     return rho_nacl
 
 
-def brine_salinity(t):
+def brine_salinity(t, method='chris'):
     """
         Computes brine salinity from Temperature
         Inversion of the liquidus given in Coehn-Adad (1991)
@@ -182,6 +193,8 @@ def brine_salinity(t):
 
         :param t : array_like, float
             Temperature of the brine [degree C]
+        :param method: string, default='Chris'
+            Method use to compute brine salinity either Chris or Sonke
 
         :return s_b: ndarray, float
             Salinity of the brine [g /kg]
@@ -189,38 +202,67 @@ def brine_salinity(t):
         :references:
             R. Cohen-Adad J. W. Lorimer (1991). Alkali Metal and Ammonium Chlorides in Water and Heavy Water (Binary
                 Systems), Volume 47, 1st Edition. eBook ISBN: 9781483285573
+            CRC Handbook
+            Simion, A.I. C-G Grigoras, A-M Rosu, L. Gavrila (2015) Mathematical modelling of density and viscosity of
+                NaCl aqueous solutions. JOurnal of Agroalimentary Processes and Technologies, 21(1), 41-52
+
     """
     if isinstance(t, (int, float, list)):
         t = np.atleast_1d(t)
 
-    # replace all np.nan value by 999
-    t[np.isnan(t)] = 999
+    if method == 'sonke':
+        # Full implementation
+        # replace all np.nan value by 999
+        t = np.atleast_1d(t)
+        t[np.isnan(t)] = -999
 
-    s_b = np.nan * np.ones_like(t)
+        def pp_hs(t):
+            # high salinity fit to 0.0000000003704*S^4 -0.0000004612*S^3 -0.00006939*S^2 -0.05558*S = T
+            pp = [0.0000000003704, -0.0000004612, -0.00006939, -0.05558, -t]
+            th = np.poly1d(pp).roots
+            return np.real(th[3])
 
-    s0 = [-0.00016906084, -0.0147756544, -0.584425205, -18.265, 0]
-    s1 = [0.041735936, 0.399752012, 1.457008047, 2.01669347, -16.3031, 0]
+        def pp_ls(t):
+            # low salinity (t > -2.694):
+            pp2 = [0.000009456, -0.0004248, 0.003188, -0.06473, 0, -t]
+            th2 = np.poly1d(pp2).roots
+            S1 = max(th2[3:])
+            return np.real(S1) ** 2
 
-    s_b[(-2.694 < t) & (t < 0)] = np.polyval(s1, t[(-2.694 < t) & (t < 0)])
-    s_b[t <= -2.694] = np.polyval(s0, t[t <= -2.694])
+        s_b = np.array([pp_hs(T) if T < -2.694 else pp_ls(T) for T in t])
+        s_b[(t == -999)] = np.nan
+
+        # # approximated inversions implementation
+        # s_b = np.nan * np.ones_like(t)
+        # s0 = [-18.265*0.000009256, -18.265*0.00080896, -18.265*0.031997, -18.265, 0]
+        # s1 = [-16.3031*-0.002560, -16.3031*-0.02452, -16.3031*-0.08937, -16.3031*-0.1237, -16.3031, 0]  # low salinity
+        #
+        # s_b[t <= -2.694] = np.polyval(s0, t[t <= -2.694])  # s0
+        # s_b[(-2.694 < t) & (t < 0)] = np.polyval(s1, t[(-2.694 < t) & (t < 0)])  # s10
+
+    else:
+        "CRC Handbook: accuracy of about 1%"
+        s_b = -17.6 * t - 0.40 * t ** 2 - 0.004 * t **3
 
     return s_b
 
 
-def brine_volume_fraction(s, t):
+def brine_porosity(s, t, method='chris'):
     """
-        Computes brine volume fraction of NaCl artificial sea ice from salinity [g / kg] and temperature [degree C]
+        Computes brine porosity (phi) of NaCl artificial sea ice from salinity [g / kg] and temperature [degree C]
 
         :param s : array_like, float
             Bulk salinity of NaCl ice [g / kg]
         :param t : array_like, float
             Temperature of ice [degree C]
+        :param method: string, default='Chris'
+            Method use to compute brine salinity either Chris or Sonke
 
-        :return vfb: ndarray, float
-            Brine volume fraction [-]
+        :return phi: ndarray, float
+            Brine porosity [-]
 
         : check value:
-            Vfb = 0.0551 for s = 5 [g / kg] and t = -5 [degree C]
+            phi = 0.0551 for s = 5 [g / kg] and t = -5 [degree C]
     """
 
     from seaice.property import ice
@@ -235,17 +277,17 @@ def brine_volume_fraction(s, t):
         return 0
 
     # brine salinity
-    s_b = brine_salinity(t)
+    s_b = brine_salinity(t, method=method)
 
     # pure ice density
     rho_i = ice.density(t)
 
     # brine density
-    rho_b = brine_density(s_b)
+    rho_b = brine_density(s_b, t=t, method=method)
 
-    vfb_nacl = 1 / ((s_b / s - 1) * rho_b / rho_i + 1)
+    phi = 1 / ((s_b / s - 1) * rho_b / rho_i + 1)
 
-    return vfb_nacl
+    return phi
 
 
 # aliases

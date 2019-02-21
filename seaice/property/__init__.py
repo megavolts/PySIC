@@ -4,11 +4,13 @@
     TODO: fill up
 """
 
-import pandas as pd
-import numpy as np
 import logging
-import seaice.core.plot
+
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+import seaice.core.plot
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -26,6 +28,7 @@ __all__ = ["compute_phys_prop_from_core"]
 state_variable = {'temperature': 'temperature', 'temp': 'temperature', 't': 'temperature',
                   'salinity': 'salinity', 's': 'salinity'}
 prop_list = {'brine volume fraction': 'brine volume fraction',
+             'brine porosity': 'brine porosity',
              'vbf': 'brine volume fraction', 'vb': 'brine volume fraction',
              'permeability': 'permeability', 'k': 'permeability',
              'sea ice permeability': 'permeability'}
