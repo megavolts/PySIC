@@ -11,8 +11,22 @@ __name__ = "climatology"
 import numpy as np
 import pandas as pd
 import seaice
+from seaice.core.corestack import CoreStack
+
+# New function
+
+def compute_DD(cice_data, freezup_dates, T=-1.8):
+    """
+
+    :param cice_data:
+    :param T:
+    :param freezup_dates:
+    :return:
+    """
+    return 0
 
 
+# OLD FUNCTION
 
 def DD_fillup(ics_stack, DD, freezup_dates):
     import datetime

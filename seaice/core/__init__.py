@@ -405,7 +405,14 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
 
         # drop property with all nan value
         _profile_notnull = profile[variable_headers].dropna(axis=1, how='all')
-        profile = pd.concat([profile[headers_depth + ['comments']], _profile_notnull], axis=1, sort=False)
+        if 'comments' in _profile_notnull.columns:
+            profile = profile[headers_depth]
+        else:
+            profile = profile[headers_depth + ['comments']]
+        profile = pd.concat([profile, _profile_notnull], axis=1, sort=False)
+
+        # set comment as string and replace nan value by empty string
+        profile.comments = profile.comments.apply(str).replace('nan', '')
 
         # remove empty line:
         profile = profile.dropna(axis=0, subset=['y_low', 'y_mid', 'y_sup'], how='all')
@@ -488,21 +495,21 @@ def list_folder(dirpath, fileext='.xlsx', level=0):
 
     return ics_set
 
-#
-# def list_ic_path(dirpath, fileext):
-#     """
-#     list all files with specific extension in a directory
-#
-#     :param dirpath: str
-#     :param fileext: str
-#     :return ic_list: list
-#         list of ice core path
-#     """
-#     logger = logging.getLogger(__name__)
-#
-#     ics_set = list_ic(dirpath=dirpath, fileext=fileext)
-#     ic_paths_set = set([os.path.join(os.path.realpath(dirpath), f) for f in ics_set])
-#     return ic_paths_set
+
+def list_ic_path(dirpath, fileext):
+    """
+    list all files with specific extension in a directory
+
+    :param dirpath: str
+    :param fileext: str
+    :return ic_list: list
+        list of ice core path
+    """
+    logger = logging.getLogger(__name__)
+
+    ics_set = list_folder(dirpath=dirpath, fileext=fileext)
+    ic_paths_set = set([os.path.join(os.path.realpath(dirpath), f) for f in ics_set])
+    return ic_paths_set
 
 
 def make_ic_sourcefile(dirpath, fileext, source_filepath=None):
@@ -527,6 +534,19 @@ def make_ic_sourcefile(dirpath, fileext, source_filepath=None):
 
     return source_filepath
 
+
+def read_ic_list(file_path):
+    """
+
+    :param file_path:
+    :return:
+    """
+
+    with open(file_path) as f:
+        data = [list(map(int, row.split())) for row in f.read().split('\n\n')]
+
+
+    return ic_list
 
 # updater
 def update_spreadsheet(ic_path, v_ref='top', backup=True):

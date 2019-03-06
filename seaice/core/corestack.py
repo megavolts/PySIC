@@ -6,6 +6,7 @@ seaice.core.coreset.py : CoreStack class
 """
 import datetime as dt
 import logging
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -32,6 +33,8 @@ TOL = 1e-6
 essential_property = ['y_low', 'y_mid', 'y_sup', 'name', 'collection', 'comment', 'date', 'freeboard',
                       'ice_thickness', 'length', 'snow_depth', 'v_ref', 'variable', 'weight']
 
+# enable logging module to capture warning
+logging.captureWarnings(True)
 
 class CoreStack(pd.DataFrame):
     """
@@ -78,19 +81,19 @@ class CoreStack(pd.DataFrame):
         if ic_data.variables():
             self.logger.info("Adding %s profiles for core %s" % (", ".join(ic_data.variables()), ic_data.name))
             profile = seaice.core.profile.Profile(ic_data.profile)
-            if ic_data.ice_thickness.size and isinstance(ic_data.ice_thickness[0], (int, float)):
-                profile['ice_thickness'] = ic_data.ice_thickness[0]
+            if isinstance(ic_data.ice_thickness, (int, float)):
+                profile['ice_thickness'] = ic_data.ice_thickness
             else:
                 profile['ice_thickness'] = np.nanmean(ic_data.ice_thickness)
                 logging.info("ice thickness is the mean of all not-nan ice thickness")
 
-            if ic_data.freeboard.size and isinstance(ic_data.freeboard[0], (int, float)):
-                profile['freeboard'] = ic_data.freeboard[0]
+            if isinstance(ic_data.freeboard, (int, float)):
+                profile['ice_thickness'] = ic_data.freeboard
             else:
                 profile['freeboard'] = np.nanmean(ic_data.freeboard)
 
-            if ic_data.snow_depth.size and isinstance(ic_data.snow_depth[0], (int, float)):
-                profile['snow_depth'] = ic_data.snow_depth[0]
+            if isinstance(ic_data.snow_depth, (int, float)):
+                profile['snow_depth'] = ic_data.snow_depth
             else:
                 profile['snow_depth'] = np.nanmean(ic_data.snow_depth)
 
@@ -101,22 +104,33 @@ class CoreStack(pd.DataFrame):
         else:
             return CoreStack(self)
 
-    def remove_profile_from_core(self, core, variable=None):
+    def remove_profile_from_core(self, name, variables=None):
         """
 
-        :param core:
-        :param variable:
+        :param name: name of the core
+        :param variable: variable profile to remove
         :return:
         """
-        temp = ""
-        if variable is None:
-            temp = self[self.name != core]
-        elif isinstance(variable, list):
-            for ii_variable in core:
-                temp = self[(self.name != core) & (self.variable != ii_variable)]
-        else:
-            temp = self[(self.name != core) & (self.variable != variable)]
-        return CoreStack(temp)
+        _ic_stack = self[self.name != name]
+        _ic = self[self.name == name]
+
+        if variables is None:
+            return _ic_stack
+        elif not isinstance(variables, list):
+            variables = [variables]
+
+        for variable in variables:
+            for vg in [vg for vg in _ic.variable_groups() if variable in vg.split(', ')]:
+                if len(vg.split(', ')) == 1:
+                    _ic = _ic[_ic.variable != vg]
+                else:
+                    # set variable to np.nan
+                    _ic.loc[(_ic.variable == vg), variable] = [np.nan] * len(_ic[(_ic.variable == vg)].index)
+                    # remove variable from variables
+                    new_vg = vg.split(', ')
+                    new_vg.remove(variable)
+                    _ic.loc[(_ic.variable == vg), 'variables'] = ', '.join(new_vg)
+        return pd.concat([_ic_stack, _ic])
 
     def section_stat(self, groups=None, variables=None, stats=('min', 'mean', 'max', 'std')):
         """
@@ -183,12 +197,23 @@ class CoreStack(pd.DataFrame):
         return sorted(col)
 
     def get_variable(self):
+        warnings.warn('get_variables() will be deprecated in next version, use variables() instead', FutureWarning)
         variables = []
         for var_group in self.variable.unique():
             variables += var_group.split(', ')
         return variables
 
+    def variables(self):
+        variables = []
+        for var_group in self.variable.unique():
+            variables += var_group.split(', ')
+        return list(set(variables))
+
+    def names(self):
+        return self.name.unique()
+
     def get_name(self):
+        warnings.warn('get_name() will be deprecated in next version, use names() instead', FutureWarning)
         return self.name.unique()
 
     def get_core_in_collection(self):
@@ -200,16 +225,25 @@ class CoreStack(pd.DataFrame):
         else:
             self.logger.warning('No collection in core stack')
             return []
+
     def core_names(self):
-        logging.warning('getting deprecated and change to get_name()')
+        logging.FutureWarning('getting deprecated and change to get_name()')
         return self.name.unique()
 
     def delete_variable(self, variables2del):
+        """
+        :param variables2del:
+        :return:
+        """
+
         # TODO merge with profile.delete_variables
         if not isinstance(variables2del, list):
-            variables = [variables]
+            variables = [variables2del]
+        else:
+            variables = variables2del
+
         for variable in variables:
-            if variable in self.get_variable():
+            if variable in self.variables():
                 # delete variable column
                 self.drop(variable, axis=1, inplace=True)
 
@@ -223,7 +257,45 @@ class CoreStack(pd.DataFrame):
                     new_group = group.split(', ')
                     if variable in new_group:
                         new_group.remove(variable)
-                        self.loc[self.variable == group, 'variable'] = ', '.join(new_group)
+
+                        # if the group is empty, remove the row
+                        if len(new_group) == 0:
+                            self.drop(self[self.variable == group].index.values, inplace=True)
+                        else:
+                            self.loc[self.variable == group, 'variable'] = ', '.join(new_group)
+
+        # clean profile by removing empty column
+        self.clean_stack()
+
+    def clean_stack(self):
+        """
+
+        :return:
+        """
+        # remove all-nan variable
+        for variable in self.variables():
+            if self[variable].isna().all():
+                self.delete_variable(variable)
+
+        # clean profile by removing all-nan column
+        col = [c for c in self.columns if c not in ['y_low', 'y_mid', 'y_sup']]
+        self = pd.concat([self[['y_low', 'y_mid', 'y_sup']], self[col].dropna(axis=1, how='all')], sort=False)
+        return self
+
+    def keep_variables(self, variables2keep):
+        """
+
+        :param variables2keep:
+        :return:
+        """
+        if not isinstance(variables2keep, list):
+            variables2keep = [variables2keep]
+
+        # list variables to delete
+        variables2del = [var for var in self.variables() if var not in variables2keep]
+
+        # delete variables
+        self.delete_variable(variables2del)
 
     def get_property(self):
         properties = [prop for vg in self.variable.unique() for prop in vg.split(', ')]
@@ -277,6 +349,31 @@ class CoreStack(pd.DataFrame):
             self.dropna(axis=1, how='all', inplace=False)
         else:
             return self.dropna(axis=1, how='all', inplace=True)
+
+    def variable_groups(self):
+        """
+        """
+        return self.variable.unique()
+    #
+    # def add_comments(self, comment, inplace=True):
+    #     """
+    #
+    #     :param comment:
+    #     :return:
+    #     """
+    #
+    #     # check if comment column is string:
+    #     if not self.comments.dtype == object:
+    #         self.comments = self.comments.astype(str)
+    #
+    #
+    #
+    #     if inplace:
+    #         self = pd.concat([self.drop('comments', axis=1),
+    #                    super(CoreStack, self).__getitem__('comments').apply(lambda x: ';'.join(filter(None, [comment] + x.split('; ')))) ], axis=1)
+    #     else:
+    #         return self['comments'] = super(CoreStack, self).__getitem__('comments').apply(lambda x: ';'.join(filter(None, [comment] + x.split('; '))))
+
 
     @property
     def _constructor(self):

@@ -23,7 +23,7 @@ __date__ = "2017/09/13"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 __name__ = "property"
 
-__all__ = ["compute_phys_prop_from_core"]
+__all__ = ["compute_phys_prop_from_core", "scale_profile"]
 
 state_variable = {'temperature': 'temperature', 'temp': 'temperature', 't': 'temperature',
                   'salinity': 'salinity', 's': 'salinity'}
