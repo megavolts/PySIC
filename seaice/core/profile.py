@@ -24,10 +24,12 @@ __date__ = "2017/09/13"
 __comment__ = "profile.py contained function to handle property profile"
 __CoreVersion__ = 1.1
 
-__all__ = ["discretize_profile", "select_profile", "delete_profile", "uniformize_section"]
+__all__ = ["Profile", "discretize_profile", "select_profile", "delete_profile", "uniformize_section"]
 
 TOL = 1e-6
 subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
+continuous_variable_list = ['temperature']
+
 
 class Profile(pd.DataFrame):
     """
@@ -169,6 +171,79 @@ class Profile(pd.DataFrame):
         self.variable = ', '.join([prop for prop in self.get_property() if prop not in empty])
         self.drop(columns=empty, axis=1, inplace=True)
 
+    def variables(self):
+        variables = []
+        for var_group in self.variable.unique():
+            variables += var_group.split(', ')
+        return list(set(variables))
+
+    def keep_variable(self, variables2keep):
+        """
+
+        :param variables2keep:
+        :return:
+        """
+        if not isinstance(variables2keep, list):
+            variables2keep = [variables2keep]
+
+        # list variables to delete
+        variables2remove = [var for var in self.variables() if var not in variables2keep]
+
+        # delete variables
+        self.remove_variable(variables2remove)
+
+
+    def remove_variable(self, variables2remove):
+        """
+        :param variables2del:
+        :return:
+        """
+
+        # TODO merge with profile.delete_variables
+        if not isinstance(variables2remove, list):
+            variables = [variables2remove]
+        else:
+            variables = variables2remove
+
+        for variable in variables:
+            if variable in self.variables():
+                # delete variable column
+                self.drop(variable, axis=1, inplace=True)
+
+                # delete associated subvariable column
+                if variable in seaice.subvariable_dict:
+                    for subvariable in seaice.subvariable_dict[variable]:
+                        self.drop(subvariable, axis=1, inplace=True)
+
+                # delete variable from variable
+                for group in self.variable.unique():
+                    new_group = group.split(', ')
+                    if variable in new_group:
+                        new_group.remove(variable)
+
+                        # if the group is empty, remove the row
+                        if len(new_group) == 0:
+                            self.drop(self[self.variable == group].index.values, inplace=True)
+                        else:
+                            self.loc[self.variable == group, 'variable'] = ', '.join(new_group)
+
+        # clean profile by removing empty column
+        self.clean()
+
+    def clean(self):
+        """
+
+        :return:
+        """
+        # remove all-nan variable
+        for variable in self.variables():
+            if self[variable].isna().all():
+                self.remove_variable(variable)
+        # clean profile by removing all-nan column
+        col = [c for c in self.columns if c not in ['y_low', 'y_mid', 'y_sup']]
+        self = pd.concat([self[['y_low', 'y_mid', 'y_sup']], self[col].dropna(axis=1, how='all')], sort=False, axis=1)
+        return self
+
     @property
     def _constructor(self):
         return Profile
@@ -180,7 +255,7 @@ class Profile(pd.DataFrame):
         return self.get_property()
 
 
-def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, fill_gap=False, fill_extremity=False):
+def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, fill_gap=False, fill_extremity=False, save_fig=False):
     """
     :param profile:
     :param y_bins:
@@ -194,6 +269,8 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
     """
     # TODO conductivity cannot be discretized as it's temperature non linearly dependant of the measurement temperature,
     # unless temperature profile of measurement temperature is isotherm.
+
+    profile = Profile(profile)
 
     logger = logging.getLogger(__name__)
 
@@ -226,41 +303,32 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
     y_bins = np.array(y_bins)
     y_mid = np.array(y_mid)
 
-    discretized_profile = pd.DataFrame()
-
+    # Discretized Profile:
+    discretized_profile = Profile()
 
     #TODO : discretization for temperature by interpolation
-    for variable in profile.variable.unique():
+    # 2019-03-08: loop over the variable not the variable groups
+    for _variable in profile.variables():
         # select variable
-        _profile = seaice.core.profile.Profile(profile[profile.variable == variable])
-        _variables = []
-        _del_variables = []
-        # TODO: why did I do that ?
-        # for _variable in _profile.get_property():
-        #     # remove properties not linearly dependant of temperature
-        #     if not _variable in ['conductivity']:
-        #         logger.info('%s will be discretized' % _variable)
-        #         if not _variable in _variables:
-        #             _variables.append(_variable)
-        #         # add other variable dependant
-        #         if _variable in subvariable_dict:
-        #             for _subvar in subvariable_dict[_variable]:
-        #                 _variables.append(_subvar)
-        #     else:
-        #         logger.warning('%s variable cannot be discretized' % _variable)
-        #         _del_variables.append(_variable)
-        #         # add other variable dependant
-        #         if _variable in subvariable_dict:
-        #             for _subvar in subvariable_dict[_variable]:
-        #                 _del_variables.append(_subvar)
-        _variables = _profile.get_property()
+        _profile = Profile(profile.loc[profile.variable.str.contains(_variable)])
 
-        # index of variables
-        #TODO switch between continuous or not continuous is evidence of continuous profile like temperature
-        # continuous profile (temperature-like)
+        if not isinstance(_variable, list):
+            _variable = [_variable]
 
-        if is_continuous(_profile):
-            yx = _profile[['y_mid'] + _variables].set_index('y_mid').sort_index()
+        # check if _variable have dependent variable
+        if _variable[0] in subvariable_dict:
+            _variable.extend(subvariable_dict[_variable[0]])
+
+        _del_variables = [var for var in _profile.variables() if var not in _variable]
+        # drop all variables which are not _variable
+        _profile.keep_variable(_variable)
+
+        # TODO if 'temperature' goes to continue
+        if _profile.empty:
+            temp = pd.DataFrame()
+
+        elif is_continuous(_profile):
+            yx = _profile[['y_mid'] + _variable].set_index('y_mid').sort_index()
             y2 = y_mid
 
             # drop all np.nan columns
@@ -268,30 +336,30 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
             # _variables_notna = yx.keys().tolist()
             # yx = yx.dropna(axis=0, subset=['y_low', 'y_sup'], thresh=2).values
 
-            x2 = np.array([np.interp(y2, yx.index, yx[_var], left=np.nan, right=np.nan) for _var in _variables])
+            x2 = np.array([np.interp(y2, yx.index, yx[_var], left=np.nan, right=np.nan) for _var in _variable])
 
-            y2x = pd.DataFrame(x2.transpose(), columns=_variables, index=y2)
+            y2x = pd.DataFrame(x2.transpose(), columns=_variable, index=y2)
             for index in yx.index:
-                y2x.loc[abs(y2x.index - index) < 1e-6, _variables] = yx.loc[yx.index == index, _variables].values
+                y2x.loc[abs(y2x.index - index) < 1e-6, _variable] = yx.loc[yx.index == index, _variable].values
 
             # compute weight, if y_mid is in min(yx) < y_mid < max(yx)
             w = [1 if yx.index[0] - TOL <= y <= yx.index[-1] + TOL else 0 for y in y_mid ]
 
             # add the temperature profile extremum value
             if not any(abs(yx.index[0]-y2) < TOL):
-                y2x.loc[yx.index[0], _variables] = yx.loc[yx.index == yx.index[0], _variables].values
+                y2x.loc[yx.index[0], _variable] = yx.loc[yx.index == yx.index[0], _variable[0]].values
                 w = w + [0]
             if not any(abs(yx.index[-1]-y2) < TOL):
-                y2x.loc[yx.index[-1], _variables] = yx.loc[yx.index == yx.index[-1], _variables].values
+                y2x.loc[yx.index[-1], _variable] = yx.loc[yx.index == yx.index[-1], _variable[0]].values
                 w = w + [0]
 
             temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(y2x.__len__()))
             temp.update(y2x.reset_index().rename(columns={'index': 'y_mid'}))
-            temp['weight'] = pd.Series(w, index=temp.index)
+            temp['w_'+_variable[0]] = pd.Series(w, index=temp.index)
             temp = temp.sort_values('y_mid').reset_index(drop=True)
-            profile_prop = profile.loc[profile.variable == variable].head(1)
-            profile_prop = profile_prop.drop(_variables+_del_variables, 1)
-            profile_prop['variable'] = ', '.join(_variables)
+            profile_prop = _profile.loc[_profile.variable == _variable[0]].head(1)
+            profile_prop = profile_prop.drop(_variable, 1)
+            profile_prop['variable'] = ', '.join(_variable)
             if 'y_low' in profile_prop:
                 profile_prop = profile_prop.drop('y_low', 1)
             profile_prop = profile_prop.drop('y_mid', 1)
@@ -300,36 +368,36 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
 
             temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
                                      index=temp.index.tolist()))
-            if 'date' in temp:
-                temp['date'] = pd.to_datetime(temp['date'])
 
             if display_figure:
-                for _var in _variables:
+                for _var in _variable:
                     if not np.isnan(yx[_var]).any():
                         plt.figure()
-                        yx = yx.reset_index(drop=True)
+                        yx = yx.reset_index(drop=False)
                         plt.plot(yx[_var], yx['y_mid'], 'k')
                         plt.plot(temp[_var], temp['y_mid'], 'xr')
                         if 'name' in profile_prop.keys():
                             plt.title(profile_prop.name.unique()[0] + ' - ' + _var)
                         plt.show()
-        # step profile (salinity-like)
-        else:
-            n_var = _variables.__len__()
+        # elif 'mass' in _variable: TODO: add step profile type mass
+        else:  # step profile (salinity-like)
+            n_var = _variable.__len__()
             n_s0 = 2
             n_s1 = n_s0 + n_var
 
             if v_ref == 'bottom':
-                yx = _profile[['y_sup', 'y_low'] + _variables].sort_values(by='y_low')
+                yx = _profile[['y_sup', 'y_low'] + _variable].sort_values(by='y_low')
                 if (yx.y_sup.head(1) > yx.y_low.head(1)).all():
-                    yx = _profile[['y_low', 'y_sup'] + _variables].sort_values(by='y_low')
+                    yx = _profile[['y_low', 'y_sup'] + _variable].sort_values(by='y_low')
             else:
-                yx = _profile[['y_low', 'y_sup'] + _variables ].sort_values(by='y_low').astype(float)
+                yx = _profile[['y_low', 'y_sup'] + _variable].sort_values(by='y_low').astype(float)
 
-            mass_variable = [_var for _var in _variables if 'mass' in _var]
+            mass_variable = [_var for _var in _variable if 'mass' in _var]
+            cont_variable = [_var for _var in _variable if _var in continuous_variable_list]
+
             _ii = 0
             _variable_dict = {}
-            for _var in _variables:
+            for _var in _variable:
                 _variable_dict[_var] = _ii
                 _ii += 1
 
@@ -342,7 +410,7 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
             for row in range(yx[:, 0].__len__()-1):
                 yx_new.append(yx[row])
                 if abs(yx[row, 1]-yx[row+1, 0]) > TOL:
-                    yx_new.append([yx[row, 1], yx[row + 1, 0]] + [np.nan] * _variables.__len__())
+                    yx_new.append([yx[row, 1], yx[row + 1, 0]] + [np.nan] * _variable.__len__())
             yx_new.append(yx[row+1, :])
             yx = np.array(yx_new)
             del yx_new
@@ -384,6 +452,7 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
 
             # save yx for mass variable
             yx_mass = yx[:, [0, 1] + [np.where(_mvar == col)[0][0] for _mvar in mass_variable]].copy()
+            yx_cont = yx[:, [0, 1] + [np.where(_cvar == col)[0][0] for _cvar in cont_variable]].copy()
 
             x_step = []
             y_step = []
@@ -460,6 +529,7 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
             X = np.array(x_step)
             Y = np.array(y_step)
 
+            yx_bkp = yx.copy()
             if mass_variable.__len__() > 0:
                 x_step = []
                 y_step = []
@@ -541,62 +611,119 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                         x_step.append(M)
                         w_step.append(w)
 
-            X[:, [_variable_dict[_mvar] for _mvar in mass_variable]] = np.array(x_step)
-            W[:, [_variable_dict[_mvar] for _mvar in mass_variable]] = np.array(w_step)
+                X[:, [_variable_dict[_mvar] for _mvar in mass_variable]] = np.array(x_step)
+                W[:, [_variable_dict[_mvar] for _mvar in mass_variable]] = np.array(w_step)
+
+            if cont_variable.__len__() > 0:
+                y = (yx_cont[:, 0]+yx_cont[:, 1]) / 2
+                x = yx_cont[:, 2:]
+                yc_mid = y_mid[0:X.shape[0]]
+                xc_step = np.array([np.interp(yc_mid, y, x[:, ii], left=np.nan, right=np.nan)
+                                  for ii in range(0, len(cont_variable))])
+
+                wc_step = [1 if yx_cont[0, 0] - TOL <= y <= yx_cont[-1, 1] + TOL else 0 for y in yc_mid]
+                wc_step = [wc_step]*xc_step.shape[0]
+
+                X[:, [_variable_dict[_cvar] for _cvar in cont_variable]] = np.array(xc_step).transpose()
+                W[:, [_variable_dict[_cvar] for _cvar in cont_variable]] = np.array(wc_step).transpose()
 
             x_step = X.transpose()
             w_step = W.transpose()
-            w_variables = ['w_'+ _var for _var in _variables]
+            w_variables = ['w_' + _var for _var in _variable]
             temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(np.unique(y_step).__len__() - 1))
             for w in w_variables:
                 temp[w] = [np.nan]*temp.__len__()
 
             # set the y_step equal to y_bins
-
             Y = y_bins[:np.unique(y_step).__len__()]
             _updated_df = pd.DataFrame(np.vstack((Y[:-1], Y[:-1] + np.diff(Y) / 2, Y[1:],
                                                   w_step, x_step)).transpose(),
-                                       columns=['y_low', 'y_mid', 'y_sup'] + w_variables + _variables,
+                                       columns=['y_low', 'y_mid', 'y_sup'] + w_variables + _variable,
                                        index=temp.index[0:np.unique(y_step).__len__() - 1])
             temp.update(_updated_df)
 
             # core attribute
             profile_prop = _profile.head(1).copy()
-            profile_prop['variable'] = (', ').join(_variables)
+            profile_prop['variable'] = (', ').join(_variable)
             profile_prop = profile_prop.drop('y_low', 1)
             profile_prop = profile_prop.drop('y_mid', 1)
             profile_prop = profile_prop.drop('y_sup', 1)
-            profile_prop = profile_prop.drop(_variables+_del_variables, axis=1)
+            profile_prop = profile_prop.drop(_variable, axis=1)
             temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
                                      index=temp.index.tolist()))
-            if 'date' in temp:
-                temp['date'] = temp['date'].astype('datetime64[ns]')
 
             if display_figure:
                 yx = yx_bkp.copy()
-                for n in range(0, _variables.__len__()):
-                    if not np.isnan(yx[:, 2 + n]).all():
-                        plt.figure()
-                        x = []
-                        y = []
-                        for ii in range(yx[:, 0].__len__()):
-                            y.append(yx[ii, 0])
-                            y.append(yx[ii, 1])
-                            x.append(yx[ii, 2 + n])
-                            x.append(yx[ii, 2 + n])
-                        plt.step(x, y, 'bx', label='original')
-                        plt.step([x for x in x_step[n] for _ in (0, 1)], y_step, 'ro', linestyle='--',
-                                 label='discretized')
-                        if 'name' in _profile.keys():
-                            plt.title(_profile.name.unique()[0] + ' - ' + _variables[n])
-                        else:
-                            plt.title(_variables[n])
-                        plt.legend()
-                        plt.show()
+                for n in range(0, _variable.__len__()):
+                    if _variable[n] not in continuous_variable_list:
+                        if not np.isnan(yx[:, 2 + n]).all():
+                            plt.figure()
+                            x = []
+                            y = []
+                            for ii in range(yx[:, 0].__len__()):
+                                y.append(yx[ii, 0])
+                                y.append(yx[ii, 1])
+                                x.append(yx[ii, 2 + n])
+                                x.append(yx[ii, 2 + n])
+                            plt.step(x, y, 'bx', label='original')
+                            plt.step([x for x in x_step[n] for _ in (0, 1)], y_step, 'ro', linestyle='--',
+                                     label='discretized')
+                            if 'name' in _profile.keys():
+                                plt.title(_profile.name.unique()[0] + ' - ' + _variable[n])
+                            else:
+                                plt.title(_variable[n])
+                            plt.legend()
+                            plt.show()
+                    else:
+                        if not np.isnan(yx[:, 2 + n]).all():
+                            plt.figure()
+                            y = (yx[:, 0 ] + yx[:, 1]) /2
+                            x = yx[:, 2 + n]
+                            plt.plot(x, y, 'bx', label='original')
+                            plt.plot(X[:, n], yc_mid, 'ro', linestyle='--', label='discretized')
+                            if 'name' in _profile.keys():
+                                plt.title(_profile.name.unique()[0] + ' - ' + _variable[n])
+                            else:
+                                plt.title(_variable[n])
+                            plt.legend()
+                            plt.show()
 
-        temp = temp.apply(pd.to_numeric, errors='ignore')
+        if not temp.empty:
+            # drop row with no measurement
+            temp = temp[temp['w_'+_variable[0]] != 0]
 
-        discretized_profile = discretized_profile.append(temp, sort=False)
+            # drop column without any measurement
+            temp = temp.dropna(axis=1, how='all')
+
+            # convert column to correct format
+            temp = temp.apply(pd.to_numeric, errors='ignore')
+            if 'date' in temp:
+                temp['date'] = pd.to_datetime(temp['date'])
+            if 'comments' in temp:
+                temp['comments'] = temp['comments'].astype(str)
+
+            if discretized_profile.empty:
+                discretized_profile = temp
+            else:
+                temp = temp.drop('variable', axis=1)
+                temp = temp.rename(columns={'comments': 'comments_temp'})
+
+                col = [col for col in discretized_profile.columns if col in temp.columns]
+                discretized_profile = pd.merge(discretized_profile, temp, on=col)
+
+                for vg in discretized_profile.variable.unique():
+                    new_vg = vg.split(', ')
+                    new_vg += _variable
+                    discretized_profile.loc[discretized_profile.variable == vg, 'variable'] = ', '.join(new_vg)
+
+                # add comment
+                if 'comments_temp' in discretized_profile.columns:
+                    discretized_profile['comments'] = discretized_profile[['comments', 'comments_temp']].astype(str).replace('nan', '').apply(lambda x: ', '.join(filter(None, x)), axis=1)
+                    discretized_profile = discretized_profile.drop('comments_temp', axis=1)
+
+    if display_figure:
+        seaice.core.plot.plot_all_profile_variable(Profile(discretized_profile), display_figure=display_figure)
+
     return discretized_profile
 
 
@@ -752,9 +879,10 @@ def s_nan(yx, ii_yx, fill_gap=True):
 def is_continuous(profile):
     if ('y_low' in profile and profile.y_low.isnull().all() and not profile.y_low.empty):
         return 1
+    elif len(profile.variables()) == 1 and profile.variables()[0] == 'temperature':
+        return 1
     elif 'y_low' not in profile:
         return 1
-
     else:
         return 0
 

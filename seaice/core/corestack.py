@@ -432,6 +432,7 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
     else:
         no_y_mid_flag = True
         for group in groups:
+            print(group)
             if isinstance(group, dict):
                 if 'y_mid' in group:
                     no_y_mid_flag = False

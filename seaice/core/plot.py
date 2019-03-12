@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 from seaice.core.profile import *
+from seaice.core.profile import Profile
 __name__ = "plot"
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -68,7 +69,7 @@ def plot_profileV0(profile, ax=None, param_dict=None):
 def plot_profile(profile, ax=None, param_dict=None):
     """
     :param profile:
-    :param ax:
+    :param _ax:
     :param param_dict:
     :return:
     """
@@ -89,7 +90,10 @@ def plot_profile(profile, ax=None, param_dict=None):
     # if profile not empty
     if not profile.empty:
         # step variable
-        if not profile[profile.variable == variable].y_low.isnull().all():
+        if profile[profile.variable == variable].y_low.isnull().all() or 'temperature' in profile.variables()[0]:
+            x = profile[variable].values
+            y = profile.y_mid.values
+        else:
             x = []
             y = []
             for ii in profile[profile.variable == variable].index.tolist():
@@ -99,9 +103,7 @@ def plot_profile(profile, ax=None, param_dict=None):
                 x.append(profile[variable][ii])
 
         # continuous variable
-        else:
-            x = profile[variable].values
-            y = profile.y_mid.values
+
         if param_dict is None:
             ax.plot(x, y)
         else:
@@ -154,7 +156,7 @@ def semilogx_profile(profile, ax=None, param_dict=None):
     return ax
 
 
-def plot_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
+def plot_profile_variable(ic_data, variable_dict=None, ax=None, param_dict=None):
     """
     :param ic_data:
         pd.DataFrame
@@ -163,12 +165,68 @@ def plot_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
     :param param_dict:
     :return:
     """
+
+
+    if variable_dict == None:
+        variable_dict = {'variable':ic_data.variables()}
+
     if 'variable' not in variable_dict.keys():
         module_logger.error("a variable should be specified for plotting")
 
     profile = select_profile(ic_data, variable_dict)
     _ax = plot_profile(profile, ax=ax, param_dict=param_dict)
     return _ax
+
+
+def plot_all_profile_variable(ic_data, variable_dict={}, display_figure=False):
+    """
+    V2 : 2019-03-09
+    :param ic_data:
+        pd.DataFrame
+    :param variable_dict:
+    :param ax:
+    :param param_dict:
+    :return:
+    """
+
+    # TODO : there could be only 1 ice core
+    if len(variable_dict) == 0:
+        variable_dict = {'variable':sorted(ic_data.variables())}
+
+    if 'variable' not in variable_dict.keys():
+        try:
+            variable_dict.update({'variable': ic_data.variables()})
+        except:  # TODO determine error if variable dict isnot there
+            module_logger.error("a variable should be specified for plotting")
+    variable_dict = {'variable': sorted(ic_data.variables())}
+
+    fig, ax = plt.subplots(1, len(variable_dict['variable']), sharey=True)
+    if not isinstance(ax, np.ndarray):
+        ax = np.array([ax])
+    ax_n = 0
+    for variable in variable_dict['variable']:
+        profile = Profile(ic_data.copy())
+        profile.keep_variable(variable)
+        ax[ax_n] = plot_profile(profile, ax=ax[ax_n], param_dict=None)
+        ax[ax_n].set_xlabel(variable)
+        ax[ax_n].spines['top'].set_visible(False)
+        ax[ax_n].spines['right'].set_visible(False)
+        if variable + '_core' in ic_data.columns:
+            name = ic_data['temperature_core'].unique()[0]
+            if name == ic_data.name.unique()[0]:
+                name = ''
+        else:
+            name = ic_data.name.unique()[0]
+        ax[ax_n].set_title(name)
+        ax_n += 1
+
+    ax[0].set_ylim([max(ax[0].get_ylim()), 0])
+    ax[0].set_ylabel('ice thickness (m)')
+
+    fig.subplots_adjust(top=0.85, wspace=0.2, hspace=0.2)
+    if display_figure:
+        fig.show()
+    return fig
 
 
 def plot_stat_profile(ic_data, variable_dict, ax=None, param_dict=None):

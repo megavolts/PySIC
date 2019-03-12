@@ -164,9 +164,7 @@ def brine_volume_fraction(s, t, rho_si='default', vf_a=0.005, method='cw'):
     if rho_si is 'default':
         logger.info('rho_si computed from t and s')
         rho_si = density(s, t)
-    elif isinstance(rho_si, (int, float, list)):
-        rho_si = np.atleast_1d(rho_si)
-    if rho_si.size == 1:
+    elif isinstance(rho_si, (int, float)):
         rho_si = rho_si * np.ones_like(s)
 
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \
@@ -693,17 +691,16 @@ def thermal_conductivity(s, t, method='pringle', vf_a=0.005):
         # Physical constant
         a = 0.13
         lambda_si = ice.thermal_conductivity(t) + a * s / t
+        return lambda_si
 
     elif method == 'pringle':
         rho_si = density(s, t, vf_a=vf_a)
         rho_i = ice.density(t)
-
         lambda_si = rho_si / rho_i * (2.11 - 0.011*t + 0.09*s/t - (rho_si - rho_i)*1e-3)
+        return lambda_si
 
-    return lambda_si
 
-
-def thermal_diffusivity(s, t, method_l='prindle', method_cp='untersteiner', rho_si='default', vf_a=0.005):
+def thermal_diffusivity(s, t, method_l='pringle', method_cp='untersteiner', rho_si='default', vf_a=0.005):
     """
         Calculates the thermal diffusivity of sea ice in function of temperature or salinity. 'prindle' (default) or
         'ono' method could be chosen to compute latent heat and 'untersteiner' or 'maykut' method could be chosen to
@@ -761,7 +758,7 @@ def thermal_diffusivity(s, t, method_l='prindle', method_cp='untersteiner', rho_
         return 0
 
     sigma_si = thermal_conductivity(s, t, method=method_l, vf_a=vf_a) /\
-               (specific_heat_capacity(s, t, method=method_cp) *density(s, t, vf_a=vf_a))
+               (specific_heat_capacity(s, t, method=method_cp) * density(s, t, vf_a=vf_a))
 
     return sigma_si
 
