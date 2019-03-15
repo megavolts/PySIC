@@ -28,6 +28,12 @@ __all__ = ["plot_profile", "semilogx_profile", "plot_profile_variable", "semilog
 
 module_logger = logging.getLogger(__name__)
 
+# New version have 2019 in name
+
+
+
+
+## Old plot
 
 def plot_profileV0(profile, ax=None, param_dict=None):
     """
@@ -465,9 +471,9 @@ def plot_number(ic_data, variable_dict, ax=None, position='right', x_delta=0.1, 
         stat = 'max'
 
     depth = select_profile(ic_data, variable_dict).reset_index()['y_mid'].values
-    n = select_profile(ic_data, variable_dict).reset_index()['n'].values
+    n = select_profile(ic_data, variable_dict).reset_index()[ii_variable +'_count'].values
     variable_dict.update({'stats': stat})
-    pos = select_profile(ic_data, variable_dict).reset_index()[ii_variable].values
+    pos = select_profile(ic_data, variable_dict).reset_index()[ii_variable + '_' + stat].values
 
     # check for nan value:
     depth = depth[~np.isnan(pos)]
@@ -521,7 +527,7 @@ def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=Fal
     #ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
 
     # std/mean envelop
-    variable_dict.pop('stats')
+    #variable_dict.pop('stats')
     plot_mean_envelop(ic_data, variable_dict, ax=ax)
     if flag_number:
         variable_dict.update({'stats': 'mean'})

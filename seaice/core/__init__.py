@@ -121,12 +121,17 @@ def import_ic_path(ic_path, variables=None, v_ref='top', drop_empty=False):
         lat = np.nan
         lon = np.nan
 
+    comments = []
     if isinstance(ws_summary['C9'].value, (float, int)):
         snow_depth = np.array([ws_summary['C9'].value]).astype(float)
         n_snow = 1
         while ws_summary.cell(row=9, column=3+n_snow).value is not None:
             snow_depth = np.concatenate((snow_depth, np.array([ws_summary.cell(row=9, column=3+n_snow).value])))
-            n_snow +=1
+            n_snow += 1
+        if isinstance(snow_depth[-1], str):
+            comments.append(snow_depth[-1])
+            snow_depth = pd.to_numeric(snow_depth[:-1], errors='coerce')
+        else:
             snow_depth = pd.to_numeric(snow_depth, errors='coerce')
     else:
         snow_depth = np.array([np.nan])
@@ -135,12 +140,16 @@ def import_ic_path(ic_path, variables=None, v_ref='top', drop_empty=False):
         freeboard = np.array([ws_summary['C10'].value])
         n_temp = 1
         while ws_summary.cell(row=10, column=3+n_temp).value is not None:
-            if isinstance(ws_summary.cell(row=10, column=3+n_temp).value, (float, int)):
-                freeboard = np.concatenate((freeboard, np.array([ws_summary.cell(row=10, column=3 + n_snow).value])))
-            else:
+            freeboard = np.concatenate((freeboard, np.array([ws_summary.cell(row=10, column=3 + n_temp).value])))
+            if not isinstance(ws_summary.cell(row=10, column=3+n_temp).value, (float, int)):
                 logger.info("(%s)\tfreeboard cell %s not a float" % (name, openpyxl.utils.get_column_letter(3 + n_temp)+str(9)))
             n_temp += 1
-        freeboard = pd.to_numeric(freeboard, errors='coerce')
+
+        if isinstance(freeboard[-1], str):
+            comments.append(freeboard[-1])
+            freeboard = pd.to_numeric(freeboard[:-1], errors='coerce')
+        else:
+            freeboard = pd.to_numeric(freeboard, errors='coerce')
     else:
         freeboard = np.array([np.nan])
 
@@ -148,12 +157,16 @@ def import_ic_path(ic_path, variables=None, v_ref='top', drop_empty=False):
         ice_thickness = np.array([ws_summary['C11'].value])
         n_temp = 1
         while ws_summary.cell(row=11, column=3+n_temp).value:
-            if isinstance(ws_summary.cell(row=11, column=3+n_temp).value, (float, int)):
-                ice_thickness = np.concatenate((ice_thickness, np.array([ws_summary.cell(row=11, column=3+n_snow).value])))
-            else:
+            ice_thickness = np.concatenate(
+                (ice_thickness, np.array([ws_summary.cell(row=11, column=3 + n_temp).value])))
+            if not isinstance(ws_summary.cell(row=11, column=3+n_temp).value, (float, int)):
                 logger.info("\t(%s) ice_thickness cell %s not a float" % (name, openpyxl.utils.get_column_letter(3+n_temp)+str(9)))
             n_temp += 1
-        ice_thickness = pd.to_numeric(ice_thickness, errors='coerce')
+        if isinstance(freeboard[-1], str):
+            comments.append(freeboard[-1])
+            ice_thickness = pd.to_numeric(ice_thickness[:-1], errors='coerce')
+        else:
+            ice_thickness = pd.to_numeric(ice_thickness, errors='coerce')
     else:
         ice_thickness = np.array([np.nan])
 
@@ -184,7 +197,9 @@ def import_ic_path(ic_path, variables=None, v_ref='top', drop_empty=False):
 
     # comment
     if ws_summary['A33'].value is not None:
-        core.add_comment(ws_summary['A33'].value)
+        comments.append(ws_summary['A33'].value)
+    core.add_comment('; '.join(comments))
+
 
     # import all variables
     if variables is None:

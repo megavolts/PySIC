@@ -187,6 +187,34 @@ class CoreStack(pd.DataFrame):
             temp = temp.append(profile)
         return CoreStack(temp)
 
+    def set_orientation(self, v_ref):
+        """
+
+        :param v_ref:
+        :return:
+        """
+
+        oriented_stack = CoreStack()
+
+        for hi in self.ice_thickness.unique():
+            subset = self[self.ice_thickness == hi]
+            if np.isnan(hi):
+                subset = self[self.ice_thickness.isna()]
+                for hi in subset.length.unique():
+                    _subset = subset[subset.length == hi]
+                    if not  np.isnan(hi):
+                        oriented_stack = oriented_stack.append(seaice.core.profile.set_profile_orientation(_subset, v_ref))
+                        print('NO ICE THICKNESS ' + ', '.join(_subset.names()))
+                    else:
+                        _subset = subset[subset.length.isna()]
+                        print('NO LENGTH, NO ICE THICKNESS ' + ', '.join(_subset.names()))
+            else:
+                oriented_stack = oriented_stack.append(seaice.core.profile.set_profile_orientation(subset, v_ref))
+
+
+        return CoreStack(oriented_stack)
+
+
     def core_in_collection(self, core):
         temp = self.loc[self.name == core, 'collection'].values
         col = []
@@ -424,8 +452,13 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
             ics_stack['w_' + variable] = np.ones([1, len(ics_stack.index)])
             logger.warning('No weight value are defined for %s. Setting weight value to 1' % variable)
         if ics_stack['w_' + variable].isna().any():
-            ics_stack.loc[ics_stack['w_'+variable ].isna(), 'weight'] = 1
-            logger.warning('some weight value are not defined for % s. Setting weight value to 1' % variable)
+            # set w_variable to 0 if variable is nan
+            ics_stack.loc[ics_stack[variable].isna(), 'w_'+variable] = 0
+
+            # set w_variable to 1 if it exist
+            ics_stack.loc[ics_stack['w_' + variable].isna(), 'w_' + variable] = 1
+
+            logger.warning('some weight value are not defined for % s. Setting weight value to 1 if temperature exists, 0 otherway' % variable)
 
     if groups is None:
         logger.error("Grouping option cannot be empty; it should contains at least vertical section y_mid")
@@ -490,9 +523,11 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
         gr = [element if isinstance(element, str) else list(element.keys())[0] for element in groups]
 
         prop_data = ics_stack.select_property(prop, extra_keys=gr).copy()
-        # if property weight is missing, set it to 1
-        if 'w_' + prop not in prop_data.keys():
-            prop_data['w_' + prop] = 1
+
+        # TODO: remove the 3 next line if it works without
+        # # if property weight is missing, set it to 1
+        # if 'w_' + prop not in prop_data.keys():
+        #     prop_data['w_' + prop] = 1
         # weighted property is property value * property weight
         prop_data['wtd_'+prop] = prop_data['w_' + prop] * prop_data[prop]
         # if property weight is null, weighted property is np.nan
@@ -503,6 +538,7 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
         stat_var = {}
         core_var = [None for _ in range(int(np.prod(dim)))]
         _core_var_flag = True  # core name does change for different stat.
+
         for stat in stats:
             if stat in ['sum', 'mean']:
                 func = "kgroups.loc[~kgroups['wtd_" + prop +"'].isna(), 'wtd_" + prop +"' ]." + stat + "()"
@@ -559,9 +595,10 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
         core_stat = CoreStack()
         # run over ndim, minus the ice thickness
         for index in indices(dim[:-1]):
-            # for continuous profile
             headers = ['y_low', 'y_mid', 'y_sup']
             stats_data = (np.array(cuts_dict['y_mid'][:-1]) + np.array(cuts_dict['y_mid'][1:])) / 2
+
+            # for continuous profile
             if prop_data['y_low'].notna().all():
                 stats_data = np.vstack([np.array(cuts_dict['y_mid'][:-1]), stats_data, np.array(cuts_dict['y_mid'][1:])])
             # for discontinous profile:
@@ -582,13 +619,17 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
             name = []
             for n_index in range(0, index.__len__()):
                 if groups_order[n_index] in cuts_dict:
-                    df[groups_order[n_index]] = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
+                    df[groups_order[n_index]] = cuts_dict[groups_order[n_index]][index[n_index]]
+                    # df[groups_order[n_index]] = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
                     key_merge.append(groups_order[n_index])
-                    _name = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
+                    _name = cuts_dict[groups_order[n_index]][index[n_index]]
+                    #_name = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
                     if isinstance(_name, str):
                         name.append(_name)
                     elif isinstance(_name, np.datetime64):
                         name.append(pd.to_datetime(np.datetime64(_name)).strftime('%Y%m%d'))
+                    elif isinstance(_name, float):
+                        name.append(str(_name))
                 else:
                     df['bin_' + groups_order[n_index]] = index[n_index]
                     key_merge.append('bin_' + groups_order[n_index])
@@ -701,6 +742,7 @@ def indices(dim):
         else:
             for n in indices(dim[1:]):
                 yield (d,) + n
+
 
 def inverse_dict(map):
     """

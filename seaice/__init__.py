@@ -258,6 +258,17 @@ class Core():
     def get_property(self):
         return self.profile.get_property()
 
+    # property
+    def ice_thickenss(self):
+        """
+            return the average ice thickenss
+        :return:
+        """
+        if 'ice_thickenss' in self.profile:
+            return np.nanmean(self.profile.length.unique())
+        else:
+            return np.array([]).astype(str)
+
 # class ProfileV0(pd.DataFrame):
 
 #
