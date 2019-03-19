@@ -369,16 +369,6 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
             temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
                                      index=temp.index.tolist()))
 
-            if display_figure:
-                for _var in _variable:
-                    if not np.isnan(yx[_var]).any():
-                        plt.figure()
-                        yx = yx.reset_index(drop=False)
-                        plt.plot(yx[_var], yx['y_mid'], 'k')
-                        plt.plot(temp[_var], temp['y_mid'], 'xr')
-                        if 'name' in profile_prop.keys():
-                            plt.title(profile_prop.name.unique()[0] + ' - ' + _var)
-                        plt.show()
         # elif 'mass' in _variable: TODO: add step profile type mass
         else:  # step profile (salinity-like)
             n_var = _variable.__len__()
@@ -457,17 +447,18 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
             x_step = []
             y_step = []
             w_step = []  # weight of the bin, defined as the portion on which the property is define
-
+            DEBUG = False
             for ii_bin in range(y_bins.__len__()-1):
                 a = np.flatnonzero((yx[:, 0] - y_bins[ii_bin] < -TOL) & ( y_bins[ii_bin] - yx[:, 1] < -TOL))
                 a = np.concatenate((a, np.flatnonzero((y_bins[ii_bin] - yx[:, 0] <= TOL) & (yx[:, 1] - y_bins[ii_bin+1] <= TOL))))
                 a = np.concatenate((a, np.flatnonzero((yx[:, 0] - y_bins[ii_bin+1] < -TOL) & ( y_bins[ii_bin+1] - yx[:, 1] < -TOL))))
                 a = np.unique(a)
 
-                # print('section %.4f - %.4f' %(y_bins[ii_bin], y_bins[ii_bin+1]))
-                # print('- original section %s' % ', '.join(a.astype(str)))
-                # for yx_a in a:
-                #     print('\t %.4f - %.4f' % (yx[yx_a][0], yx[yx_a][1]))
+                if DEBUG:
+                    print('section %.4f - %.4f' %(y_bins[ii_bin], y_bins[ii_bin+1]))
+                    print('- original section %s' % ', '.join(a.astype(str)))
+                    for yx_a in a:
+                        print('\t %.4f - %.4f' % (yx[yx_a][0], yx[yx_a][1]))
 
                 if a.size != 0:
                     S = [np.nan]*n_var
@@ -481,7 +472,8 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                         l = yx[a[a_ii], 1] - y_bins[ii_bin]
                         L = np.nansum([L, l * ~np.isnan(S_temp)], axis=0)
                         L_nan = np.nansum([L, l * np.isnan(S_temp)], axis=0)
-                        # print(y_bins[ii_bin], yx[a[a_ii], 1], S_temp)
+                        if DEBUG:
+                            print(y_bins[ii_bin], yx[a[a_ii], 1], S_temp)
                         a_ii += 1
                     while ii_bin+1 <= y_bins.shape[0]-1 and a_ii < a.shape[0]-1 and yx[a[a_ii], 1] - y_bins[ii_bin+1] < -TOL:
                         S_temp = yx[a[a_ii], n_s0:n_s1] * (yx[a[a_ii], 1]-yx[a[a_ii], 0])
@@ -489,7 +481,8 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                         l = yx[a[a_ii], 1]-yx[a[a_ii], 0]
                         L = np.nansum([L, l * ~np.isnan(S_temp)], axis=0)
                         L_nan = np.nansum([L_nan, l * np.isnan(S_temp)], axis=0)
-                        # print(yx[a[a_ii], 0], yx[a[a_ii], 1], S_temp)
+                        if DEBUG:
+                            print(yx[a[a_ii], 0], yx[a[a_ii], 1], S_temp)
                         a_ii += 1
 
                     # check if a_ii-1 was not the last element of a
@@ -500,19 +493,20 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                             l = y_bins[ii_bin+1] - yx[a[a_ii], 0]
                             L = np.nansum([L, l * ~np.isnan(S_temp)], axis=0)
                             L_nan = np.nansum([L_nan, l * np.isnan(S_temp)], axis=0)
-                            # print(yx[a[a_ii], 0], y_bins[ii_bin+1], S_temp)
+                            if DEBUG:
+                                print(yx[a[a_ii], 0], y_bins[ii_bin+1], S_temp)
                         elif yx[a[a_ii], 1] - y_bins[ii_bin + 1] < -TOL:
                             S_temp = yx[a[a_ii], n_s0:n_s1] * (yx[a[a_ii], 1] -yx[a[a_ii], 0])
                             S = np.nansum([S, S_temp], axis=0)
                             l = yx[a[a_ii], 1] -yx[a[a_ii], 0]
                             L = np.nansum([L, l * ~np.isnan(S_temp)], axis=0)
                             L_nan = np.nansum([L_nan, l * np.isnan(S_temp)], axis=0)
-                            # print(yx[a[a_ii], 0], yx[a[a_ii], 1], S_temp)
+                            if DEBUG:
+                                print(yx[a[a_ii], 0], yx[a[a_ii], 1], S_temp)
 
                     w = L / (y_bins[ii_bin + 1]-y_bins[ii_bin])
                     L[L == 0] = np.nan
                     S = S / L
-
                     if yx[a[0], 0] - y_bins[ii_bin] > TOL and not fill_extremity:
                         y_step.append(yx[a[0], 0])
                         y_step.append(y_bins[ii_bin + 1])
@@ -522,12 +516,17 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                     else:
                         y_step.append(y_bins[ii_bin])
                         y_step.append(y_bins[ii_bin + 1])
-                    x_step.append(S)
-                    w_step.append(w)
+
+                else:
+                    S = np.array([np.nan])
+                    w = np.array([0])
+                    y_step.append(y_bins[ii_bin])
+                    y_step.append(y_bins[ii_bin + 1])
+                x_step.append(S)
+                w_step.append(w)
 
             W = np.array(w_step)
             X = np.array(x_step)
-            Y = np.array(y_step)
 
             yx_bkp = yx.copy()
             if mass_variable.__len__() > 0:
@@ -629,15 +628,18 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
 
             x_step = X.transpose()
             w_step = W.transpose()
+
+            Y = y_bins[:np.unique(y_step).__len__()]
+            y_step = np.array([Y[:-1], Y[:-1] + np.diff(Y) / 2, Y[1:]])
+
             w_variables = ['w_' + _var for _var in _variable]
-            temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(np.unique(y_step).__len__() - 1))
+
+            temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(len(Y) - 1))
             for w in w_variables:
                 temp[w] = [np.nan]*temp.__len__()
 
             # set the y_step equal to y_bins
-            Y = y_bins[:np.unique(y_step).__len__()]
-            _updated_df = pd.DataFrame(np.vstack((Y[:-1], Y[:-1] + np.diff(Y) / 2, Y[1:],
-                                                  w_step, x_step)).transpose(),
+            _updated_df = pd.DataFrame(np.vstack((y_step, w_step, x_step)).transpose(),
                                        columns=['y_low', 'y_mid', 'y_sup'] + w_variables + _variable,
                                        index=temp.index[0:np.unique(y_step).__len__() - 1])
             temp.update(_updated_df)
@@ -652,47 +654,28 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
             temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
                                      index=temp.index.tolist()))
 
-            if display_figure:
-                yx = yx_bkp.copy()
-                for n in range(0, _variable.__len__()):
-                    if _variable[n] not in continuous_variable_list:
-                        if not np.isnan(yx[:, 2 + n]).all():
-                            plt.figure()
-                            x = []
-                            y = []
-                            for ii in range(yx[:, 0].__len__()):
-                                y.append(yx[ii, 0])
-                                y.append(yx[ii, 1])
-                                x.append(yx[ii, 2 + n])
-                                x.append(yx[ii, 2 + n])
-                            plt.step(x, y, 'bx', label='original')
-                            plt.step([x for x in x_step[n] for _ in (0, 1)], y_step, 'ro', linestyle='--',
-                                     label='discretized')
-                            if 'name' in _profile.keys():
-                                plt.title(_profile.name.unique()[0] + ' - ' + _variable[n])
-                            else:
-                                plt.title(_variable[n])
-                            plt.legend()
-                            plt.show()
-                    else:
-                        if not np.isnan(yx[:, 2 + n]).all():
-                            plt.figure()
-                            y = (yx[:, 0 ] + yx[:, 1]) /2
-                            x = yx[:, 2 + n]
-                            plt.plot(x, y, 'bx', label='original')
-                            plt.plot(X[:, n], yc_mid, 'ro', linestyle='--', label='discretized')
-                            if 'name' in _profile.keys():
-                                plt.title(_profile.name.unique()[0] + ' - ' + _variable[n])
-                            else:
-                                plt.title(_variable[n])
-                            plt.legend()
-                            plt.show()
 
         if not temp.empty:
-            # drop row with no measurement
-            temp = temp[temp['w_'+_variable[0]] != 0]
+            temp.loc[temp[_variable[0]].isna(), 'w_'+_variable[0]] = 0
 
-            # drop column without any measurement
+            # keep only ice core entry
+            l_c = temp.length.unique()[0]
+            if not np.isnan(temp.length.unique()[0]):
+                if l_c > 0:
+                    temp = temp[(temp.y_mid <= temp.length.unique()[0])]
+                elif l_c < 0:
+                    h_i = temp.ice_thickness.mean()
+                    if np.isnan(h_i):
+                        h_i = - l_c
+                    temp = temp[(h_i + l_c <= temp.y_mid) & (temp.y_mid <= h_i)]
+            elif not np.isnan(temp.ice_thickness.unique()[0]):
+                temp = temp[(temp.y_mid <= temp.ice_thickness.unique()[0])]
+            else:
+                # TODO : check if it works from bottom too
+                y_in_ice = [y for y in temp.y_mid[::-1] if not temp.loc[temp.y_mid > y, _variable[0]].isna().all()]
+                temp = temp[temp.y_mid.isin(y_in_ice)]
+
+            # drop all nan columns, but variable:
             temp = temp.dropna(axis=1, how='all')
 
             # convert column to correct format
@@ -720,10 +703,13 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                 if 'comments_temp' in discretized_profile.columns:
                     discretized_profile['comments'] = discretized_profile[['comments', 'comments_temp']].astype(str).replace('nan', '').apply(lambda x: ', '.join(filter(None, x)), axis=1)
                     discretized_profile = discretized_profile.drop('comments_temp', axis=1)
+    discretized_profile = Profile(discretized_profile)
 
     if display_figure:
-        seaice.core.plot.plot_all_profile_variable(Profile(discretized_profile), display_figure=display_figure)
-
+        ax, ax_dict = seaice.core.plot.plot_all_profile_variable(profile, ax=None, display_figure=False,
+                                                                 param_dict={'linestyle': ':', 'color': 'k'})
+        seaice.core.plot.plot_all_profile_variable(discretized_profile , ax=ax, ax_dict=ax_dict, display_figure=display_figure,
+                                                   param_dict={'linestyle': ':', 'marker': 'x', 'color': 'r'})
     return discretized_profile
 
 
@@ -767,6 +753,8 @@ def set_profile_orientation(profile, v_ref):
                 profile.update(new_df)
         else:
             logger.info('profile orientiation already set')
+
+    profile.length = -profile.length
 
     return profile
 

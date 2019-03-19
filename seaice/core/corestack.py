@@ -56,7 +56,6 @@ class CoreStack(pd.DataFrame):
         super(CoreStack, self).__init__(*args, **kwargs)
         self.logger = logging.getLogger(__name__)
 
-
     def add_profile(self, profile):
         """
 
@@ -214,7 +213,6 @@ class CoreStack(pd.DataFrame):
 
         return CoreStack(oriented_stack)
 
-
     def core_in_collection(self, core):
         temp = self.loc[self.name == core, 'collection'].values
         col = []
@@ -244,6 +242,10 @@ class CoreStack(pd.DataFrame):
         warnings.warn('get_name() will be deprecated in next version, use names() instead', FutureWarning)
         return self.name.unique()
 
+    def core_names(self):
+        logging.FutureWarning('getting deprecated and change to get_name()')
+        return self.name.unique()
+
     def get_core_in_collection(self):
         names = []
         if 'collection' in self:
@@ -253,10 +255,6 @@ class CoreStack(pd.DataFrame):
         else:
             self.logger.warning('No collection in core stack')
             return []
-
-    def core_names(self):
-        logging.FutureWarning('getting deprecated and change to get_name()')
-        return self.name.unique()
 
     def delete_variable(self, variables2del):
         """

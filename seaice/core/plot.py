@@ -184,7 +184,7 @@ def plot_profile_variable(ic_data, variable_dict=None, ax=None, param_dict=None)
     return _ax
 
 
-def plot_all_profile_variable(ic_data, variable_dict={}, display_figure=False):
+def plot_all_profile_variable(ic_data, variable_dict={}, ax=None, ax_dict=None, display_figure=False, param_dict={}):
     """
     V2 : 2019-03-09
     :param ic_data:
@@ -206,14 +206,22 @@ def plot_all_profile_variable(ic_data, variable_dict={}, display_figure=False):
             module_logger.error("a variable should be specified for plotting")
     variable_dict = {'variable': sorted(ic_data.variables())}
 
-    fig, ax = plt.subplots(1, len(variable_dict['variable']), sharey=True)
+    if ax is None:
+        _, ax = plt.subplots(1, len(variable_dict['variable']), sharey=True)
+    elif len(ax) < len(variable_dict['variable']):
+        module_logger.warning('length of ax does not match number of variable')
+
     if not isinstance(ax, np.ndarray):
         ax = np.array([ax])
-    ax_n = 0
+
+    if ax_dict is None:
+        ax_dict = {variable_dict['variable'][ii]: ii for ii in range(0, len(ax))}
+
     for variable in variable_dict['variable']:
+        ax_n = ax_dict[variable]
         profile = Profile(ic_data.copy())
         profile.keep_variable(variable)
-        ax[ax_n] = plot_profile(profile, ax=ax[ax_n], param_dict=None)
+        ax[ax_n] = plot_profile(profile, ax=ax[ax_n], param_dict=param_dict)
         ax[ax_n].set_xlabel(variable)
         ax[ax_n].spines['top'].set_visible(False)
         ax[ax_n].spines['right'].set_visible(False)
@@ -224,15 +232,25 @@ def plot_all_profile_variable(ic_data, variable_dict={}, display_figure=False):
         else:
             name = ic_data.name.unique()[0]
         ax[ax_n].set_title(name)
-        ax_n += 1
 
-    ax[0].set_ylim([max(ax[0].get_ylim()), 0])
-    ax[0].set_ylabel('ice thickness (m)')
-
-    fig.subplots_adjust(top=0.85, wspace=0.2, hspace=0.2)
+    if 'v_ref' in ic_data.columns:
+        if len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
+            ax[0].set_ylim([0, max(ax[0].get_ylim())])
+            ax[0].set_ylabel('ice thickness from ice/water inferface (m)')
+        elif len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
+            ax[0].set_ylim([max(ax[0].get_ylim()), 0])
+            ax[0].set_ylabel('ice thickness from ice surface(m)')
+        else:
+            ax[0].set_ylim([max(ax[0].get_ylim()), 0])
+            ax[0].set_ylabel('ice thickness (m)')
+    else:
+        ax[0].set_ylim([max(ax[0].get_ylim()), 0])
+        ax[0].set_ylabel('ice thickness (m)')
+    plt.subplots_adjust(top=0.85, wspace=0.2, hspace=0.2)
     if display_figure:
-        fig.show()
-    return fig
+       plt.show()
+
+    return ax, ax_dict
 
 
 def plot_stat_profile(ic_data, variable_dict, ax=None, param_dict=None):
