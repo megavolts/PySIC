@@ -5,13 +5,15 @@ seaice.core.plot.py : Core and CoreStack class
 
 """
 import logging
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib as mpl
 
 from seaice.core.profile import *
 from seaice.core.profile import Profile
+
 __name__ = "plot"
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -80,7 +82,7 @@ def plot_profile(profile, ax=None, param_dict=None):
     :return:
     """
 
-    variable = profile.variable.unique().tolist()
+    variable = profile.variables()
     if variable.__len__() > 1:
         module_logger.error("more than one variable is selected")
         return 0
@@ -195,16 +197,22 @@ def plot_all_profile_variable(ic_data, variable_dict={}, ax=None, ax_dict=None, 
     :return:
     """
 
+    ic_data = Profile(ic_data)
+
     # TODO : there could be only 1 ice core
     if len(variable_dict) == 0:
-        variable_dict = {'variable':sorted(ic_data.variables())}
+        variable_dict = {'variable': sorted(ic_data.variables(notnan=True))}
 
     if 'variable' not in variable_dict.keys():
         try:
             variable_dict.update({'variable': ic_data.variables()})
         except:  # TODO determine error if variable dict isnot there
             module_logger.error("a variable should be specified for plotting")
-    variable_dict = {'variable': sorted(ic_data.variables())}
+
+    # remove variable from variable_dict if empty
+    for variable in variable_dict['variable']:
+        if ic_data[variable].isna().all():
+            variable_dict['variable'].remove(variable)
 
     if ax is None:
         _, ax = plt.subplots(1, len(variable_dict['variable']), sharey=True)

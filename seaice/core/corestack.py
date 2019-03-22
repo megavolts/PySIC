@@ -129,7 +129,7 @@ class CoreStack(pd.DataFrame):
                     new_vg = vg.split(', ')
                     new_vg.remove(variable)
                     _ic.loc[(_ic.variable == vg), 'variables'] = ', '.join(new_vg)
-        return pd.concat([_ic_stack, _ic])
+        return pd.concat([_ic_stack, _ic], sort=False)
 
     def section_stat(self, groups=None, variables=None, stats=('min', 'mean', 'max', 'std')):
         """
@@ -425,7 +425,7 @@ def stack_cores(ics_dict):
     return CoreStack(ics_stack)
 
 
-def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max', 'std']):
+def grouped_stat(ics_stack, groups, variables=None, stats=None):
     """
 
     :param ics_stack:
@@ -442,7 +442,9 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
         variables = ics_stack.get_property()
     if not isinstance(variables, list):
         variables = [variables]
-    if not isinstance(stats, list):
+    if stats is None:
+        stats = ['min', 'mean', 'max', 'std']
+    elif not isinstance(stats, list):
         stats = [stats]
 
     for variable in variables:
@@ -462,8 +464,9 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
         logger.error("Grouping option cannot be empty; it should contains at least vertical section y_mid")
     else:
         no_y_mid_flag = True
+        if 'y_mid' in groups:
+            no_y_mid_flag = False
         for group in groups:
-            print(group)
             if isinstance(group, dict):
                 if 'y_mid' in group:
                     no_y_mid_flag = False
@@ -484,29 +487,42 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
     dim = []
     groups_order = []
     _cut_y_mid = False
-    for group in groups:
-        if isinstance(group, dict):
-            for key in group:
-                if key is 'y_mid':
-                    _cut_y_mid = pd.cut(ics_stack[key], group[key], labels=False)
-                    _dim_y_mid = group[key].__len__() - 1
-                    _dict_y_mid = {key: group[key]}
-                else:
-                    cuts.append(pd.cut(ics_stack[key], group[key], labels=False))
-                    dim.append(group[key].__len__() - 1)
-                    cuts_dict.update({key:group[key]})
-                    groups_order.append(key)
-        else:
-            cuts.append(group)
-            _dict = {}
-            n = 0
-            for entry in ics_stack[group].unique():
-                _dict[entry] = n
-                n += 1
-            dim.append(n)
-            cuts_dict.update({group :_dict})
-            groups_order.append(group)
-            del _dict
+
+    if isinstance(groups, dict):
+        for key in groups:
+            if key is 'y_mid':
+                _cut_y_mid = pd.cut(ics_stack[key], groups[key], labels=False)
+                _dim_y_mid = groups[key].__len__() - 1
+                _dict_y_mid = {key: groups[key]}
+            else:
+                cuts.append(pd.cut(ics_stack[key], groups[key], labels=False))
+                dim.append(groups[key].__len__() - 1)
+                cuts_dict.update({key: groups[key]})
+                groups_order.append(key)
+    else:
+        for group in groups:
+            if isinstance(group, dict):
+                for key in group:
+                    if key is 'y_mid':
+                        _cut_y_mid = pd.cut(ics_stack[key], group[key], labels=False)
+                        _dim_y_mid = group[key].__len__() - 1
+                        _dict_y_mid = {key: group[key]}
+                    else:
+                        cuts.append(pd.cut(ics_stack[key], group[key], labels=False))
+                        dim.append(group[key].__len__() - 1)
+                        cuts_dict.update({key: group[key]})
+                        groups_order.append(key)
+            else:
+                cuts.append(group)
+                _dict = {}
+                n = 0
+                for entry in ics_stack[group].unique():
+                    _dict[entry] = n
+                    n += 1
+                dim.append(n)
+                cuts_dict.update({group: _dict})
+                groups_order.append(group)
+                del _dict
     if _cut_y_mid.any():
         cuts.append(_cut_y_mid)
         dim.append(_dim_y_mid)
@@ -516,7 +532,7 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
 
     all_stat = CoreStack()
     for prop in variables:
-        logger.info('Computing statistic for %s' % prop)
+        logger.warning('Computing statistic for %s' % prop)
 
         gr = [element if isinstance(element, str) else list(element.keys())[0] for element in groups]
 
@@ -536,8 +552,9 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
         stat_var = {}
         core_var = [None for _ in range(int(np.prod(dim)))]
         _core_var_flag = True  # core name does change for different stat.
-
-        for stat in stats:
+        print(stats)
+        for stat in list(stats):
+            print(stat)
             if stat in ['sum', 'mean']:
                 func = "kgroups.loc[~kgroups['wtd_" + prop +"'].isna(), 'wtd_" + prop +"' ]." + stat + "()"
                 w_func = "kgroups.loc[~kgroups['w_" + prop + "'].isna(), 'w_" + prop + "'].sum()"
@@ -550,6 +567,8 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
 
             stat_var[stat] = np.nan * np.ones(dim)
             for k1, kgroups in data_grouped:
+                if isinstance(k1, (int, float)):
+                    k1 = [k1]
                 try:
                     stat_var[stat][tuple(np.array(k1, dtype=int))] = eval(func)
                 except Exception:
@@ -592,36 +611,40 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
 
         core_stat = CoreStack()
         # run over ndim, minus the ice thickness
-        for index in indices(dim[:-1]):
+        if len(dim) == 1:
             headers = ['y_low', 'y_mid', 'y_sup']
             stats_data = (np.array(cuts_dict['y_mid'][:-1]) + np.array(cuts_dict['y_mid'][1:])) / 2
 
             # for continuous profile
             if prop_data['y_low'].notna().all():
-                stats_data = np.vstack([np.array(cuts_dict['y_mid'][:-1]), stats_data, np.array(cuts_dict['y_mid'][1:])])
+                stats_data = np.vstack(
+                    [np.array(cuts_dict['y_mid'][:-1]), stats_data, np.array(cuts_dict['y_mid'][1:])])
             # for discontinous profile:
             else:
-                stats_data = np.vstack([[np.nan]*stats_data.__len__(), stats_data, [np.nan]*stats_data.__len__()])
+                stats_data = np.vstack([[np.nan] * stats_data.__len__(), stats_data, [np.nan] * stats_data.__len__()])
 
             # stat data by prop
-            headers.extend([prop + '_'+ stat for stat in stats + ['collection']])
-            stats_data = np.vstack([stats_data, [stat_var[stat][index] for stat in stats] + [core_var[index]]])
+            headers.extend([prop + '_' + stat for stat in stats + ['collection']])
+            stats_data = np.vstack([stats_data, [stat_var[stat] for stat in stats] + [core_var]])
             # assemble dataframe
             df = CoreStack(np.array(stats_data).transpose(), columns=headers)
 
             # number of sample
-            df[prop + '_count'] = df[prop+'_collection'].apply(lambda x: x.split(', ').__len__() if x not in [None, ''] else 0)
+            df[prop + '_count'] = df[prop + '_collection'].apply(
+                lambda x: x.split(', ').__len__() if x not in [None, ''] else 0)
 
             # define bins
             key_merge = ['y_low', 'y_mid', 'y_sup', 'v_ref', 'name']
             name = []
-            for n_index in range(0, index.__len__()):
+
+            n_index = 0
+            if not groups_order[n_index] in 'y_mid':
                 if groups_order[n_index] in cuts_dict:
                     df[groups_order[n_index]] = cuts_dict[groups_order[n_index]][index[n_index]]
                     # df[groups_order[n_index]] = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
                     key_merge.append(groups_order[n_index])
                     _name = cuts_dict[groups_order[n_index]][index[n_index]]
-                    #_name = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
+                    # _name = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
                     if isinstance(_name, str):
                         name.append(_name)
                     elif isinstance(_name, np.datetime64):
@@ -645,13 +668,70 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
             core_stat = core_stat.apply(pd.to_numeric, errors='ignore')
             if 'date' in core_stat.keys():
                 core_stat['date'] = pd.to_datetime(core_stat['date'])
+        else:
+            for index in indices(dim[:-1]):
+                headers = ['y_low', 'y_mid', 'y_sup']
+                stats_data = (np.array(cuts_dict['y_mid'][:-1]) + np.array(cuts_dict['y_mid'][1:])) / 2
+
+                # for continuous profile
+                if prop_data['y_low'].notna().all():
+                    stats_data = np.vstack(
+                        [np.array(cuts_dict['y_mid'][:-1]), stats_data, np.array(cuts_dict['y_mid'][1:])])
+                # for discontinous profile:
+                else:
+                    stats_data = np.vstack(
+                        [[np.nan] * stats_data.__len__(), stats_data, [np.nan] * stats_data.__len__()])
+
+                # stat data by prop
+                headers.extend([prop + '_' + stat for stat in stats + ['collection']])
+                stats_data = np.vstack([stats_data, [stat_var[stat][index] for stat in stats] + [core_var[index]]])
+                # assemble dataframe
+                df = CoreStack(np.array(stats_data).transpose(), columns=headers)
+
+                # number of sample
+                df[prop + '_count'] = df[prop + '_collection'].apply(
+                    lambda x: x.split(', ').__len__() if x not in [None, ''] else 0)
+
+                # define bins
+                key_merge = ['y_low', 'y_mid', 'y_sup', 'v_ref', 'name']
+                name = []
+                for n_index in range(0, index.__len__()):
+                    if groups_order[n_index] in cuts_dict:
+                        df[groups_order[n_index]] = cuts_dict[groups_order[n_index]][index[n_index]]
+                        # df[groups_order[n_index]] = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
+                        key_merge.append(groups_order[n_index])
+                        _name = cuts_dict[groups_order[n_index]][index[n_index]]
+                        # _name = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
+                        if isinstance(_name, str):
+                            name.append(_name)
+                        elif isinstance(_name, np.datetime64):
+                            name.append(pd.to_datetime(np.datetime64(_name)).strftime('%Y%m%d'))
+                        elif isinstance(_name, float):
+                            name.append(str(_name))
+                    else:
+                        df['bin_' + groups_order[n_index]] = index[n_index]
+                        key_merge.append('bin_' + groups_order[n_index])
+
+                # v_ref, variable
+                df['v_ref'] = ics_stack.v_ref.unique()[0]
+                df['name'] = '-'.join(name)
+                df['variable'] = prop
+                # assemble with existing core stat:
+                if core_stat.empty:
+                    core_stat = CoreStack(df)
+                else:
+                    core_stat = core_stat.append(df)
+
+                core_stat = core_stat.apply(pd.to_numeric, errors='ignore')
+                if 'date' in core_stat.keys():
+                    core_stat['date'] = pd.to_datetime(core_stat['date'])
 
         if all_stat.empty:
             all_stat = core_stat
         else:
             props = all_stat.get_property() + [prop]
             core_stat['variable'] = ', '.join(props)
-            all_stat = all_stat.merge(core_stat, how='outer', on=key_merge)
+            all_stat = all_stat.merge(core_stat, how='outer', on=key_merge, sort=False)
             all_stat[all_stat.variable_y.isna()] = all_stat[all_stat.variable_x.isna()]
             all_stat = all_stat.rename(columns={'variable_y': 'variable'})
             all_stat = all_stat.drop(labels=['variable_x'], axis =1)

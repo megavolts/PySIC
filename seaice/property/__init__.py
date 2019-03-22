@@ -53,6 +53,7 @@ def scale_profile(profile, h_ice_f):
         scalar, target ice thickness
     :return:
     """
+    profile = profile.copy()
 
     if profile.length.unique().size == 1 and ~np.isnan(profile.length.unique()[0]):
         h_ice = profile.length.unique()[0]
@@ -65,9 +66,10 @@ def scale_profile(profile, h_ice_f):
     r = h_ice_f / h_ice
     if r == 1:
         return profile
-    profile[['y_low', 'y_mid', 'y_sup']] = r * profile[['y_low', 'y_mid', 'y_sup']]
-    profile.length = h_ice_f
-    return profile
+    else:
+        profile.loc[:, ['y_low', 'y_mid', 'y_sup']] = r * profile[['y_low', 'y_mid', 'y_sup']]
+        profile.loc[:, 'length'] = h_ice_f
+        return profile
 
 
 def compute_phys_prop_from_core(s_profile, t_profile, si_prop, resize_core=False,

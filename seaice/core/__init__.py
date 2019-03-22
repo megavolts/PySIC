@@ -24,6 +24,7 @@ import dateutil
 import numpy as np
 import openpyxl
 import pandas as pd
+
 import seaice
 
 __all__ = ["import_ic_path", "import_ic_list", "import_ic_sourcefile", "list_ic", "list_ic_path", "make_ic_sourcefile"]
@@ -283,7 +284,7 @@ def import_ic_list(ic_list, variables=None, v_ref='top', verbose=False, drop_emp
                 ic_dict[ic_data.name] = ic_data
 
     logging.info("Import ice core lists completed")
-    if inexisting_ic_list.__len__()>0:
+    if inexisting_ic_list.__len__() > 0:
         logger.info("%s core does not exits. Removing from collection" % ', '.join(inexisting_ic_list))
 
     for ic in inexisting_ic_list:
@@ -321,7 +322,7 @@ def import_ic_sourcefile(f_path, variables=None, ic_dir=None, v_ref='top', drop_
 
 
 # read profile
-def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='top', drop_empty = True, fill_missing=False):
+def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='top', fill_missing=False):
     """
     :param ws_variable:
         openpyxl.worksheet
@@ -470,9 +471,9 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
 
         # remove variable not in variables
         if variables is not None:
-            for property in profile.get_property():
+            for property in profile.properties():
                 if property not in variables:
-                    profile.delete_property(variable)
+                    profile.delete_property(property)
 
     return profile
 
