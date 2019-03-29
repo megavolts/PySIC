@@ -154,7 +154,7 @@ def salt_s(c, t, p=10.1325, validity=True):
     return s_nacl
 
 
-def brine_density(s_nacl, t=None, method='chris'):
+def brine_density(s_b_nacl, t=None, method='chris', validity=True):
     """
         Computes density of NaCl brine from salinity
 
@@ -164,22 +164,24 @@ def brine_density(s_nacl, t=None, method='chris'):
         :return rho_nacl: ndarray, float
             Density of NaCl brine [kg/m3]
     """
-    if isinstance(s_nacl, (int, float, list)):
-        s_nacl = np.atleast_1d(s_nacl)
+    if isinstance(s_b_nacl, (int, float, list)):
+        s_b_nacl = np.atleast_1d(s_b_nacl)
     if method == 'sonke':
         a = [6.82e-7, 1.43e-4, 0.764, 999.843]
-        rho_nacl = np.polyval(a, s_nacl)
+        rho_nacl = np.polyval(a, s_b_nacl)
     else:
         if t is None:
             # logger.error('no temperature available')
             print('Temperature is expected')
             return 0
-        if (s_nacl < 10).any():
+        if (s_b_nacl < 10).any():
             # logger.error('no temperature available')
-            print('Temperature is expected')
-            return 0
+            print('Occurence of brine salinity lower than 10 ')
+            if validity:
+                print('Replace s_b_nacl < 10 by np.nan')
+                s_b_nacl[s_b_nacl < 10] = np.nan
 
-        rho_nacl = 1.000 + 0.00076 * s_nacl - 0.0004 * t
+        rho_nacl = 1.000 + 0.00076 * s_b_nacl - 0.0004 * t
         rho_nacl = 1000 * rho_nacl
 
     return rho_nacl
@@ -247,7 +249,7 @@ def brine_salinity(t, method='chris'):
     return s_b
 
 
-def brine_porosity(s, t, method='chris'):
+def brine_porosity(s, t, method='chris', validity=False):
     """
         Computes brine porosity (phi) of NaCl artificial sea ice from salinity [g / kg] and temperature [degree C]
 
@@ -283,7 +285,7 @@ def brine_porosity(s, t, method='chris'):
     rho_i = ice.density(t)
 
     # brine density
-    rho_b = brine_density(s_b, t=t, method=method)
+    rho_b = brine_density(s_b, t=t, method=method, validity=validity)
 
     phi = 1 / ((s_b / s - 1) * rho_b / rho_i + 1)
 

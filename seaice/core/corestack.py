@@ -131,7 +131,7 @@ class CoreStack(pd.DataFrame):
                     _ic.loc[(_ic.variable == vg), 'variables'] = ', '.join(new_vg)
         return pd.concat([_ic_stack, _ic], sort=False)
 
-    def section_stat(self, groups=None, variables=None, stats=('min', 'mean', 'max', 'std')):
+    def section_stat(self, groups=None, variables=None, stats=['min', 'mean', 'max', 'std']):
         """
 
         :param variables:
@@ -442,9 +442,7 @@ def grouped_stat(ics_stack, groups, variables=None, stats=None):
         variables = ics_stack.get_property()
     if not isinstance(variables, list):
         variables = [variables]
-    if stats is None:
-        stats = ['min', 'mean', 'max', 'std']
-    elif not isinstance(stats, list):
+    if not isinstance(stats, list):
         stats = [stats]
 
     for variable in variables:
@@ -552,9 +550,7 @@ def grouped_stat(ics_stack, groups, variables=None, stats=None):
         stat_var = {}
         core_var = [None for _ in range(int(np.prod(dim)))]
         _core_var_flag = True  # core name does change for different stat.
-        print(stats)
         for stat in list(stats):
-            print(stat)
             if stat in ['sum', 'mean']:
                 func = "kgroups.loc[~kgroups['wtd_" + prop +"'].isna(), 'wtd_" + prop +"' ]." + stat + "()"
                 w_func = "kgroups.loc[~kgroups['w_" + prop + "'].isna(), 'w_" + prop + "'].sum()"

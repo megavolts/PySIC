@@ -32,6 +32,7 @@ module_logger = logging.getLogger(__name__)
 
 # New version have 2019 in name
 
+variable_unit_dict = {'salinity': '(g kg$^{-1}$)'}
 
 
 
@@ -521,7 +522,8 @@ def plt_step(x, y):
     return xy
 
 
-def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=False, z_delta=0.01, every=1):
+def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=False, legend=False, z_delta=0.01,
+                 every=1):
     """
     :param ic_data:
     :param variable_dict:
@@ -558,6 +560,27 @@ def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=Fal
     if flag_number:
         variable_dict.update({'stats': 'mean'})
         ax = plot_number(ic_data, variable_dict=variable_dict, ax=ax, z_delta=0.01, every=1)
+
+    # cosmetic
+    ax.xaxis.set_label_position('top')
+    ax.axes.set_ylabel('Ice depth (m)')
+    ax.xaxis.tick_top()
+    ax.xaxis.set_label_position('top')
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.set_xlabel(variable_dict['variable'].capitalize() + ' ' + variable_unit_dict[variable_dict['variable']])
+
+    if legend:
+        from matplotlib.patches import Patch
+        from matplotlib.lines import Line2D
+
+        legend_elements = [Line2D([], [], color='blue', label='min'),
+                           Line2D([], [], color='black', label='mean'),
+                           Line2D([], [], color='red', label='max'),
+                           Patch(facecolor='grey', label='$\pm$ std dev')]
+
+        ax.legend(handles=legend_elements, loc='bottom center')
+
     return ax
 
 

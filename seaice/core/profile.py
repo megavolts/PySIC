@@ -601,16 +601,16 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                         (yx[:, 0] - y_bins[ii_bin + 1] < -TOL) & (y_bins[ii_bin + 1] - yx[:, 1] < -TOL))))
                     a = np.unique(a)
 
-                    # print('section %.4f - %.4f' %(y_bins[ii_bin], y_bins[ii_bin+1]))
-                    # print('- original section %s' % ', '.join(a.astype(str)))
-                    # for yx_a in a:
-                    #     print('\t %.4f - %.4f' % (yx[yx_a][0], yx[yx_a][1]))
+                    if DEBUG:
+                        print('target section %.4f - %.4f' % (y_bins[ii_bin], y_bins[ii_bin + 1]))
+                        print('- original section %s' % ', '.join(a.astype(str)))
 
                     if a.size != 0:
                         M = [np.nan] * (n_var)
                         L = np.zeros_like(M)
                         L_nan = np.zeros_like(M)
                         a_ii = 0
+
                         # section yx_0 < y_bins_0 < yx_1 < y_bins_1
                         if yx[a[a_ii], 0] - y_bins[ii_bin] < -TOL:
                             l = yx[a[a_ii], 1] - y_bins[ii_bin]
@@ -618,8 +618,13 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                             M = np.nansum([M, M_temp], axis=0)
                             L = np.nansum([L, l * ~np.isnan(M_temp)], axis=0)
                             L_nan = np.nansum([L, l * np.isnan(M_temp)], axis=0)
-                            # print(y_bins[ii_bin], yx[a[a_ii], 1], M_temp)
+                            if DEBUG:
+                                print('\t\t %.3f - %.3f : %.4f - %.4f :S_bin = %.3f (%.1f)' % (
+                                    y_bins[ii_bin], y_bins[ii_bin + 1],
+                                    yx[a[a_ii], 0], yx[a[a_ii], 1],
+                                    M_temp, 100 * l / (y_bins[ii_bin + 1] - y_bins[ii_bin])))
                             a_ii += 1
+
                         while ii_bin + 1 <= y_bins.shape[0] - 1 and a_ii < a.shape[0] - 1 and yx[a[a_ii], 1] - y_bins[
                             ii_bin + 1] < -TOL:
                             M_temp = yx[a[a_ii], n_s0:n_s1]
@@ -627,7 +632,10 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                             l = yx[a[a_ii], 1] - yx[a[a_ii], 0]
                             L = np.nansum([L, l * ~np.isnan(M_temp)], axis=0)
                             L_nan = np.nansum([L_nan, l * np.isnan(M_temp)], axis=0)
-                            # print(yx[a[a_ii], 0], yx[a[a_ii], 1], M_temp)
+                            if DEBUG:
+                                print('\t\t %.3f - %.3f : %.4f - %.4f :S_bin = %.3f (%.3f)' % (
+                                    y_bins[ii_bin], y_bins[ii_bin + 1], yx[a[a_ii], 0], yx[a[a_ii], 1], M_temp,
+                                    100 * l / (y_bins[ii_bin + 1] - y_bins[ii_bin])))
                             a_ii += 1
 
                         # check if a_ii-1 was not the last element of a
@@ -661,8 +669,13 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                         else:
                             y_step.append(y_bins[ii_bin])
                             y_step.append(y_bins[ii_bin + 1])
-                        x_step.append(M)
-                        w_step.append(w)
+                    else:
+                        M = np.array([np.nan] * n_var)
+                        w = np.array([0] * n_var)
+                        y_step.append(y_bins[ii_bin])
+                        y_step.append(y_bins[ii_bin + 1])
+                    x_step.append(M)
+                    w_step.append(w)
 
                 X[:, [_variable_dict[_mvar] for _mvar in mass_variable]] = np.array(x_step)
                 W[:, [_variable_dict[_mvar] for _mvar in mass_variable]] = np.array(w_step)
@@ -807,7 +820,7 @@ def set_profile_orientation(profile, v_ref):
                 new_df = pd.concat([new_df, profile.loc[profile.variable == variable, 'y_sup'].apply(lambda x: lc - x)],
                                    axis=1, sort=False)
                 new_df['v_ref'] = 'bottom'
-                profile.update(new_df, sort=False)
+                profile.update(new_df)
         else:
             logger.info('profile orientiation already set')
 
