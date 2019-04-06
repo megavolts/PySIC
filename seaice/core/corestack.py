@@ -4,10 +4,14 @@
 seaice.core.coreset.py : CoreStack class
 
 """
+import datetime as dt
 import logging
+import warnings
+
 import numpy as np
 import pandas as pd
-import datetime as dt
+
+import seaice
 from seaice.core.profile import *
 
 __name__ = "corestack"
@@ -26,6 +30,11 @@ __all__ = ["CoreStack", "stack_cores"]
 
 TOL = 1e-6
 
+essential_property = ['y_low', 'y_mid', 'y_sup', 'name', 'collection', 'comment', 'date', 'freeboard',
+                      'ice_thickness', 'length', 'snow_depth', 'v_ref', 'variable', 'weight']
+
+# enable logging module to capture warning
+logging.captureWarnings(True)
 
 class CoreStack(pd.DataFrame):
     """
@@ -53,7 +62,7 @@ class CoreStack(pd.DataFrame):
         :param profile:
         :return:
         """
-        return CoreStack(self.append(profile, sort=False))
+        return CoreStack(self.append(profile, sort=False).reset_index(drop=True))
 
     def delete_profile(self, variable_dict):
         """
@@ -63,57 +72,66 @@ class CoreStack(pd.DataFrame):
         """
         return CoreStack(delete_profile(self, variable_dict))
 
-    def add_profiles(self, ic_data):
+    def add_core(self, ic_data):
         """
         :param ic_data:
         :return:
         """
-        if ic_data.variables().size > 0:
+        if ic_data.variables():
             self.logger.info("Adding %s profiles for core %s" % (", ".join(ic_data.variables()), ic_data.name))
-            profile = ic_data.profile
-            #profile['name'] = ic_data.name
-            #profile['length'] = ic_data.length[~np.isnan(ic_data.length())].mean()
-            if ic_data.ice_thickness.__len__() == 1 and isinstance(ic_data.ice_thickness[0], (int, float)):
-                profile['ice_thickness'] = ic_data.ice_thickness[0]
+            profile = seaice.core.profile.Profile(ic_data.profile)
+            if isinstance(ic_data.ice_thickness, (int, float)):
+                profile['ice_thickness'] = ic_data.ice_thickness
             else:
                 profile['ice_thickness'] = np.nanmean(ic_data.ice_thickness)
                 logging.info("ice thickness is the mean of all not-nan ice thickness")
 
-            if ic_data.freeboard.__len__() == 1 and isinstance(ic_data.freeboard[0], (int, float)):
-                profile['freeboard'] = ic_data.freeboard[0]
+            if isinstance(ic_data.freeboard, (int, float)):
+                profile['ice_thickness'] = ic_data.freeboard
             else:
                 profile['freeboard'] = np.nanmean(ic_data.freeboard)
 
-            if ic_data.snow_depth.__len__() == 1 and isinstance(ic_data.snow_depth[0], (int, float)):
-                profile['snow_depth'] = ic_data.snow_depth[0]
+            if isinstance(ic_data.snow_depth, (int, float)):
+                profile['snow_depth'] = ic_data.snow_depth
             else:
                 profile['snow_depth'] = np.nanmean(ic_data.snow_depth)
 
             profile['date'] = ic_data.date
             profile['collection'] = ', '.join(ic_data.collection)
-            temp = self.append(profile, sort=False).reset_index(drop=True)
+            temp = self.add_profile(profile)
             return CoreStack(temp)
         else:
             return CoreStack(self)
 
-    def remove_profile_from_core(self, core, variable=None):
+    def remove_profile_from_core(self, name, variables=None):
         """
 
-        :param core:
-        :param variable:
+        :param name: name of the core
+        :param variable: variable profile to remove
         :return:
         """
-        temp = ""
-        if variable is None:
-            temp = self[self.name != core]
-        elif isinstance(variable, list):
-            for ii_variable in core:
-                temp = self[(self.name != core) & (self.variable != ii_variable)]
-        else:
-            temp = self[(self.name != core) & (self.variable != variable)]
-        return CoreStack(temp)
+        _ic_stack = self[self.name != name]
+        _ic = self[self.name == name]
 
-    def section_stat(self, groups=None, variables=None, stats=('min', 'mean', 'max', 'std')):
+        if variables is None:
+            return _ic_stack
+        elif not isinstance(variables, list):
+            variables = [variables]
+
+        for variable in variables:
+            for vg in [vg for vg in _ic.variable_groups() if variable in vg.split(', ')]:
+                if len(vg.split(', ')) == 1:
+                    _ic = _ic[_ic.variable != vg]
+                else:
+                    # set variable to np.nan
+                    _ic.loc[(_ic.variable == vg), variable] = [np.nan] * len(_ic[(_ic.variable == vg)].index)
+                    # remove variable from variables
+                    new_vg = vg.split(', ')
+                    new_vg.remove(variable)
+                    _ic.loc[(_ic.variable == vg), 'variables'] = ', '.join(new_vg)
+        return pd.concat([_ic_stack, _ic], sort=False)
+
+    def section_stat(self, groups=None, variables=None, stats=['min', 'mean', 'max', 'std']):
         """
 
         :param variables:
@@ -122,28 +140,31 @@ class CoreStack(pd.DataFrame):
         :return:
         """
 
-        return CoreStack(grouped_stat(self, groups=groups, variables=variables, stats=stats))
+        return grouped_stat(self, groups=groups, variables=variables, stats=stats)
 
-    def discretize(self, y_bins=None, y_mid=None, variables=None, display_figure=False, fill_gap=False,
-                   fill_extremity=False):
+    def discretize(self, y_bins=None, y_mid=None, display_figure=False, fill_gap=False,
+                   fill_extremity=False, variables=None):
         """
 
         :param y_bins:
         :param y_mid:
-        :param variables:
         :param display_figure:
         :param fill_extremity:
         :param fill_gap:
         :return:
         """
-        if variables is None:
-            variables = self.variable.unique().tolist()
+
+        ics_stack = self
+
+        if variables is not None:
+            from seaice.core.profile import select_variables
+            ics_stack = select_variables(ics_stack, variables)
 
         data_binned = pd.DataFrame()
-        for core in self.name.unique():
+        for core in ics_stack.get_name():
             if display_figure:
                 print(core)
-            data_binned = data_binned.append(discretize_profile(self[self.name == core], y_bins=y_bins, y_mid=y_mid, variables=variables,
+            data_binned = data_binned.append(discretize_profile(ics_stack[ics_stack.name == core], y_bins=y_bins, y_mid=y_mid,
                            display_figure=display_figure, fill_gap=fill_gap, fill_extremity=fill_extremity), sort=True)
         data_binned.reset_index(drop=True, inplace=True)
         # TODO: check that format of column match before and after discretization
@@ -165,11 +186,38 @@ class CoreStack(pd.DataFrame):
         :return:
         """
         temp = CoreStack()
-        for f_core in self.name.unique():
-            ic_data = self[self.name == f_core]
-            ic_data = set_vertical_reference(ic_data, new_v_ref=new_v_ref, h_ref=h_ref)
-            temp = temp.append(ic_data)
+        for core in self.get_name():
+            profile = seaice.core.profile.Profile(self[self.name == core].astype(seaice.core.profile.Profile()))
+            profile.set_vertical_reference(new_v_ref=new_v_ref, h_ref=h_ref)
+            temp = temp.append(profile)
         return CoreStack(temp)
+
+    def set_orientation(self, v_ref):
+        """
+
+        :param v_ref:
+        :return:
+        """
+
+        oriented_stack = CoreStack()
+
+        for hi in self.ice_thickness.unique():
+            subset = self[self.ice_thickness == hi]
+            if np.isnan(hi):
+                subset = self[self.ice_thickness.isna()]
+                for hi in subset.length.unique():
+                    _subset = subset[subset.length == hi]
+                    if not  np.isnan(hi):
+                        oriented_stack = oriented_stack.append(seaice.core.profile.set_profile_orientation(_subset, v_ref))
+                        print('NO ICE THICKNESS ' + ', '.join(_subset.names()))
+                    else:
+                        _subset = subset[subset.length.isna()]
+                        print('NO LENGTH, NO ICE THICKNESS ' + ', '.join(_subset.names()))
+            else:
+                oriented_stack = oriented_stack.append(seaice.core.profile.set_profile_orientation(subset, v_ref))
+
+
+        return CoreStack(oriented_stack)
 
     def core_in_collection(self, core):
         temp = self.loc[self.name == core, 'collection'].values
@@ -181,12 +229,219 @@ class CoreStack(pd.DataFrame):
         return sorted(col)
 
     def get_variable(self):
+        warnings.warn('get_variables() will be deprecated in next version, use variables() instead', FutureWarning)
+        variables = []
+        for var_group in self.variable.unique():
+            variables += var_group.split(', ')
+        return variables
 
-        return self.profile.variable.unique()
+    def variables(self):
+        variables = []
+        for var_group in self.variable.unique():
+            variables += var_group.split(', ')
+        return list(set(variables))
 
+    def names(self):
+        return self.name.unique()
+
+    def get_name(self):
+        warnings.warn('get_name() will be deprecated in next version, use names() instead', FutureWarning)
+        return self.name.unique()
+
+    def core_names(self):
+        logging.FutureWarning('getting deprecated and change to get_name()')
+        return self.name.unique()
+
+    def get_core_in_collection(self):
+        names = []
+        if 'collection' in self:
+            for col in self.collection.unique():
+                names.extend(col.split(', '))
+            return list(set(names))
+        else:
+            self.logger.warning('No collection in core stack')
+            return []
+
+    def delete_variable(self, variables2del):
+        """
+        :param variables2del:
+        :return:
+        """
+
+        # TODO merge with profile.delete_variables
+        if not isinstance(variables2del, list):
+            variables = [variables2del]
+        else:
+            variables = variables2del
+
+        for variable in variables:
+            if variable in self.variables():
+                # delete variable column
+                self.drop(variable, axis=1, inplace=True)
+
+                # delete associated subvariable column
+                if variable in seaice.subvariable_dict:
+                    for subvariable in seaice.subvariable_dict[variable]:
+                        self.drop(subvariable, axis=1, inplace=True)
+
+                # delete variable from variable
+                for group in self.variable.unique():
+                    new_group = group.split(', ')
+                    if variable in new_group:
+                        new_group.remove(variable)
+
+                        # if the group is empty, remove the row
+                        if len(new_group) == 0:
+                            self.drop(self[self.variable == group].index.values, inplace=True)
+                        else:
+                            self.loc[self.variable == group, 'variable'] = ', '.join(new_group)
+
+        # clean profile by removing empty column
+        self.clean_stack()
+
+    def clean_stack(self):
+        """
+
+        :return:
+        """
+        # remove all-nan variable
+        for variable in self.variables():
+            if self[variable].isna().all():
+                self.delete_variable(variable)
+
+        # clean profile by removing all-nan column
+        col = [c for c in self.columns if c not in ['y_low', 'y_mid', 'y_sup']]
+        self = pd.concat([self[['y_low', 'y_mid', 'y_sup']], self[col].dropna(axis=1, how='all')], sort=False)
+        return self
+
+    def keep_variables(self, variables2keep):
+        """
+
+        :param variables2keep:
+        :return:
+        """
+        if not isinstance(variables2keep, list):
+            variables2keep = [variables2keep]
+
+        # list variables to delete
+        variables2del = [var for var in self.variables() if var not in variables2keep]
+
+        # delete variables
+        self.delete_variable(variables2del)
+
+    def get_property(self):
+        properties = [prop for vg in self.variable.unique() for prop in vg.split(', ')]
+        return list(set(properties))
+
+    def select_property(self, vg_property=None, extra_keys=[]):
+        # TODO hard code sea ice property
+        # TODO merge with profile.select_variable
+        if vg_property is None:
+            vg_property =self.get_property()
+        elif not isinstance(vg_property, list):
+            vg_property = [vg_property]
+
+        vg_group = [vg_group for vg_group in self.variable.unique() for vg_prop in vg_group.split(', ') if vg_prop in vg_property]
+
+
+
+
+        # add property weight if it was discretized
+        keys = essential_property + [prop for prop in vg_property] + ['w_'+prop for prop in vg_property]
+
+        # add extra keys if define
+        keys = list(set([key for key in keys if key in self.keys()]+extra_keys))
+
+        # select profile
+        data_prop = self[self.variable.isin(vg_group)][keys]
+
+        # change variable:
+        for vg in vg_group:
+            new_vg = ', '.join([prop for prop in vg_property if prop in vg])
+            data_prop.loc[data_prop.variable == vg, 'variable'] = new_vg
+
+        return data_prop
+
+
+    def select_variables(self, variable, extra_keys=[]):
+        """"
+        Select variable inside corestack
+
+        """
+        select_data = pd.DataFrame()
+
+        if not isinstance(variable, list):
+            variable_group = [variable]
+        for var in variable:
+            variable_groups = [vg for vg in self.variable_groups() if var in vg]
+
+            for vg in variable_groups:
+                print(vg)
+
+        for vg in variable_group:
+            data = self[self.variable == vg]
+            select_data = select_data.append(data.select_property(extra_keys=extra_keys))
+        return select_data
+
+
+    def select_variable(self, variable_group, extra_keys=[]):
+        """"
+        Select variable group inside corestack
+
+        """
+
+        select_data = pd.DataFrame()
+
+        if not isinstance(variable_group, list):
+            variable_group = [variable_group]
+
+        for vg in variable_group:
+            data = self[self.variable == vg]
+            select_data = select_data.append(data.select_property(extra_keys=extra_keys))
+        return select_data
+
+    def delete_profile(self, variable_dict):
+        return delete_profile(self, variable_dict)
+
+    def clean(self, inplace=True):
+        if not inplace:
+            self.dropna(axis=1, how='all', inplace=False)
+        else:
+            return self.dropna(axis=1, how='all', inplace=True)
+
+    def variable_groups(self):
+        """
+        """
+        return self.variable.unique()
+    #
+    # def add_comments(self, comment, inplace=True):
+    #     """
+    #
+    #     :param comment:
+    #     :return:
+    #     """
+    #
+    #     # check if comment column is string:
+    #     if not self.comments.dtype == object:
+    #         self.comments = self.comments.astype(str)
+    #
+    #
+    #
+    #     if inplace:
+    #         self = pd.concat([self.drop('comments', axis=1),
+    #                    super(CoreStack, self).__getitem__('comments').apply(lambda x: ';'.join(filter(None, [comment] + x.split('; ')))) ], axis=1)
+    #     else:
+    #         return self['comments'] = super(CoreStack, self).__getitem__('comments').apply(lambda x: ';'.join(filter(None, [comment] + x.split('; '))))
+
+
+    @property
+    def _constructor(self):
+        return CoreStack
+
+    pass
 
 # Ice core operation
-def stack_cores(ics_dict):
+def stack_cores(ic_dict):
     """"
     :param ics_dict:
         dictionnary of core
@@ -194,20 +449,21 @@ def stack_cores(ics_dict):
         panda.DataFrame()
     """
     logger = logging.getLogger(__name__)
-    logger.info("Stacking ice cores:")
-    ics_stack = CoreStack()
-    for key in ics_dict.keys():
-        ics_stack = ics_stack.add_profiles(ics_dict[key])
-    ics_stack.reset_index(drop=True)
-    return CoreStack(ics_stack)
+    logger.info("Stacking ice cores")
+    ic_stack = CoreStack()
+    for core in ic_dict.keys():
+        print(core)
+        ic_stack = ic_stack.add_core(ic_dict[core])
+    ic_stack.reset_index(drop=True)
+    return CoreStack(ic_stack)
 
 
-def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max', 'std']):
+def grouped_stat(ics_stack, groups, variables=None, stats=None):
     """
 
     :param ics_stack:
     :param variables:
-    :param groups:
+    :param groups list of string or dictionnary:
     :param stats:
     :return:
     """
@@ -216,100 +472,129 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
 
     # function check
     if variables is None:
-        variables = ics_stack.variable.unique().tolist()
+        variables = ics_stack.get_property()
     if not isinstance(variables, list):
         variables = [variables]
     if not isinstance(stats, list):
         stats = [stats]
 
-    if 'weight' not in ics_stack:
-        ics_stack['weight'] = 1
-        logger.warning('No weight value are defined. Setting weight value to 1')
-    if ics_stack['weight'].isna().any():
-        ics_stack.loc[ics_stack['weight'].isna(), 'weight'] = 1
-        logger.warning('some weight value are not defined. Setting weight value to 1')
+    for variable in variables:
+        if 'w_'+variable not in ics_stack:
+            ics_stack['w_' + variable] = np.ones([1, len(ics_stack.index)])
+            logger.warning('No weight value are defined for %s. Setting weight value to 1' % variable)
+        if ics_stack['w_' + variable].isna().any():
+            # set w_variable to 0 if variable is nan
+            ics_stack.loc[ics_stack[variable].isna(), 'w_'+variable] = 0
+
+            # set w_variable to 1 if it exist
+            ics_stack.loc[ics_stack['w_' + variable].isna(), 'w_' + variable] = 1
+
+            logger.warning('some weight value are not defined for % s. Setting weight value to 1 if temperature exists, 0 otherway' % variable)
 
     if groups is None:
         logger.error("Grouping option cannot be empty; it should contains at least vertical section y_mid")
     else:
         no_y_mid_flag = True
+        if 'y_mid' in groups:
+            no_y_mid_flag = False
         for group in groups:
             if isinstance(group, dict):
-                for key in group:
-                    if key is 'y_mid':
-                        no_y_mid_flag = False
+                if 'y_mid' in group:
+                    no_y_mid_flag = False
+            elif 'y_mid' is groups:
+                no_y_mid_flag = False
         if no_y_mid_flag:
             logger.info("y_mid not in grouping option; try to generate y_mid from section horizon")
             try:
-                groups.append({'y_mid':sorted(pd.concat([ics_stack.y_low, ics_stack.y_sup], sort=False).dropna().unique())})
+                groups.append({'y_mid': sorted(pd.concat([ics_stack.y_low, ics_stack.y_sup], sort=False).dropna().unique())})
             except AttributeError:
                 logger.error("y_mid not in grouping option; y_mid cannot be generated from section horizon")
             else:
                 logger.info("y_mid succesfully generated from section horizon")
 
-    # generate the group for groupby function, with 'y_mid' at the end if present
+    # generate the cuts for groupby function and move 'y_mid' at the end if present
     cuts = []
-    cuts_dict = []
+    cuts_dict = {}
     dim = []
     groups_order = []
     _cut_y_mid = False
-    for group in groups:
-        if isinstance(group, dict):
-            for key in group:
-                if key is 'y_mid':
-                    _cut_y_mid = pd.cut(ics_stack[key], group[key], labels=False)
-                    _dim_y_mid = group[key].__len__() - 1
-                    _dict_y_mid = {key:group[key]}
-                else:
-                    cuts.append(pd.cut(ics_stack[key], group[key], labels=False))
-                    dim.append(group[key].__len__() - 1)
-                    cuts_dict.append(None)
-                    groups_order.append(key)
-        else:
-            cuts.append(group)
-            _dict = {}
-            n = 0
-            for entry in ics_stack[group].unique():
-                _dict[entry] = n
-                n += 1
-            dim.append(n)
-            cuts_dict.append(_dict)
-            groups_order.append(group)
+
+    if isinstance(groups, dict):
+        for key in groups:
+            if key is 'y_mid':
+                _cut_y_mid = pd.cut(ics_stack[key], groups[key], labels=False)
+                _dim_y_mid = groups[key].__len__() - 1
+                _dict_y_mid = {key: groups[key]}
+            else:
+                cuts.append(pd.cut(ics_stack[key], groups[key], labels=False))
+                dim.append(groups[key].__len__() - 1)
+                cuts_dict.update({key: groups[key]})
+                groups_order.append(key)
+    else:
+        for group in groups:
+            if isinstance(group, dict):
+                for key in group:
+                    if key is 'y_mid':
+                        _cut_y_mid = pd.cut(ics_stack[key], group[key], labels=False)
+                        _dim_y_mid = group[key].__len__() - 1
+                        _dict_y_mid = {key: group[key]}
+                    else:
+                        cuts.append(pd.cut(ics_stack[key], group[key], labels=False))
+                        dim.append(group[key].__len__() - 1)
+                        cuts_dict.update({key: group[key]})
+                        groups_order.append(key)
+            else:
+                cuts.append(group)
+                _dict = {}
+                n = 0
+                for entry in ics_stack[group].unique():
+                    _dict[entry] = n
+                    n += 1
+                dim.append(n)
+                cuts_dict.update({group: _dict})
+                groups_order.append(group)
+                del _dict
     if _cut_y_mid.any():
         cuts.append(_cut_y_mid)
         dim.append(_dim_y_mid)
-        cuts_dict.append(_dict_y_mid)
+        cuts_dict.update(_dict_y_mid)
         groups_order.append('y_mid')
-    del _cut_y_mid, _dim_y_mid, _dict_y_mid, _dict
+    del _cut_y_mid, _dim_y_mid, _dict_y_mid
 
-    temp_all = pd.DataFrame()
-    for variable in variables:
-        logger.info('computing %s' % variable)
+    all_stat = CoreStack()
+    for prop in variables:
+        logger.warning('Computing statistic for %s' % prop)
 
-        # apply weight
-        # if property weight is null, property value is set to np.nan
-        _series = pd.Series(ics_stack.loc[ics_stack.variable == variable, 'weight'] *
-                            ics_stack.loc[ics_stack.variable == variable, variable], index=ics_stack.loc[ics_stack.variable == variable].index)
-        ics_stack.loc[ics_stack.variable == variable, '_weight_property'] = _series
-        # set _weight_property to 0 if property weight is null
-        ics_stack.loc[(ics_stack.variable == variable) & (ics_stack.weight == 0), '_weight_property'] = np.nan
+        gr = [element if isinstance(element, str) else list(element.keys())[0] for element in groups]
 
-        data_grouped = ics_stack.loc[ics_stack.variable == variable].groupby(cuts)
+        prop_data = ics_stack.select_property(prop, extra_keys=gr).copy()
 
-        for stat in stats:
+        prop_data['wtd_'+prop] = prop_data['w_' + prop] * prop_data[prop]
+        # if property weight is null, weighted property is np.nan
+        prop_data.loc[prop_data['w_'+prop] == 0, 'wtd_'+prop] = np.nan
+
+        data_grouped = prop_data.groupby(cuts)
+
+        stat_var = {}
+        core_var = [None for _ in range(int(np.prod(dim)))]
+        _core_var_flag = True  # core name does change for different stat.
+        for stat in list(stats):
             if stat in ['sum', 'mean']:
-                func = "kgroups.loc[~kgroups._weight_property.isna(), '_weight_property']." + stat + "()"
+                func = "kgroups.loc[~kgroups['wtd_" + prop +"'].isna(), 'wtd_" + prop +"' ]." + stat + "()"
+                w_func = "kgroups.loc[~kgroups['w_" + prop + "'].isna(), 'w_" + prop + "'].sum()"
+                n_func = "kgroups.loc[~kgroups['wtd_" + prop + "'].isna(), 'wtd_" + prop + "'].count()"
             elif stat in ['min', 'max', 'std']:
-                func = "kgroups.loc[~kgroups._weight_property.isna(), '" + variable + "']." + stat + "()"
+                func = "kgroups.loc[~kgroups['wtd_" + prop +"'].isna(), '" + prop + "']." + stat + "()"
             else:
                 logger.error("%s operation not defined. Open a bug report" % stat)
             logger.info('\tcomputing %s' % stat)
 
-            stat_var = np.nan * np.ones(dim)
-            core_var = [None for i in range(int(np.prod(dim)))]
+            stat_var[stat] = np.nan * np.ones(dim)
             for k1, kgroups in data_grouped:
+                if isinstance(k1, (int, float)):
+                    k1 = [k1]
                 try:
-                    stat_var[tuple(np.array(k1, dtype=int))] = eval(func)
+                    stat_var[stat][tuple(np.array(k1, dtype=int))] = eval(func)
                 except Exception:
                     new_k = []
                     _k_n = 0
@@ -317,265 +602,167 @@ def grouped_stat(ics_stack, groups, variables=None, stats=['min', 'mean', 'max',
                         if isinstance(k, np.integer):
                             new_k.append(k)
                         elif isinstance(k, dt.datetime):
-                            new_k.append(cuts_dict[_k_n][np.datetime64(k, 'ns')])
+                            new_k.append(cuts_dict[groups_order[_k_n]][np.datetime64(k, 'ns')])
                         elif isinstance(k, float):
                             new_k.append(int(k))
                         else:
-                            new_k.append(cuts_dict[_k_n][k])
-                        _k_n +=1
-                    stat_var[tuple(np.array(new_k, dtype=int))] = eval(func)
-                    core_var[int(np.prod(np.array(new_k) + 1) - 1)] = ', '.join(
-                        list(kgroups.loc[~kgroups._weight_property.isna(),'name'].unique()))
-                else:
-                    core_var[int(np.prod(np.array(k1)+1)-1)] = ', '.join(list(kgroups.loc[~kgroups._weight_property.isna(),
-                                                                                          'name'].unique()))
-            core_var = np.reshape(core_var, dim)
+                            new_k.append(cuts_dict[groups_order[_k_n]][k])
+                        _k_n += 1
 
-            cuts_dict_inv = []
-            for n in range(0, cuts_dict.__len__()-1):
-                if isinstance(cuts_dict[n], dict):
-                    cuts_dict_inv.append({v: k for k, v in cuts_dict[n].items()})
-                else:
-                    cuts_dict_inv.append(cuts_dict[n])
-            cuts_dict_inv.append(cuts_dict[-1])
-
-            # run over ndim, minus the ice thickness
-            for index in indices(dim[:-1]):
-                temp = pd.DataFrame(stat_var[index], columns=[variable])
-                temp = temp.join(pd.DataFrame(core_var[index], columns=['collection']))
-                # For index not a pd.cut, change to real value
-                # replace: data = [x for x in index]+[stat, variable, ics_stack.v_ref.unique()[0]]
-
-                data = []
-                columns = []
-                for n_index in range(0, index.__len__()):
-                    if cuts_dict[n_index] is not None:
-                        data.append(cuts_dict_inv[n_index][index[n_index]])
-                        columns.append(groups_order[n_index])
-
+                    if stat in ['sum', 'mean']:
+                        # Take in account property measured only on a partial bins to computed weighted property
+                        # e.g. S measure on 2 samples
+                        # # 1 : 0-0.1, S = 10, w=1
+                        # # 2 : 0-0.1, S = 8, w=0.5
+                        # weighted mean : 0-0.1 = (10*1+8*0.5)/1.5*2
+                        wtd_stat = eval(func)
+                        w = eval(w_func)
+                        n = eval(n_func)
+                        stat_var[stat][tuple(np.array(new_k, dtype=int))] = wtd_stat * n / w
                     else:
-                        data.append(index[n_index])
-                        columns.append('bin_'+groups_order[n_index])
-                data += [stat, variable, ics_stack.v_ref.unique()[0]]
-                columns += ['stats', 'variable', 'v_ref']
+                        stat_var[stat][tuple(np.array(new_k, dtype=int))] = eval(func)
 
-                rows = np.array(temp.index.tolist())
-                temp = temp.join(pd.DataFrame([data], columns=columns, index=rows))
-
-                # number of samples
-                n = [int(temp.iloc[row]['collection'].split(', ').__len__()) if temp.iloc[row]['collection'] is not None else 0 for row in temp.index.tolist()]
-                temp = temp.join(pd.DataFrame(n, columns=['n'], index=rows))
-
-                columns = ['y_low', 'y_sup', 'y_mid']
-                t2 = pd.DataFrame(columns=columns)
-
-                # For step profile, like salinity
-                y_mid_bins = cuts_dict[-1]['y_mid']
-
-                if not ics_stack[ics_stack.variable == variable].y_low.isnull().any():
-                    for row in rows:
-                        data = [y_mid_bins[row], y_mid_bins[row + 1],
-                                (y_mid_bins[row] + y_mid_bins[row + 1]) / 2]
-                        t2 = t2.append(pd.DataFrame([data], columns=columns, index=[row]), sort=False)
-                # For linear profile, like temperature
-                elif ics_stack[ics_stack.variable == variable].y_low.isnull().all():
-                    for row in rows:
-                        data = [np.nan, np.nan, (y_mid_bins[row] + y_mid_bins[row + 1]) / 2]
-                        t2 = t2.append(pd.DataFrame([data], columns=columns, index=[row]), sort=False)
-
-                if temp_all.empty:
-                    temp_all = temp.join(t2)
+                    if _core_var_flag:
+                        core_var[int(np.prod(np.array(new_k) + 1) - 1)] = ', '.join(
+                            list(kgroups.loc[~kgroups['wtd_'+prop].isna(), 'name'].unique()))
                 else:
-                    temp_all = temp_all.append(temp.join(t2), ignore_index=True, sort=False)
-    return CoreStack(temp_all)
+                    if _core_var_flag:
+                        core_var[int(np.prod(np.array(k1)+1)-1)] = ', '.join(list(kgroups.loc[~kgroups['wtd_'+prop].isna(),
+                                                                                              'name'].unique()))
+            if _core_var_flag:
+                core_var = np.reshape(core_var, dim)
+                _core_var_flag = False
 
+        core_stat = CoreStack()
+        # run over ndim, minus the ice thickness
+        if len(dim) == 1:
+            headers = ['y_low', 'y_mid', 'y_sup']
+            stats_data = (np.array(cuts_dict['y_mid'][:-1]) + np.array(cuts_dict['y_mid'][1:])) / 2
 
-def grouped_statV2(ics_stack, groups, variables=None, stats=['min', 'mean', 'max', 'std']):
-    """
-
-    :param ics_stack:
-    :param variables:
-    :param groups:
-    :param stats:
-    :return:
-    """
-
-    logger = logging.getLogger(__name__)
-
-    # function check
-    if variables is None:
-        variables = ics_stack.variable.unique().tolist()
-    if not isinstance(variables, list):
-        variables = [variables]
-    if not isinstance(stats, list):
-        stats = [stats]
-
-    if 'weight' not in ics_stack:
-        ics_stack['weight'] = 1
-        logger.warning('No weight value are defined. Setting weight value to 1')
-    if ics_stack['weight'].isna().any():
-        ics_stack.loc[ics_stack['weight'].isna(), 'weight'] = 1
-        logger.warning('some weight value are not defined. Setting weight value to 1')
-
-    if groups is None:
-        logger.error("Grouping option are required")
-
-    # generate the group for groupby function, with 'y_mid' at the end if present
-    cuts = []
-    cuts_dict = []
-    dim = []
-    groups_order = []
-    for group in groups:
-        if isinstance(group, dict):
-            for key in group:
-                cuts.append(pd.cut(ics_stack[key], group[key], labels=False))
-                dim.append(group[key].__len__() - 1)
-                cuts_dict.append(None)
-                groups_order.append(key)
-        else:
-            cuts.append(group)
-            _dict = {}
-            n = 0
-            for entry in ics_stack[group].unique():
-                _dict[entry] = n
-                n += 1
-            dim.append(n)
-            cuts_dict.append(_dict)
-            groups_order.append(group)
-
-    temp_all = pd.DataFrame()
-    for variable in variables:
-        logger.info('computing %s' % variable)
-
-        # apply weight
-        # if property weight is null, property value is set to np.nan
-        _series = pd.Series(ics_stack.loc[ics_stack.variable == variable, 'weight'] *
-                            ics_stack.loc[ics_stack.variable == variable, variable], index=ics_stack.loc[ics_stack.variable == variable].index)
-        ics_stack.loc[ics_stack.variable == variable, '_weight_property'] = _series
-        # set _weight_property to 0 if property weight is null
-        ics_stack.loc[(ics_stack.variable == variable) & (ics_stack.weight == 0), '_weight_property'] = np.nan
-
-        data_grouped = ics_stack.loc[ics_stack.variable == variable].groupby(cuts)
-
-        for stat in stats:
-            if stat in ['sum', 'mean']:
-                func = "kgroups.loc[~kgroups._weight_property.isna(), '_weight_property']." + stat + "()"
-            elif stat in ['min', 'max', 'std']:
-                func = "kgroups.loc[~kgroups._weight_property.isna(), '" + variable + "']." + stat + "()"
+            # for continuous profile
+            if prop_data['y_low'].notna().all():
+                stats_data = np.vstack(
+                    [np.array(cuts_dict['y_mid'][:-1]), stats_data, np.array(cuts_dict['y_mid'][1:])])
+            # for discontinous profile:
             else:
-                logger.error("%s operation not defined. Open a bug report" % stat)
-            logger.info('\tcomputing %s' % stat)
+                stats_data = np.vstack([[np.nan] * stats_data.__len__(), stats_data, [np.nan] * stats_data.__len__()])
 
-            stat_var = np.nan * np.ones(dim)
-            core_var = [None for i in range(int(np.prod(dim)))]
-            for k1, kgroups in data_grouped:
-                try:
-                    stat_var[tuple(np.array(k1, dtype=int))] = eval(func)
-                except ValueError:
-                    new_k = []
-                    _k_n = 0
-                    for k in k1:
-                        if isinstance(k, np.integer):
-                            new_k.append(k)
-                        else:
-                            new_k.append(cuts_dict[_k_n][k])
-                        _k_n +=1
-                    stat_var[tuple(np.array(new_k, dtype=int))] = eval(func)
-                    core_var[int(np.prod(np.array(new_k) + 1) - 1)] = ', '.join(
-                        list(kgroups.loc[~kgroups._weight_property.isna(),'name'].unique()))
+            # stat data by prop
+            headers.extend([prop + '_' + stat for stat in stats + ['collection']])
+            stats_data = np.vstack([stats_data, [stat_var[stat] for stat in stats] + [core_var]])
+            # assemble dataframe
+            df = CoreStack(np.array(stats_data).transpose(), columns=headers)
+
+            # number of sample
+            df[prop + '_count'] = df[prop + '_collection'].apply(
+                lambda x: x.split(', ').__len__() if x not in [None, ''] else 0)
+
+            # define bins
+            key_merge = ['y_low', 'y_mid', 'y_sup', 'v_ref', 'name']
+            name = []
+
+            n_index = 0
+            if not groups_order[n_index] in 'y_mid':
+                if groups_order[n_index] in cuts_dict:
+                    df[groups_order[n_index]] = cuts_dict[groups_order[n_index]][index[n_index]]
+                    # df[groups_order[n_index]] = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
+                    key_merge.append(groups_order[n_index])
+                    _name = cuts_dict[groups_order[n_index]][index[n_index]]
+                    # _name = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
+                    if isinstance(_name, str):
+                        name.append(_name)
+                    elif isinstance(_name, np.datetime64):
+                        name.append(pd.to_datetime(np.datetime64(_name)).strftime('%Y%m%d'))
+                    elif isinstance(_name, float):
+                        name.append(str(_name))
                 else:
-                    core_var[int(np.prod(np.array(k1)+1)-1)] = ', '.join(list(kgroups.loc[~kgroups._weight_property.isna(),
-                                                                                          'name'].unique()))
-            core_var = np.reshape(core_var, dim)
+                    df['bin_' + groups_order[n_index]] = index[n_index]
+                    key_merge.append('bin_' + groups_order[n_index])
 
-            cuts_dict_inv = []
-            for n in range(0, cuts_dict.__len__()):
-                if isinstance(cuts_dict[n], dict):
-                    cuts_dict_inv.append({v: k for k, v in cuts_dict[n].items()})
+            # v_ref, variable
+            df['v_ref'] = ics_stack.v_ref.unique()[0]
+            df['name'] = '-'.join(name)
+            df['variable'] = prop
+            # assemble with existing core stat:
+            if core_stat.empty:
+                core_stat = CoreStack(df)
+            else:
+                core_stat = core_stat.append(df)
+
+            core_stat = core_stat.apply(pd.to_numeric, errors='ignore')
+            if 'date' in core_stat.keys():
+                core_stat['date'] = pd.to_datetime(core_stat['date'])
+        else:
+            for index in indices(dim[:-1]):
+                headers = ['y_low', 'y_mid', 'y_sup']
+                stats_data = (np.array(cuts_dict['y_mid'][:-1]) + np.array(cuts_dict['y_mid'][1:])) / 2
+
+                # for continuous profile
+                if prop_data['y_low'].notna().all():
+                    stats_data = np.vstack(
+                        [np.array(cuts_dict['y_mid'][:-1]), stats_data, np.array(cuts_dict['y_mid'][1:])])
+                # for discontinous profile:
                 else:
-                    cuts_dict_inv.append(cuts_dict[n])
-            cuts_dict_inv.append(cuts_dict[-1])
+                    stats_data = np.vstack(
+                        [[np.nan] * stats_data.__len__(), stats_data, [np.nan] * stats_data.__len__()])
 
-            # run over ndim, minus the ice thickness
-            for index in indices(dim):
-                print(index)
-                temp = pd.DataFrame([[stat_var[index], core_var[index]]], columns=[variable, 'collection'])
-                # For index not a pd.cut, change to real value
-                # replace: data = [x for x in index]+[stat, variable, ics_stack.v_ref.unique()[0]]
+                # stat data by prop
+                headers.extend([prop + '_' + stat for stat in stats + ['collection']])
+                stats_data = np.vstack([stats_data, [stat_var[stat][index] for stat in stats] + [core_var[index]]])
+                # assemble dataframe
+                df = CoreStack(np.array(stats_data).transpose(), columns=headers)
 
-                data = []
-                columns = []
+                # number of sample
+                df[prop + '_count'] = df[prop + '_collection'].apply(
+                    lambda x: x.split(', ').__len__() if x not in [None, ''] else 0)
+
+                # define bins
+                key_merge = ['y_low', 'y_mid', 'y_sup', 'v_ref', 'name']
+                name = []
                 for n_index in range(0, index.__len__()):
-                    if cuts_dict[n_index] is not None:
-                        data.append(cuts_dict_inv[n_index][index[n_index]])
-                        columns.append(groups_order[n_index])
+                    if groups_order[n_index] in cuts_dict:
+                        df[groups_order[n_index]] = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
+                        # df[groups_order[n_index]] = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
+                        key_merge.append(groups_order[n_index])
+                        _name = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
+                        # _name = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
+                        if isinstance(_name, str):
+                            name.append(_name)
+                        elif isinstance(_name, np.datetime64):
+                            name.append(pd.to_datetime(np.datetime64(_name)).strftime('%Y%m%d'))
+                        elif isinstance(_name, float):
+                            name.append(str(_name))
                     else:
-                        data.append(index[n_index])
-                        columns.append('bin_'+groups_order[n_index])
-                data += [stat, variable, ics_stack.v_ref.unique()[0]]
-                columns += ['stats', 'variable', 'v_ref']
+                        df['bin_' + groups_order[n_index]] = index[n_index]
+                        key_merge.append('bin_' + groups_order[n_index])
 
-                rows = np.array(temp.index.tolist())
-                temp = temp.join(pd.DataFrame([data], columns=columns, index=rows))
-
-                # number of samples
-                n = [int(temp.iloc[row]['collection'].split(', ').__len__()) if temp.iloc[row]['collection'] is not None else 0 for row in temp.index.tolist()]
-                temp = temp.join(pd.DataFrame(n, columns=['n'], index=rows))
-
-                columns = ['y_low', 'y_sup']
-                t2 = pd.DataFrame(columns=columns)
-
-                # to do y_mid not as pd.cut
-                if 'y_mid' in temp.keys():
-                    # for linear profile, like temperature:
-                    if ics_stack[ics_stack.variable == variable].y_low.isnull().any():
-                        for row in rows:
-                            data = [np.nan, np.nan]
-                            t2 = t2.append(pd.DataFrame([data], columns=columns, index=[row]))
-                        temp = temp.join(t2)
-
-                    # for step profile, like salinity:
-                    # look for y_low and y_sup variable in function of the group:
-                    else:
-                        _variable_profile = {}
-                        for group in groups:
-                            if not group is 'y_mid':
-                                _variable_profile[group] = temp['lens'].unique()[0]
-                        from seaice.core.profile import select_profile
-                        y_df = select_profile(ics_stack, _variable_profile)[['y_mid', 'y_low', 'y_sup']]
-                        y_df = y_df.drop_duplicates()
-                        for y in temp.y_mid.unique():
-                            if np.isnan(y) or y_df.loc[y_df.y_mid == y, 'y_low'].empty:
-                                temp = temp[temp.y_mid != y]
-                            else:
-                                temp.loc[temp.y_mid == y, 'y_low'] = y_df.loc[y_df.y_mid == y, 'y_low'].values
-                                temp.loc[temp.y_mid == y, 'y_sup'] = y_df.loc[y_df.y_mid == y, 'y_sup'].values
-
-                # TODO: y_mid as pd.cut
+                # v_ref, variable
+                df['v_ref'] = ics_stack.v_ref.unique()[0]
+                df['name'] = '-'.join(name)
+                df['variable'] = prop
+                # assemble with existing core stat:
+                if core_stat.empty:
+                    core_stat = CoreStack(df)
                 else:
-                    # For step profile, like salinity
-                    #
-                    y_mid_bins = cuts_dict[-1]['y_mid']
+                    core_stat = core_stat.append(df)
 
-                    if not ics_stack[ics_stack.variable == variable].y_low.isnull().any():
-                        for row in rows:
-                            data = [y_mid_bins[row], y_mid_bins[row + 1],
-                                    (y_mid_bins[row] + y_mid_bins[row + 1]) / 2]
-                            t2 = t2.append(pd.DataFrame([data], columns=columns, index=[row]))
+                core_stat = core_stat.apply(pd.to_numeric, errors='ignore')
+                if 'date' in core_stat.keys():
+                    core_stat['date'] = pd.to_datetime(core_stat['date'])
 
-                    # For linear profile, like temperature
-                    # y_mid may
-                    elif ics_stack[ics_stack.variable == variable].y_low.isnull().all():
-                        for row in rows:
-                            data = [np.nan, np.nan, (y_mid_bins[row] + y_mid_bins[row + 1]) / 2]
-                            t2 = t2.append(pd.DataFrame([data], columns=columns, index=[row]))
-                    temp = temp.join(t2)
+        if all_stat.empty:
+            all_stat = core_stat
+        else:
+            props = all_stat.get_property() + [prop]
+            core_stat['variable'] = ', '.join(props)
+            all_stat = all_stat.merge(core_stat, how='outer', on=key_merge, sort=False)
+            all_stat[all_stat.variable_y.isna()] = all_stat[all_stat.variable_x.isna()]
+            all_stat = all_stat.rename(columns={'variable_y': 'variable'})
+            all_stat = all_stat.drop(labels=['variable_x'], axis =1)
 
-                if temp_all.empty:
-                    temp_all = temp
-                else:
-                    temp_all = temp_all.append(temp, ignore_index=True)
-    return CoreStack(temp_all)
+        #all_stat = all_stat.apply(pd.to_numeric, errors='ignore')
+
+    return all_stat
 
 
 def grouped_ic(ics_stack, groups):
@@ -657,3 +844,16 @@ def indices(dim):
         else:
             for n in indices(dim[1:]):
                 yield (d,) + n
+
+
+def inverse_dict(map):
+    """
+    return the inverse of a dictionnary with non-unique values
+    :param map: dictionnary
+    :return inv_map: dictionnary
+    """
+    revdict = {}
+    for k, v in map.items():
+        revdict.setdefault(v, []).append(k)
+
+    return revdict

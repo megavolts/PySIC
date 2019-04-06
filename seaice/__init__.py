@@ -18,26 +18,24 @@ __name__ = "seaice"
 import logging
 import numpy as np
 import pandas as pd
-
 import seaice.core.corestack
 import seaice.core.plot
+import seaice.core.profile
 import seaice.property
 
-# import seaice.core.tool
-# import seaice.core.plot
-# import seaice.climatology
 import seaice.property.brine
 import seaice.property.ice
 import seaice.property.si
 import seaice.property.sw
 import seaice.property.nacl_ice
 
-#from seaice.core.corestack import CoreStack
-
 TOL = 1e-6
+subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
 
 
-class Core:
+# TODO: add function Core.check() to check the integrity of the ice core and profiles
+
+class Core():
     """
     Core
     """
@@ -54,7 +52,9 @@ class Core:
         self.__dict__.update(d)
 
     def __init__(self, name, date, origin=np.nan, lat=np.nan, lon=np.nan, ice_thickness=np.nan, freeboard=np.nan,
-                 snow_depth=np.nan):
+                 snow_depth=np.nan, *args, **kwargs):
+        super(Core, self).__init__(*args, **kwargs)
+
         """
         :param name:
             string, name of the ice core
@@ -85,7 +85,7 @@ class Core:
         self.ice_thickness = ice_thickness
         self.collection = [name]
         self.comment = None
-        self.profile = pd.DataFrame([])
+        self.profile = seaice.core.profile.Profile()
         self.t_air = np.nan
         self.t_snow_surface = np.nan
         self.t_ice_surface = np.nan
@@ -140,6 +140,8 @@ class Core:
             # add comment only if the comment is different to any other comment
             elif comment not in self.comment.split('; '):
                 self.comment += '; ' + comment
+        else:
+            self.comment = comment
 
     def length(self):
         if 'length' in self.profile:
@@ -148,10 +150,15 @@ class Core:
             return np.array([]).astype(str)
 
     def variables(self):
+        variables = []
         if 'variable' in self.profile:
-            return self.profile.variable.unique()
+            for group in self.profile.variable.unique():
+                for variable in group.split(', '):
+                    if variable not in variables:
+                        variables += [variable]
+            return variables
         else:
-            return np.array([]).astype(str)
+            return []
 
     def del_variable(self, variable):
         """
@@ -170,6 +177,29 @@ class Core:
         :return:
         """
         self.profile = self.profile[~self.profile.name.str.contains(core)]
+
+    def get_variables(self, variable):
+        """
+        :param variable:
+        :return:
+        """
+        if variable in inverse_dict(subvariable_dict):
+            sup_variable = inverse_dict(subvariable_dict)[variable]
+            group = [group for group in self.profile.variable.unique() if sup_variable in group][0]
+            data = self.profile[self.profile.variable == group].copy()
+            del_variable = [var for var in group.split(', ') if not var == variable]
+            del_variable += [subvar for var in del_variable if var in subvariable_dict
+                             for subvar in subvariable_dict[var] if not subvar == variable]
+        elif variable in self.variables():
+            group = [group for group in self.profile.variable.unique() if variable in group][0]
+            data = self.profile[self.profile.variable == group].copy()
+            del_variable = [var for var in group.split(', ') if not var == variable]
+            del_variable += [subvar for var in del_variable if var in subvariable_dict for subvar in subvariable_dict[var]]
+
+        del_keys = list(set([key for key in data.columns[data.isna().all()].tolist() if key is not variable]))
+        data = data.drop(axis=1, labels=del_keys)
+        data['variable'] = variable
+        return data
 
     def summary(self):
         """
@@ -217,9 +247,101 @@ class Core:
 
     def add_profile(self, profile):
         """
+        Add new profile to core.
+        Profile name should match core name
         :param profile:
             pd.DataFrame, profile to add
+        """
+        if self.profile.empty:
+            self.profile = profile
+        else:
+            self.profile = self.profile.add_profile(profile)
+
+    def get_property(self):
+        return self.profile.get_property()
+
+    # property
+    def ice_thickenss(self):
+        """
+            return the average ice thickenss
         :return:
         """
-        self.profile = self.profile.append(profile, sort=False)
-        self.profile.reset_index(inplace=True, drop=True)
+        if 'ice_thickness' in self.profile:
+            return np.nanmean(self.profile.length.unique())
+        else:
+            return np.array([]).astype(str)
+
+    def length(self):
+        """
+            return the average ice thickenss
+        :return:
+        """
+        if 'self' in self.profile:
+            return np.nanmean(self.profile.length.unique())
+        else:
+            return np.array([]).astype(str)
+
+
+# class ProfileV0(pd.DataFrame):
+
+#
+#     def delete_variable(self, variable):
+#         new_variables = self.get_variable()
+#         if variable in self.get_variable():
+#             print(variable)
+#             self.drop(variable, axis=1, inplace=True)
+#             new_variables.remove(variable)
+#             if variable in subvariable_dict.keys():
+#                 for _subvar in subvariable_dict[variable]:
+#                     self.drop(_subvar, axis=1, inplace=True)
+#
+#                 # write variable
+#         self['variable'] = ', '.join(new_variables)
+# #
+#     def delete_variables(self, variables):
+#         if not isinstance(variables, list):
+#             variables = [variables]
+#
+#         new_variables = self.get_variable()
+#         for variable in variables:
+#             if variable in self.get_variable():
+#                 print(variable)
+#                 self.drop(variable, axis=1, inplace=True)
+#                 new_variables.remove(variable)
+#                 if variable in subvariable_dict.keys():
+#                     for _subvar in subvariable_dict[variable]:
+#                         self.drop(_subvar, axis=1, inplace=True)
+#
+#                 # write variable
+#         self['variable'] = ', '.join(new_variables)
+#
+#     def select_variable(self, variables):
+#         select_data = pd.DataFrame()
+#         if not isinstance(variables, list):
+#             variables = [variables]
+#         for variable in variables:
+#             for group in self.variable.unique():
+#                 if variable in group.split(', '):
+#                     data = self[self.variable == group]
+#                     # check if other variable should be conserved:
+#                     del_var = [_var for _var in data.get_variable() if _var not in variables]
+#                     data.delete_variable(del_var)
+#                     data.clean()
+#                     variables.remove(variable)
+#                     select_data = select_data.append(data)
+
+
+def inverse_dict(map):
+    """
+    return the inverse of a dictionnary with non-unique values
+    :param map: dictionnary
+    :return inv_map: dictionnary
+    """
+    revdict = {}
+    for k, v in map.items():
+        if isinstance(v, list):
+            for _v in v:
+                revdict.setdefault(_v, k)
+        else:
+            revdict.setdefault(v, k)
+    return revdict

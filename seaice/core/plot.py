@@ -5,12 +5,15 @@ seaice.core.plot.py : Core and CoreStack class
 
 """
 import logging
+
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import matplotlib as mpl
 
 from seaice.core.profile import *
+from seaice.core.profile import Profile
+
 __name__ = "plot"
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -27,8 +30,15 @@ __all__ = ["plot_profile", "semilogx_profile", "plot_profile_variable", "semilog
 
 module_logger = logging.getLogger(__name__)
 
+# New version have 2019 in name
 
-def plot_profile(profile, ax=None, param_dict=None):
+variable_unit_dict = {'salinity': '(g kg$^{-1}$)'}
+
+
+
+## Old plot
+
+def plot_profileV0(profile, ax=None, param_dict=None):
     """
     :param profile:
     :param ax:
@@ -36,7 +46,44 @@ def plot_profile(profile, ax=None, param_dict=None):
     :return:
     """
 
-    variable = profile.variable.unique().tolist()
+    prop = [key for key in profile if key not in ['y_low', 'y_mid', 'y_sup']][0]
+
+    if ax is None:
+        plt.figure()
+        ax = plt.subplot(1, 1, 1)
+
+    # if profile not empty
+    if not profile.empty:
+        # step variable
+        if not profile.y_low.isnull().all():
+            x = []
+            y = []
+            for ii in profile.index.tolist():
+                y.append(profile['y_low'][ii])
+                y.append(profile['y_sup'][ii])
+                x.append(profile[prop][ii])
+                x.append(profile[prop][ii])
+
+        # continuous variable
+        else:
+            x = profile[prop].values
+            y = profile.y_mid.values
+        if param_dict is None:
+            ax.plot(x, y)
+        else:
+            ax.plot(x, y, **param_dict)
+    return ax
+
+
+def plot_profile(profile, ax=None, param_dict=None):
+    """
+    :param profile:
+    :param _ax:
+    :param param_dict:
+    :return:
+    """
+
+    variable = profile.variables()
     if variable.__len__() > 1:
         module_logger.error("more than one variable is selected")
         return 0
@@ -52,7 +99,10 @@ def plot_profile(profile, ax=None, param_dict=None):
     # if profile not empty
     if not profile.empty:
         # step variable
-        if not profile[profile.variable == variable].y_low.isnull().all():
+        if profile[profile.variable == variable].y_low.isnull().all() or 'temperature' in profile.variables()[0]:
+            x = profile[variable].values
+            y = profile.y_mid.values
+        else:
             x = []
             y = []
             for ii in profile[profile.variable == variable].index.tolist():
@@ -62,9 +112,7 @@ def plot_profile(profile, ax=None, param_dict=None):
                 x.append(profile[variable][ii])
 
         # continuous variable
-        else:
-            x = profile[variable].values
-            y = profile.y_mid.values
+
         if param_dict is None:
             ax.plot(x, y)
         else:
@@ -117,7 +165,7 @@ def semilogx_profile(profile, ax=None, param_dict=None):
     return ax
 
 
-def plot_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
+def plot_profile_variable(ic_data, variable_dict=None, ax=None, param_dict=None):
     """
     :param ic_data:
         pd.DataFrame
@@ -126,16 +174,217 @@ def plot_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
     :param param_dict:
     :return:
     """
+
+
+    if variable_dict == None:
+        variable_dict = {'variable':ic_data.variables()}
+
     if 'variable' not in variable_dict.keys():
-        module_logger.warning("a variable should be specified for plotting")
-        return 0
+        module_logger.error("a variable should be specified for plotting")
 
     profile = select_profile(ic_data, variable_dict)
     _ax = plot_profile(profile, ax=ax, param_dict=param_dict)
     return _ax
 
 
-def semilogx_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
+from seaice.core import non_float_property
+
+
+def plot_all_variable_in_stack(ic_data, variable_dict={}, ax=None, ax_dict=None, display_figure=False, param_dict={}, t_snow = False):
+    """
+    V2 : 2019-03-09
+    :param ic_data:
+        pd.DataFrame
+    :param variable_dict:
+    :param ax:
+    :param param_dict:
+    :return:
+    """
+    try:
+        ic_data = Profile(ic_data)
+    except ValueError:
+        module_logger.error('ic_data is not a Profile')
+
+    # TODO : there could be only 1 ice core
+    if len(variable_dict) == 0:
+        variable_dict = {'variable': sorted(ic_data.variables(notnan=True))}
+
+    if 'variable' not in variable_dict.keys():
+        try:
+            variable_dict.update({'variable': ic_data.variables()})
+        except:  # TODO determine error if variable dict isnot there
+            module_logger.error("a variable should be specified for plotting")
+
+    # remove variable from variable_dict if empty
+    for variable in variable_dict['variable']:
+        if ic_data[variable].isna().all():
+            variable_dict['variable'].remove(variable)
+        # remove non numeric variable:
+        elif variable in non_float_property:
+            variable_dict['variable'].remove(variable)
+
+    if len(variable_dict['variable']) == 0:
+        _, ax = plt.subplots(1, 1)
+        ax_dict = {}
+        return ax, ax_dict
+
+    if ax_dict is None:
+        ax_dict = {variable: ii for ii, variable in enumerate(variable_dict['variable'])}
+
+    if ax is None:
+        n_ax = max(len(variable_dict['variable']), len(ax_dict))
+        _, ax = plt.subplots(1, n_ax, sharey=True)
+    elif len(ax) < len(variable_dict['variable']):
+        module_logger.warning('length of ax does not match number of variable')
+
+    if not isinstance(ax, np.ndarray):
+        ax = np.array([ax])
+
+    for variable in variable_dict['variable']:
+        if variable not in ax_dict:
+            ax_dict.update({variable: max(ax_dict.keys()+1)})
+
+    cores = ic_data.name.unique()
+    cmap = plt.get_cmap('jet_r')
+    color_core = {name: cmap(float(i)/len(cores)) for i, name in enumerate(cores)}
+    for variable in variable_dict['variable']:
+        ax_n = ax_dict[variable]
+        profile = Profile(ic_data.copy())
+        profile.keep_variable(variable)
+        for core in profile.name.unique():
+            param_dict.update({'color': color_core[core]})
+            ax[ax_n] = plot_profile(profile[profile.name == core], ax=ax[ax_n], param_dict=param_dict)
+        ax[ax_n].set_xlabel(variable)
+        ax[ax_n].xaxis.set_label_position('top')
+        ax[ax_n].xaxis.tick_top()
+        ax[ax_n].spines['top'].set_visible(True)
+        ax[ax_n].spines['bottom'].set_visible(False)
+        ax[ax_n].spines['right'].set_visible(False)
+        #ax_pos = ax[ax_n].get_position().get_points()
+        #ax[ax_n].set_position(np.concatenate((ax_pos[0], ax_pos[1])))
+
+    if 'v_ref' in ic_data.columns:
+        if len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
+            ax[0].set_ylim([min(ax[0].get_ylim()), max(ax[0].get_ylim())])
+            ax[0].set_ylabel('ice thickness from ice/water inferface (m)')
+        elif len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
+            ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
+            ax[0].set_ylabel('ice thickness from ice surface(m)')
+        else:
+            ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
+            ax[0].set_ylabel('ice thickness (m)')
+    else:
+        ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
+        ax[0].set_ylabel('ice thickness (m)')
+
+    if not t_snow:
+        ax[0].set_ylim([max(ax[0].get_ylim()), 0])
+
+    if display_figure:
+        import matplotlib.lines as mlines
+        h = [mlines.Line2D([], [], color=color_core[core]) for core in cores]
+        l = list(cores)
+        if min(ax[0].get_ylim()) <= 0:
+            h += [mlines.Line2D([], [], color='k', linestyle=':')]
+            l += ['ice surface']
+            for ii, _ in enumerate(ax):
+                ax[ii].plot([min(ax[ii].get_xlim()), max(ax[ii].get_xlim())], [0, 0], 'k:')
+        ax[0].legend(h, l, loc='lower left', fancybox=True, shadow=False, frameon=True, ncol=1)
+        plt.show()
+        plt.tight_layout()
+    return ax, ax_dict
+
+
+
+def plot_all_profile_variable(ic_data, variable_dict={}, ax=None, ax_dict=None, display_figure=False, param_dict={}):
+    """
+    V2 : 2019-03-09
+    :param ic_data:
+        pd.DataFrame
+    :param variable_dict:
+    :param ax:
+    :param param_dict:
+    :return:
+    """
+    try:
+        ic_data = Profile(ic_data)
+    except ValueError:
+        module_logger.error('ic_data is not a Profile')
+
+    # TODO : there could be only 1 ice core
+    if len(variable_dict) == 0:
+        variable_dict = {'variable': sorted(ic_data.variables(notnan=True))}
+
+    if 'variable' not in variable_dict.keys():
+        try:
+            variable_dict.update({'variable': ic_data.variables()})
+        except:  # TODO determine error if variable dict isnot there
+            module_logger.error("a variable should be specified for plotting")
+
+    # remove variable from variable_dict if empty
+    for variable in variable_dict['variable']:
+        if ic_data[variable].isna().all():
+            variable_dict['variable'].remove(variable)
+
+    # remove non numeric variable:
+    for variable in variable_dict['variable']:
+        if variable in non_float_property:
+            variable_dict['variable'].remove(variable)
+
+    if len(variable_dict['variable']) == 0:
+        _, ax = plt.subplots(1, 1)
+        ax_dict = {}
+        return ax, ax_dict
+
+    if ax is None:
+        _, ax = plt.subplots(1, len(variable_dict['variable']), sharey=True)
+    elif len(ax) < len(variable_dict['variable']):
+        module_logger.warning('length of ax does not match number of variable')
+
+    if not isinstance(ax, np.ndarray):
+        ax = np.array([ax])
+
+    if ax_dict is None:
+        ax_dict = {variable_dict['variable'][ii]: ii for ii in range(0, len(ax))}
+
+
+    for variable in variable_dict['variable']:
+        ax_n = ax_dict[variable]
+        profile = Profile(ic_data.copy())
+        profile.keep_variable(variable)
+        ax[ax_n] = plot_profile(profile, ax=ax[ax_n], param_dict=param_dict)
+        ax[ax_n].set_xlabel(variable)
+        ax[ax_n].spines['top'].set_visible(False)
+        ax[ax_n].spines['right'].set_visible(False)
+        if variable + '_core' in ic_data.columns:
+            name = ic_data['temperature_core'].unique()[0]
+            if name == ic_data.name.unique()[0]:
+                name = ''
+        else:
+            name = ic_data.name.unique()[0]
+        ax[ax_n].set_title(name)
+
+    if 'v_ref' in ic_data.columns:
+        if len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
+            ax[0].set_ylim([min(ax[0].get_ylim()), max(ax[0].get_ylim())])
+            ax[0].set_ylabel('ice thickness from ice/water inferface (m)')
+        elif len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
+            ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
+            ax[0].set_ylabel('ice thickness from ice surface(m)')
+        else:
+            ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
+            ax[0].set_ylabel('ice thickness (m)')
+    else:
+        ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
+        ax[0].set_ylabel('ice thickness (m)')
+    plt.subplots_adjust(top=0.85, wspace=0.2, hspace=0.2)
+    if display_figure:
+       plt.show()
+
+    return ax, ax_dict
+
+
+def plot_stat_profile(ic_data, variable_dict, ax=None, param_dict=None):
     """
     :param ic_data:
         pd.DataFrame
@@ -145,12 +394,14 @@ def semilogx_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
     :return:
     """
     if 'variable' not in variable_dict.keys():
-        module_logger.warning("a variable should be specified for plotting")
-        return 0
+        module_logger.error("a variable should be specified for plotting")
+
+    variable_dict.pop('stats')
 
     profile = select_profile(ic_data, variable_dict)
-    ax = semilogx_profile(profile, ax=ax, param_dict=param_dict)
-    return ax
+    _ax = plot_profile(profile, ax=ax, param_dict=param_dict)
+
+    return _ax
 
 
 def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
@@ -173,13 +424,13 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
     if 'variable' not in variable_dict.keys():
         module_logger.warning("a variable should be specified for plotting")
         return 0
+    else:
+        ii_variable = variable_dict['variable']
 
-    ii_variable = variable_dict['variable']
+    _profiles = select_profile(ic_data, variable_dict)
 
-    variable_dict.update({'stats': 'mean'})
-    x_mean = select_profile(ic_data, variable_dict).reset_index()
-    variable_dict.update({'stats': 'std'})
-    x_std = select_profile(ic_data, variable_dict).reset_index()
+    x_mean = _profiles[[ii_variable+'_min', 'y_low', 'y_sup']]
+    x_std = _profiles[[ii_variable+'_std', 'y_low', 'y_sup']]
 
     if x_mean.__len__() != 0:
         if x_std.__len__() < x_mean.__len__():
@@ -190,15 +441,15 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
             y_low = x_mean['y_low']
             y_sup = x_mean['y_sup']
             y = np.concatenate((y_low.tolist(), [y_sup.tolist()[-1]]))
-            x_std_l = x_mean[ii_variable] - x_std[ii_variable]
-            x_std_h = x_mean[ii_variable] + x_std[ii_variable]
+            x_std_l = _profiles[ii_variable+'_mean'] - _profiles[ii_variable+'_std']
+            x_std_h = _profiles[ii_variable+'_mean'] + _profiles[ii_variable+'_std']
 
             x_std_l = plt_step(x_std_l.tolist(), y).transpose()
             x_std_h = plt_step(x_std_h.tolist(), y).transpose()
         elif x_mean.y_low.isnull().all():
             y_std = x_mean['y_mid']
-            x_std_l = np.array([x_mean[ii_variable] - np.nan_to_num(x_std[ii_variable]), y_std])
-            x_std_h = np.array([x_mean[ii_variable] + np.nan_to_num(x_std[ii_variable]), y_std])
+            x_std_l = np.array([_profiles[ii_variable+'_mean'] - np.nan_to_num(_profiles[ii_variable+'_std']), y_std])
+            x_std_h = np.array([_profiles[ii_variable+'_mean'] + np.nan_to_num(_profiles[ii_variable+'_std']), y_std])
 
         if 'facecolor' not in param_dict.keys():
             param_dict['facecolor'] = {'black'}
@@ -211,9 +462,55 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
     return ax
 
 
+def semilogx_profile_variable(ic_data, variable_dict, ax=None, param_dict=None):
+    """
+    :param ic_data:
+        pd.DataFrame
+    :param variable_dict:
+    :param ax:
+    :param param_dict:
+    :return:
+    """
+    if ax is None:
+        plt.figure()
+        ax = plt.subplot(1, 1, 1)
+
+    if 'variable' not in variable_dict.keys():
+        module_logger.warning("a variable should be specified for plotting")
+        return 0
+    else:
+        variable = variable_dict['variable']
+
+    profile = select_profile(ic_data, variable_dict)
+
+    # if profile not empty
+    if not profile.empty:
+        # step variable
+        if not profile.y_low.isnull().all():
+            x = []
+            y = []
+            for ii in profile.index.tolist():
+                y.append(profile['y_low'][ii])
+                y.append(profile['y_sup'][ii])
+                x.append(profile[variable][ii])
+                x.append(profile[variable][ii])
+
+        # continuous variable
+        else:
+            x = profile[variable].values
+            y = profile.y_mid.values
+
+        if param_dict is None:
+            ax.semilogx(x, y)
+        else:
+            ax.semilogx(x, y, **param_dict)
+        return ax
+    else:
+        return 0
+
+
 def semilogx_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
     """
-
     :param ic_data:
     :param variable_dict:
     :param ax:
@@ -230,15 +527,17 @@ def semilogx_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
     if 'variable' not in variable_dict.keys():
         module_logger.warning("a variable should be specified for plotting")
         return 0
+    else:
+        ii_variable = variable_dict['variable']
 
-    ii_variable = variable_dict['variable']
+    _profiles = select_profile(ic_data, variable_dict)
 
-    variable_dict.update({'stats': 'mean'})
-    x_mean = select_profile(ic_data, variable_dict).reset_index()
-    variable_dict.update({'stats': 'std'})
-    x_std = select_profile(ic_data, variable_dict).reset_index()
+    x_mean = _profiles[[ii_variable+'_mean', 'y_low', 'y_sup']]
+    x_std = _profiles[[ii_variable+'_std', 'y_low', 'y_sup']]
 
-    if x_mean.__len__() != 0:
+    # profile is not empty
+    if not x_mean.empty:
+        # x_std and x_mean same length
         if x_std.__len__() < x_mean.__len__():
             index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
             x_std = x_std.append(pd.DataFrame(np.nan, columns=x_std.columns.tolist(), index=index))
@@ -247,8 +546,8 @@ def semilogx_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
             y_low = x_mean['y_low']
             y_sup = x_mean['y_sup']
             y = np.concatenate((y_low.tolist(), [y_sup.tolist()[-1]]))
-            x_std_l = x_mean[ii_variable] - x_std[ii_variable]
-            x_std_h = x_mean[ii_variable] + x_std[ii_variable]
+            x_std_l = x_mean[ii_variable+'_mean'] - x_std[ii_variable+'_std']
+            x_std_h = x_mean[ii_variable+'_mean'] + x_std[ii_variable+'_std']
 
             index_outlier = x_std_l[(x_std_l <= 0)].index.tolist()
             for ii in index_outlier:
@@ -321,9 +620,9 @@ def plot_number(ic_data, variable_dict, ax=None, position='right', x_delta=0.1, 
         stat = 'max'
 
     depth = select_profile(ic_data, variable_dict).reset_index()['y_mid'].values
-    n = select_profile(ic_data, variable_dict).reset_index()['n'].values
+    n = select_profile(ic_data, variable_dict).reset_index()[ii_variable +'_count'].values
     variable_dict.update({'stats': stat})
-    pos = select_profile(ic_data, variable_dict).reset_index()[ii_variable].values
+    pos = select_profile(ic_data, variable_dict).reset_index()[ii_variable + '_' + stat].values
 
     # check for nan value:
     depth = depth[~np.isnan(pos)]
@@ -345,7 +644,8 @@ def plt_step(x, y):
     return xy
 
 
-def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=False, z_delta=0.01, every=1):
+def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=False, legend=False, z_delta=0.01,
+                 every=1):
     """
     :param ic_data:
     :param variable_dict:
@@ -354,23 +654,55 @@ def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=Fal
     :param param_dict:
     :return:
     """
-
     # TODO: check if all stat are present for the variable
 
-    variable_dict.update({'stats': 'min'})
+    prop = variable_dict['variable']
+
+    _profiles = select_profile(ic_data, variable_dict)
+
+    # minimum
     param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
-    ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_min']], param_dict=param_dict, ax=ax)
+
+    # mean
     variable_dict.update({'stats': 'mean'})
     param_dict.update({'color': 'k'})
-    ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_mean']], param_dict=param_dict, ax=ax)
+#    ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+
+    # maximum
     variable_dict.update({'stats': 'max'})
     param_dict.update({'color': 'r'})
-    ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
-    variable_dict.pop('stats')
-    ax = plot_mean_envelop(ic_data, variable_dict, ax=ax)
+    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_max']], param_dict=param_dict, ax=ax)
+    #ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+
+    # std/mean envelop
+    #variable_dict.pop('stats')
+    plot_mean_envelop(ic_data, variable_dict, ax=ax)
     if flag_number:
         variable_dict.update({'stats': 'mean'})
         ax = plot_number(ic_data, variable_dict=variable_dict, ax=ax, z_delta=0.01, every=1)
+
+    # cosmetic
+    ax.xaxis.set_label_position('top')
+    ax.axes.set_ylabel('Ice depth (m)')
+    ax.xaxis.tick_top()
+    ax.xaxis.set_label_position('top')
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax.set_xlabel(variable_dict['variable'].capitalize() + ' ' + variable_unit_dict[variable_dict['variable']])
+
+    if legend:
+        from matplotlib.patches import Patch
+        from matplotlib.lines import Line2D
+
+        legend_elements = [Line2D([], [], color='blue', label='min'),
+                           Line2D([], [], color='black', label='mean'),
+                           Line2D([], [], color='red', label='max'),
+                           Patch(facecolor='grey', label='$\pm$ std dev')]
+
+        ax.legend(handles=legend_elements, loc='bottom center')
+
     return ax
 
 
@@ -383,17 +715,22 @@ def plot_enveloplog(ic_data, variable_dict, ax=None, param_dict={}, flag_number=
     :return:
     """
 
+    prop = variable_dict['variable']
+
     # for log scale, replace smallest value by minimum*2
-    variable_dict.update({'stats': 'min'})
+
+    # minimum
+    variable_dict.update({'variable': prop+'_min'})
     param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
     ax = semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
-    variable_dict.update({'stats': 'mean'})
+    variable_dict.update({'variable': prop+'_mean'})
     param_dict.update({'color': 'k'})
     ax = semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
-    variable_dict.update({'stats': 'max'})
+    variable_dict.update({'variable': prop+'_max'})
     param_dict.update({'color': 'r'})
     ax = semilogx_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
-    variable_dict.pop('stats')
-    ax = semilogx_mean_envelop(ic_data, variable_dict, ax=ax)
+    # variable_dict.update({'variable': prop})
+    # param_dict = None
+    # ax = semilogx_mean_envelop(ic_data, variable_dict, ax=ax)
 
     return ax
