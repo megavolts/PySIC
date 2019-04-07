@@ -280,18 +280,19 @@ def plot_all_variable_in_stack(ic_data, variable_dict={}, ax=None, ax_dict=None,
     if not t_snow:
         ax[0].set_ylim([max(ax[0].get_ylim()), 0])
 
+    import matplotlib.lines as mlines
+    h = [mlines.Line2D([], [], color=color_core[core]) for core in cores]
+    l = list(cores)
+    if min(ax[0].get_ylim()) <= 0:
+        h += [mlines.Line2D([], [], color='k', linestyle=':')]
+        l += ['ice surface']
+        for ii, _ in enumerate(ax):
+            ax[ii].plot([min(ax[ii].get_xlim()), max(ax[ii].get_xlim())], [0, 0], 'k:')
+    ax[0].legend(h, l, loc='lower left', fancybox=True, shadow=False, frameon=True, ncol=1)
+    plt.tight_layout()
+
     if display_figure:
-        import matplotlib.lines as mlines
-        h = [mlines.Line2D([], [], color=color_core[core]) for core in cores]
-        l = list(cores)
-        if min(ax[0].get_ylim()) <= 0:
-            h += [mlines.Line2D([], [], color='k', linestyle=':')]
-            l += ['ice surface']
-            for ii, _ in enumerate(ax):
-                ax[ii].plot([min(ax[ii].get_xlim()), max(ax[ii].get_xlim())], [0, 0], 'k:')
-        ax[0].legend(h, l, loc='lower left', fancybox=True, shadow=False, frameon=True, ncol=1)
         plt.show()
-        plt.tight_layout()
     return ax, ax_dict
 
 
