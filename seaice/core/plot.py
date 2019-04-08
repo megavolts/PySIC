@@ -32,7 +32,7 @@ module_logger = logging.getLogger(__name__)
 
 # New version have 2019 in name
 
-variable_unit_dict = {'salinity': '(g kg$^{-1}$)'}
+variable_unit_dict = {'salinity': '(g kg$^{-1}$)', 'temperature': '$^\circ$C'}
 
 
 
