@@ -190,7 +190,8 @@ def plot_profile_variable(ic_data, variable_dict=None, ax=None, param_dict=None)
 from seaice.core import non_float_property
 
 
-def plot_all_variable_in_stack(ic_data, variable_dict={}, ax=None, ax_dict=None, display_figure=False, param_dict={}, t_snow = False):
+def plot_all_variable_in_stack(ic_data, variable_dict={}, ax=None, ax_dict=None, display_figure=False, param_dict={},
+                               t_snow = False):
     """
     V2 : 2019-03-09
     :param ic_data:
@@ -295,6 +296,114 @@ def plot_all_variable_in_stack(ic_data, variable_dict={}, ax=None, ax_dict=None,
         plt.show()
     return ax, ax_dict
 
+
+def plot_all_variable_in_stack_by_date(ic_data, variable_dict={}, ax=None, ax_dict=None, display_figure=False, param_dict={},
+                               t_snow = False):
+    """
+    V2 : 2019-03-09
+    :param ic_data:
+        pd.DataFrame
+    :param variable_dict:
+    :param ax:
+    :param param_dict:
+    :return:
+    """
+    try:
+        ic_data = Profile(ic_data)
+    except ValueError:
+        module_logger.error('ic_data is not a Profile')
+
+    # TODO : there could be only 1 ice core
+    if len(variable_dict) == 0:
+        variable_dict = {'variable': sorted(ic_data.variables(notnan=True))}
+
+    if 'variable' not in variable_dict.keys():
+        try:
+            variable_dict.update({'variable': ic_data.variables()})
+        except:  # TODO determine error if variable dict isnot there
+            module_logger.error("a variable should be specified for plotting")
+
+    # remove variable from variable_dict if empty
+    for variable in variable_dict['variable']:
+        if ic_data[variable].isna().all():
+            variable_dict['variable'].remove(variable)
+        # remove non numeric variable:
+        elif variable in non_float_property:
+            variable_dict['variable'].remove(variable)
+
+    if len(variable_dict['variable']) == 0:
+        _, ax = plt.subplots(1, 1)
+        ax_dict = {}
+        return ax, ax_dict
+
+    if ax_dict is None:
+        ax_dict = {variable: ii for ii, variable in enumerate(variable_dict['variable'])}
+
+    if ax is None:
+        n_ax = max(len(variable_dict['variable']), len(ax_dict))
+        _, ax = plt.subplots(1, n_ax, sharey=True)
+    elif len(ax) < len(variable_dict['variable']):
+        module_logger.warning('length of ax does not match number of variable')
+
+    if not isinstance(ax, np.ndarray):
+        ax = np.array([ax])
+
+    for variable in variable_dict['variable']:
+        if variable not in ax_dict:
+            ax_dict.update({variable: max(ax_dict.keys()+1)})
+
+    cores = ic_data.name.unique()
+    dates = ic_data.date.dt.date.unique()
+    cmap = plt.get_cmap('jet_r')
+    color_core = {name: cmap(float(i)/len(dates)) for i, name in enumerate(dates)}
+    for variable in variable_dict['variable']:
+        ax_n = ax_dict[variable]
+        profile = Profile(ic_data.copy())
+        profile.keep_variable(variable)
+        for date in dates:
+            for core in profile.loc[profile.date.dt.date == date, 'name'].unique():
+                param_dict.update({'color': color_core[date]})
+                ax[ax_n] = plot_profile(profile[profile.name == core], ax=ax[ax_n], param_dict=param_dict)
+        ax[ax_n].set_xlabel(variable)
+        ax[ax_n].xaxis.set_label_position('top')
+        ax[ax_n].xaxis.tick_top()
+        ax[ax_n].spines['top'].set_visible(True)
+        ax[ax_n].spines['bottom'].set_visible(False)
+        ax[ax_n].spines['right'].set_visible(False)
+        #ax_pos = ax[ax_n].get_position().get_points()
+        #ax[ax_n].set_position(np.concatenate((ax_pos[0], ax_pos[1])))
+
+    if 'v_ref' in ic_data.columns:
+        if len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
+            ax[0].set_ylim([min(ax[0].get_ylim()), max(ax[0].get_ylim())])
+            ax[0].set_ylabel('ice thickness from ice/water inferface (m)')
+        elif len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
+            ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
+            ax[0].set_ylabel('ice thickness from ice surface(m)')
+        else:
+            ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
+            ax[0].set_ylabel('ice thickness (m)')
+    else:
+        ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
+        ax[0].set_ylabel('ice thickness (m)')
+
+    if not t_snow:
+        ax[0].set_ylim([max(ax[0].get_ylim()), 0])
+
+    import matplotlib.lines as mlines
+    h = [mlines.Line2D([], [], color=color_core[date]) for date in dates]
+    l = list(dates)
+    if min(ax[0].get_ylim()) <= 0:
+        h += [mlines.Line2D([], [], color='k', linestyle=':')]
+        l += ['ice surface']
+        for ii, _ in enumerate(ax):
+            ax[ii].plot([min(ax[ii].get_xlim()), max(ax[ii].get_xlim())], [0, 0], 'k:')
+    ax[0].legend(h, l, loc='lower left', fancybox=True, shadow=False, frameon=True, ncol=1)
+    plt.tight_layout()
+
+    if display_figure:
+        plt.show()
+    return ax, ax_dict
 
 
 def plot_all_profile_variable(ic_data, variable_dict={}, ax=None, ax_dict=None, display_figure=False, param_dict={}):
