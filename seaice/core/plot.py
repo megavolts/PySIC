@@ -5,6 +5,7 @@ seaice.core.plot.py : Core and CoreStack class
 
 """
 import logging
+import warnings
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -33,19 +34,18 @@ module_logger = logging.getLogger(__name__)
 # New version have 2019 in name
 
 variable_unit_dict = {'salinity': '(g kg$^{-1}$)', 'temperature': '$^\circ$C'}
-
-
+TOL = 1e-12
 
 ## Old plot
 
-def plot_profileV0(profile, ax=None, param_dict=None):
+def plot_profileV0(profile, ax=None, param_dict={}):
     """
     :param profile:
     :param ax:
     :param param_dict:
     :return:
     """
-
+    warnings.warn('Deprecated, use plot_profile() instead', FutureWarning)
     prop = [key for key in profile if key not in ['y_low', 'y_mid', 'y_sup']][0]
 
     if ax is None:
@@ -68,59 +68,158 @@ def plot_profileV0(profile, ax=None, param_dict=None):
         else:
             x = profile[prop].values
             y = profile.y_mid.values
-        if param_dict is None:
-            ax.plot(x, y)
-        else:
+        if param_dict:
             ax.plot(x, y, **param_dict)
+        else:
+            ax.plot(x, y)
     return ax
 
 
-def plot_profile(profile, ax=None, param_dict=None):
+def plot_profile(profile, ax=None, param_dict={}):
     """
     :param profile:
-    :param _ax:
+    :param ax:
     :param param_dict:
     :return:
     """
 
-    variable = profile.variables()
-    if variable.__len__() > 1:
-        module_logger.error("more than one variable is selected")
-        return 0
-    elif variable.__len__() < 1:
-        module_logger.warning("no data in the profile")
-    else:
-        variable = variable[0]
+    profile = Profile(profile)
 
+    # check parameters
+    if len(profile.variables()) > 1:
+        module_logger.warning('More than one variable to plot in the profile. Using plot.profiles instead')
+        fig, ax = plot_profiles(profile, ax=ax, param_dict=param_dict)
+        return fig, ax
+    else:
+        variable = profile.variables()[0]
+        profile = profile.reset_index(drop=True)
+
+    f_axnew = False
     if ax is None:
         plt.figure()
-        ax = plt.subplot(1, 1, 1)
+        fig, ax = plt.subplots(1, 1)
+        f_axnew = True
 
     # if profile not empty
     if not profile.empty:
-        # step variable
-        if profile[profile.variable == variable].y_low.isnull().all() or 'temperature' in profile.variables()[0]:
+        # continuous variable
+        if profile.y_low.isnull().all() or variable in ['temperature']:
             x = profile[variable].values
             y = profile.y_mid.values
+
+        # step variable
         else:
+            # discard np.nan value
             x = []
             y = []
-            for ii in profile[profile.variable == variable].index.tolist():
+
+            index = profile.index.tolist()
+            index_max = max(index)
+
+            for ii in index:
                 y.append(profile['y_low'][ii])
                 y.append(profile['y_sup'][ii])
                 x.append(profile[variable][ii])
                 x.append(profile[variable][ii])
 
+                # if step profile is discontinued, filled with np.nan
+                if ii < index_max and np.abs(profile['y_sup'][ii] - profile['y_low'][ii+1]) > TOL:
+                    y.append(profile['y_sup'][ii])
+                    y.append(profile['y_low'][ii+1])
+                    x.append(np.nan)
+                    x.append(np.nan)
+
         # continuous variable
-
-        if param_dict is None:
-            ax.plot(x, y)
-        else:
+        if param_dict:
             ax.plot(x, y, **param_dict)
-    return ax
+        else:
+            ax.plot(x, y)
+
+    # label
+    ax.set_xlabel(variable + '  ' + variable_unit_dict[variable])
+
+    # aesthetic
+    ax.spines['right'].set_visible(False)
+    if profile.v_ref.unique()[0] == 'bottom':
+        ax.spines['top'].set_visible(False)
+        ax.spines['bottom'].set_visible(True)
+        ax.set_ylabel('ice thickness \n from ice/water interface(m)')
+        ax.set_ylim([min(y), max(y)])
+        ax.xaxis.set_label_position('bottom')
+        ax.xaxis.set_ticks_position('bottom')
+    else:
+        ax.spines['top'].set_visible(True)
+        ax.spines['bottom'].set_visible(False)
+        ax.xaxis.set_label_position('top')
+        ax.xaxis.set_ticks_position('top')
+        ax.set_ylabel('ice thickness \n from snow/ice interface(m)')
+        ax.set_ylim([max(y), min(y)])
+
+    if f_axnew:
+        return fig, ax
+    else:
+        return ax
 
 
-def semilogx_profile(profile, ax=None, param_dict=None):
+def plot_profiles(profiles, ax=None, param_dict={}):
+    """
+    :param profiles:
+    :param ax:
+    :param param_dict:
+    :return:
+    """
+
+    variables = sorted(profiles.variables())
+
+    f_axarray = True
+    f_axnew = False
+    if ax is None:
+        plt.figure()
+        fig, ax = plt.subplots(1, len(variables), sharey=True)
+        f_axnew = True
+    elif not isinstance(ax, np.ndarray):
+        ax = np.array([ax])
+        f_axarray = False
+        if len(ax) < len(variables):
+            module_logger.warning('Fig does not have enough subplots, regenerating subplots array')
+            plt.figure()
+            fig, ax = plt.subplots(1, len(variables), sharey=True)
+            f_axnew = True
+            f_axarray = True
+
+    n_ax = 0
+    y_max = 0
+
+    for variable in variables:
+        profile = profiles.select_variables(variable).copy()
+        ax[n_ax] = plot_profile(profile, ax=ax[n_ax], param_dict=param_dict)
+
+        # TODO: set maximum ylim as maximum value of either yaxis
+        # aesthetic
+        if n_ax > 0:
+            ax[n_ax].yaxis.label.set_visible(False)
+            ax[n_ax].yaxis.tick_left()
+
+        if y_max < max(ax[n_ax].get_ylim()):
+            y_max = max(ax[n_ax].get_ylim())
+
+        if profiles.v_ref.unique()[0] == 'top':
+            ax[n_ax].set_ylim([y_max, 0])
+        elif profiles.v_ref.unique()[0] == 'bottom':
+            ax[n_ax].set_ylim([0, y_max])
+
+        n_ax += 1
+
+    if f_axnew:
+        return fig, ax
+    else:
+        if f_axarray:
+            return ax
+        else:
+            return ax[0]
+
+
+def semilogx_profile(profile, ax=None, param_dict={}):
     """
     :param profile:
     :param ax:
@@ -165,7 +264,7 @@ def semilogx_profile(profile, ax=None, param_dict=None):
     return ax
 
 
-def plot_profile_variable(ic_data, variable_dict=None, ax=None, param_dict=None):
+def plot_profile_variable(ic_data, variable_dict=None, ax=None, param_dict={}):
     """
     :param ic_data:
         pd.DataFrame
@@ -174,15 +273,16 @@ def plot_profile_variable(ic_data, variable_dict=None, ax=None, param_dict=None)
     :param param_dict:
     :return:
     """
-
-
     if variable_dict == None:
         variable_dict = {'variable':ic_data.variables()}
 
     if 'variable' not in variable_dict.keys():
         module_logger.error("a variable should be specified for plotting")
 
-    profile = select_profile(ic_data, variable_dict)
+    ic_data = Profile(ic_data)
+    profile = ic_data.select_variables(variable_dict['variable'])
+
+    #profile = select_profile(ic_data, variable_dict)
     _ax = plot_profile(profile, ax=ax, param_dict=param_dict)
     return _ax
 
@@ -406,90 +506,100 @@ def plot_all_variable_in_stack_by_date(ic_data, variable_dict={}, ax=None, ax_di
     return ax, ax_dict
 
 
-def plot_all_profile_variable(ic_data, variable_dict={}, ax=None, ax_dict=None, display_figure=False, param_dict={}):
+def plot_profile_ordered(profiles, ax=None, ax_dict=None, display_figure=False, param_dict={}):
     """
     V2 : 2019-03-09
-    :param ic_data:
-        pd.DataFrame
-    :param variable_dict:
+    :param profiles:
     :param ax:
     :param param_dict:
     :return:
     """
     try:
-        ic_data = Profile(ic_data)
+        profiles = Profile(profiles)
     except ValueError:
         module_logger.error('ic_data is not a Profile')
 
-    # TODO : there could be only 1 ice core
-    if len(variable_dict) == 0:
-        variable_dict = {'variable': sorted(ic_data.variables(notnan=True))}
+    variables = sorted(profiles.variables())
 
-    if 'variable' not in variable_dict.keys():
-        try:
-            variable_dict.update({'variable': ic_data.variables()})
-        except:  # TODO determine error if variable dict isnot there
-            module_logger.error("a variable should be specified for plotting")
-
-    # remove variable from variable_dict if empty
-    for variable in variable_dict['variable']:
-        if ic_data[variable].isna().all():
-            variable_dict['variable'].remove(variable)
-
-    # remove non numeric variable:
-    for variable in variable_dict['variable']:
-        if variable in non_float_property:
-            variable_dict['variable'].remove(variable)
-
-    if len(variable_dict['variable']) == 0:
+    if len(variables) == 0:
         _, ax = plt.subplots(1, 1)
         ax_dict = {}
         return ax, ax_dict
 
+    # ax should be an array
+    f_axarray = True
+    f_axnew = False
     if ax is None:
-        _, ax = plt.subplots(1, len(variable_dict['variable']), sharey=True)
-    elif len(ax) < len(variable_dict['variable']):
-        module_logger.warning('length of ax does not match number of variable')
-
+        plt.figure()
+        fig, ax = plt.subplots(1, len(variables), sharey=True)
+        f_axnew = True
     if not isinstance(ax, np.ndarray):
         ax = np.array([ax])
+        f_axarray = False
+        if len(ax) < len(variables):
+            module_logger.warning('Fig does not have enough subplots, regenerating subplots array')
+            plt.figure()
+            fig, ax = plt.subplots(1, len(variables), sharey=True)
+            f_axnew = True
+            f_axarray = True
 
     if ax_dict is None:
-        ax_dict = {variable_dict['variable'][ii]: ii for ii in range(0, len(ax))}
+        ax_dict = {variables[ii]: ii for ii in range(0, len(ax))}
 
+    for variable in variables:
+        if variable not in ax_dict:
+            ax_dict[variable] = max(list(ax_dict.values()))+1
 
-    for variable in variable_dict['variable']:
-        ax_n = ax_dict[variable]
-        profile = Profile(ic_data.copy())
-        profile.keep_variable(variable)
-        ax[ax_n] = plot_profile(profile, ax=ax[ax_n], param_dict=param_dict)
-        ax[ax_n].set_xlabel(variable)
-        ax[ax_n].spines['top'].set_visible(False)
-        ax[ax_n].spines['right'].set_visible(False)
-        if variable + '_core' in ic_data.columns:
-            name = ic_data['temperature_core'].unique()[0]
-            if name == ic_data.name.unique()[0]:
+    y_max = 0
+    for variable in ax_dict:
+        n_ax = ax_dict[variable]
+        profiles = profiles.copy()
+        profile = profiles.select_variables(variable)
+
+        profile = profile.loc[profile.variable.notnull()]  # remove all nan value
+
+        ax[n_ax] = plot_profile(profile, ax=ax[n_ax], param_dict=param_dict)
+
+        if variable + '_core' in profile.columns:
+            name = profile[variable + '_core'].unique()[0]
+            if name == profile.names():
                 name = ''
         else:
-            name = ic_data.name.unique()[0]
-        ax[ax_n].set_title(name)
+            name = profile.names()
+        ax[n_ax].set_title(name)
 
-    if 'v_ref' in ic_data.columns:
-        if len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
-            ax[0].set_ylim([min(ax[0].get_ylim()), max(ax[0].get_ylim())])
+        if n_ax > 0:
+            ax[n_ax].yaxis.label.set_visible(False)
+
+        if y_max < max(ax[n_ax].get_ylim()):
+            y_max = max(ax[n_ax].get_ylim())
+
+    y_min = min(profile['y_mid'].min(), profile['y_low'].min())
+    if 'v_ref' in profiles.columns:
+        if len(profiles.v_ref.unique()) == 1 and profiles.v_ref.unique()[0] == 'bottom':
+            ax[0].set_ylim([y_min, y_max])
             ax[0].set_ylabel('ice thickness from ice/water inferface (m)')
-        elif len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
-            ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
-            ax[0].set_ylabel('ice thickness from ice surface(m)')
+        elif len(profiles.v_ref.unique()) == 1 and profiles.v_ref.unique()[0] == 'top':
+            ax[0].set_ylim([y_max, y_min])
+            ax[0].set_ylabel('ice thickness from snow/ice inferface (m)')
         else:
-            ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
+            ax[0].set_ylim([y_max, y_min])
             ax[0].set_ylabel('ice thickness (m)')
     else:
-        ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
+        ax[0].set_ylim([y_max, y_min])
         ax[0].set_ylabel('ice thickness (m)')
-    plt.subplots_adjust(top=0.85, wspace=0.2, hspace=0.2)
+
+    #plt.subplots_adjust(top=0.85, wspace=0.2, hspace=0.2)
     if display_figure:
        plt.show()
+
+    if f_axnew:
+        return fig, ax, ax_dict
+    else:
+        if f_axarray:
+            return ax, ax_dict
+        else:
+            return ax[0], ax_dict
 
     return ax, ax_dict
 
@@ -514,7 +624,7 @@ def plot_stat_profile(ic_data, variable_dict, ax=None, param_dict=None):
     return _ax
 
 
-def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
+def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict={}):
     """
 
     :param ic_data:
@@ -528,38 +638,37 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
         plt.figure()
         ax = plt.subplot(1, 1, 1)
 
-    if param_dict is None:
-        param_dict = {}
-
     if 'variable' not in variable_dict.keys():
         module_logger.warning("a variable should be specified for plotting")
         return 0
     else:
-        ii_variable = variable_dict['variable']
+        variable = variable_dict['variable']
 
-    _profiles = select_profile(ic_data, variable_dict)
+    ic_data = Profile(ic_data)
+    _profiles = ic_data.select_variables(variable)
 
-    x_mean = _profiles[[ii_variable+'_min', 'y_low', 'y_sup']]
-    x_std = _profiles[[ii_variable+'_std', 'y_low', 'y_sup']]
+    x_mean = _profiles[[variable+'_mean', 'y_low', 'y_sup', 'y_mid']].astype(float)
+    x_std = _profiles[[variable+'_std', 'y_low', 'y_sup', 'y_mid']].astype(float)
 
     if x_mean.__len__() != 0:
         if x_std.__len__() < x_mean.__len__():
             index = [ii for ii in x_mean.index.tolist() if ii not in x_std.index.tolist()]
             x_std = x_std.append(pd.DataFrame(np.nan, columns=x_std.columns.tolist(), index=index))
 
-        if not x_mean.y_low.isnull().all():
+
+        if x_mean.y_low.isnull().all() or variable in ['temperature']:
+            y_std = x_mean['y_mid']
+            x_std_l = np.array([x_mean[variable+'_mean'] - np.nan_to_num(x_std[variable+'_std']), y_std])
+            x_std_h = np.array([x_mean[variable+'_mean'] + np.nan_to_num(x_std[variable+'_std']), y_std])
+        else:
             y_low = x_mean['y_low']
             y_sup = x_mean['y_sup']
             y = np.concatenate((y_low.tolist(), [y_sup.tolist()[-1]]))
-            x_std_l = _profiles[ii_variable+'_mean'] - _profiles[ii_variable+'_std']
-            x_std_h = _profiles[ii_variable+'_mean'] + _profiles[ii_variable+'_std']
+            x_std_l = x_mean[variable+'_mean'] - x_std[variable+'_std']
+            x_std_h = x_mean[variable+'_mean'] + x_std[variable+'_std']
 
             x_std_l = plt_step(x_std_l.tolist(), y).transpose()
             x_std_h = plt_step(x_std_h.tolist(), y).transpose()
-        elif x_mean.y_low.isnull().all():
-            y_std = x_mean['y_mid']
-            x_std_l = np.array([_profiles[ii_variable+'_mean'] - np.nan_to_num(_profiles[ii_variable+'_std']), y_std])
-            x_std_h = np.array([_profiles[ii_variable+'_mean'] + np.nan_to_num(_profiles[ii_variable+'_std']), y_std])
 
         if 'facecolor' not in param_dict.keys():
             param_dict['facecolor'] = {'black'}
@@ -569,6 +678,7 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
             param_dict['label'] = str(r"$\pm$" + "std dev")
         ax.fill_betweenx(x_std_l[1, :], x_std_l[0, :], x_std_h[0, :], facecolor='black', alpha=0.2,
                          label=param_dict['label'])
+
     return ax
 
 
@@ -754,10 +864,10 @@ def plt_step(x, y):
     return xy
 
 
-def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=False, legend=False, z_delta=0.01,
+def plot_envelop(ic_stat, variable_dict, ax=None, param_dict={}, flag_number=False, legend=False, z_delta=0.01,
                  every=1):
     """
-    :param ic_data:
+    :param ic_stat:
     :param variable_dict:
         contains variable to plot at least
     :param ax:
@@ -766,32 +876,41 @@ def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=Fal
     """
     # TODO: check if all stat are present for the variable
 
-    prop = variable_dict['variable']
+    if ax is None:
+        plt.figure()
+        ax = plt.subplot(1, 1, 1)
 
-    _profiles = select_profile(ic_data, variable_dict)
+    ic_stat = Profile(ic_stat)
+
+    # select everything with temperature
+    prop = variable_dict['variable']
+    profile = ic_stat.select_variables(prop)
 
     # minimum
-    param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
-    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_min']], param_dict=param_dict, ax=ax)
+    param_dict.update({'linewidth': 2, 'linestyle': '-', 'color': 'b', 'label': 'min'})
+    _p = profile[['y_low', 'y_mid', 'y_sup', prop + '_min', 'variable', 'v_ref']]
+    _p = _p.rename(columns={prop + '_min': prop}).copy()
+    ax = plot_profile(_p, param_dict=param_dict, ax=ax)
 
     # mean
+    param_dict.update({'linewidth': 2, 'linestyle': '-', 'color': 'k'})
     variable_dict.update({'stats': 'mean'})
-    param_dict.update({'color': 'k'})
-    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_mean']], param_dict=param_dict, ax=ax)
-#    ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    _p = profile[['y_low', 'y_mid', 'y_sup', prop + '_mean', 'variable', 'v_ref']]
+    _p = _p.rename(columns={prop + '_mean': prop}).copy()
+    ax = plot_profile(_p, param_dict=param_dict, ax=ax)
 
     # maximum
     variable_dict.update({'stats': 'max'})
-    param_dict.update({'color': 'r'})
-    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_max']], param_dict=param_dict, ax=ax)
-    #ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
+    param_dict.update({'linewidth': 2, 'linestyle': '-', 'color': 'r'})
+    _p = profile[['y_low', 'y_mid', 'y_sup', prop + '_max', 'variable', 'v_ref']]
+    _p = _p.rename(columns={prop + '_max': prop}).copy()
+    ax = plot_profile(_p, param_dict=param_dict, ax=ax)
 
     # std/mean envelop
-    #variable_dict.pop('stats')
-    plot_mean_envelop(ic_data, variable_dict, ax=ax)
+    plot_mean_envelop(ic_stat, variable_dict, ax=ax)
     if flag_number:
         variable_dict.update({'stats': 'mean'})
-        ax = plot_number(ic_data, variable_dict=variable_dict, ax=ax, z_delta=0.01, every=1)
+        ax = plot_number(ic_stat, variable_dict=variable_dict, ax=ax, z_delta=0.01, every=1)
 
     # cosmetic
     ax.xaxis.set_label_position('top')

@@ -16,11 +16,13 @@ __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 __name__ = "seaice"
 
 import logging
+import warnings
 import numpy as np
 import pandas as pd
+
 import seaice.core.corestack
-import seaice.core.plot
 import seaice.core.profile
+import seaice.core.plot
 import seaice.property
 
 import seaice.property.brine
@@ -28,6 +30,9 @@ import seaice.property.ice
 import seaice.property.si
 import seaice.property.sw
 import seaice.property.nacl_ice
+
+from seaice.core.profile import Profile
+from seaice.core.corestack  import CoreStack
 
 TOL = 1e-6
 subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
@@ -280,55 +285,6 @@ class Core():
             return np.nanmean(self.profile.length.unique())
         else:
             return np.array([]).astype(str)
-
-
-# class ProfileV0(pd.DataFrame):
-
-#
-#     def delete_variable(self, variable):
-#         new_variables = self.get_variable()
-#         if variable in self.get_variable():
-#             print(variable)
-#             self.drop(variable, axis=1, inplace=True)
-#             new_variables.remove(variable)
-#             if variable in subvariable_dict.keys():
-#                 for _subvar in subvariable_dict[variable]:
-#                     self.drop(_subvar, axis=1, inplace=True)
-#
-#                 # write variable
-#         self['variable'] = ', '.join(new_variables)
-# #
-#     def delete_variables(self, variables):
-#         if not isinstance(variables, list):
-#             variables = [variables]
-#
-#         new_variables = self.get_variable()
-#         for variable in variables:
-#             if variable in self.get_variable():
-#                 print(variable)
-#                 self.drop(variable, axis=1, inplace=True)
-#                 new_variables.remove(variable)
-#                 if variable in subvariable_dict.keys():
-#                     for _subvar in subvariable_dict[variable]:
-#                         self.drop(_subvar, axis=1, inplace=True)
-#
-#                 # write variable
-#         self['variable'] = ', '.join(new_variables)
-#
-#     def select_variable(self, variables):
-#         select_data = pd.DataFrame()
-#         if not isinstance(variables, list):
-#             variables = [variables]
-#         for variable in variables:
-#             for group in self.variable.unique():
-#                 if variable in group.split(', '):
-#                     data = self[self.variable == group]
-#                     # check if other variable should be conserved:
-#                     del_var = [_var for _var in data.get_variable() if _var not in variables]
-#                     data.delete_variable(del_var)
-#                     data.clean()
-#                     variables.remove(variable)
-#                     select_data = select_data.append(data)
 
 
 def inverse_dict(map):

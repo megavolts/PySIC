@@ -12,7 +12,7 @@ import pandas as pd
 
 import seaice
 
-__name__ = "profile"
+__name__ = "seaice"
 __author__ = "Marc Oggier"
 __license__ = "GPL"
 __version__ = "1.1"
@@ -24,12 +24,13 @@ __date__ = "2017/09/13"
 __comment__ = "profile.py contained function to handle property profile"
 __CoreVersion__ = 1.1
 
-__all__ = ["Profile", "discretize_profile", "select_profile", "delete_profile", "uniformize_section"]
+__all__ = ["discretize_profile", "select_profile", "delete_profile", "uniformize_section"]
 
 TOL = 1e-6
 subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
 continuous_variable_list = ['temperature']
 DEBUG = False
+import warnings
 
 class Profile(pd.DataFrame):
     """
@@ -49,31 +50,7 @@ class Profile(pd.DataFrame):
         super(Profile, self).__init__(*args, **kwargs)
         self.logger = logging.getLogger(__name__)
 
-    def get_property(self):
-        """
-        Return physical properties stored in the profiles
-
-        :return: str, list
-            List of property or None if there is no property stored in the profile
-        """
-
-        return self.properties()
-
-    def properties(self):
-        """
-
-        :return:
-        """
-        if 'variable' not in self.keys():
-            return None
-        else:
-            property = []
-            for var_group in self.variable.unique():
-                property += list(filter(None, var_group.split(', ')))
-            return list(set(property))
-
-
-    def get_name(self):
+    def names(self):
         """
         Return the core name of the profile
 
@@ -82,8 +59,10 @@ class Profile(pd.DataFrame):
         self.logger = logging.getLogger(__name__)
         name = self.name.unique()
         if name.__len__() > 1:
-            self.logger.warning(' %s more than one name in the profile: %s ' % (name[0], ', '.join(name)))
-        return self.name.unique()[0]
+            self.logger.error(' %s more than one name in the profile: %s ' % (name[0], ', '.join(name)))
+            return name
+        else:
+            return name[0]
 
     def clean(self, inplace=True):
         """
@@ -223,43 +202,31 @@ class Profile(pd.DataFrame):
         # delete variables
         self.remove_variable(variables2remove)
 
+    def remove_variable(self, variable2remove):
+        warnings.warn('Deprecated: use remove_variables() instead')
 
-    def remove_variable(self, variables2remove):
+        return self.remove_variables(variable2remove)
+
+    def remove_variables(self, variables2remove, clean=False):
         """
         :param variables2del:
         :return:
         """
 
-        # TODO merge with profile.delete_variables
-        if not isinstance(variables2remove, list):
-            variables = [variables2remove]
-        else:
-            variables = variables2remove
+        new_profile = delete_variables(self, variables2remove)
 
-        for variable in variables:
-            if variable in self.variables():
-                # delete variable column
-                self.drop(variable, axis=1, inplace=True)
+        if clean:
+            new_profile.clean()
 
-                # delete associated subvariable column
-                if variable in seaice.subvariable_dict:
-                    for subvariable in seaice.subvariable_dict[variable]:
-                        self.drop(subvariable, axis=1, inplace=True)
+        return new_profile
 
-                # delete variable from variable
-                for group in self.variable.unique():
-                    new_group = group.split(', ')
-                    if variable in new_group:
-                        new_group.remove(variable)
+    def select_variables(self, variables, clean=False):
+        new_profile = select_variables(self, variables)
 
-                        # if the group is empty, remove the row
-                        if len(new_group) == 0:
-                            self.drop(self[self.variable == group].index.values, inplace=True)
-                        else:
-                            self.loc[self.variable == group, 'variable'] = ', '.join(new_group)
+        if clean:
+            new_profile.clean()
 
-        # clean profile by removing empty column
-        self.clean()
+        return new_profile
 
     def clean(self):
         """
@@ -270,10 +237,38 @@ class Profile(pd.DataFrame):
         for variable in self.variables():
             if self[variable].isna().all():
                 self.remove_variable(variable)
-        # clean profile by removing all-nan column
+
+        # clean profile by removing all-nan column but keep essential column
         col = [c for c in self.columns if c not in ['y_low', 'y_mid', 'y_sup']]
         self = pd.concat([self[['y_low', 'y_mid', 'y_sup']], self[col].dropna(axis=1, how='all')], sort=False, axis=1)
         return self
+
+    def verifiy_integrity(self):
+
+        # check unicity of name
+        if isinstance(self.names(), list):
+            # test
+            print('NOT')
+
+
+    # PROPERTY
+    def hi(self, get_max=False, get_all=False):
+        """
+        Return average, max ice thickness
+        :return:
+        """
+
+        #TODO: only get_max or get_all can be true
+
+        if 'ice_thickness' not in self.columns:
+            hi = np.nan
+        else:
+            hi = self.ice_thickness.unique()
+            if get_max :
+                hi = np.nanmax(hi)
+            elif not get_all:
+                hi = np.nanmean(hi)
+        return hi
 
     @property
     def _constructor(self):
@@ -282,13 +277,41 @@ class Profile(pd.DataFrame):
     # DEPRECATED
     def get_variable(self):
         self.logger = logging.getLogger(__name__)
-        self.logger.warning('get_variable is deprecated. Use get_property')
-        return self.get_property()
+        self.logger.warning('get_variable is deprecated. Use .variables')
+        return self.variables()
 
+    def get_property(self):  # DEPRECATED
+        """
+        Return physical properties stored in the profiles
 
-def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, fill_gap=False, fill_extremity=False, save_fig=False):
+        :return: str, list
+            List of property or None if there is no property stored in the profile
+        """
+        warnings.warn('Deprecated, use .variables() instead', FutureWarning)
+        return self.variables()
+
+    def properties(self):  # DEPRECATED
+        """
+
+        :return:
+        """
+        warnings.warn('Deprecated, use .variables() instead', FutureWarning)
+        return self.variables()
+
+    def get_name(self):  # DEPRECATED
+        """
+        Return the core name of the profile
+
+        :return name: string
+        """
+        warnings.warn('Deprecated, use .names() instead', FutureWarning)
+        return self.names()
+
+    pass
+
+def discretize_profile(profiles, y_bins=None, y_mid=None, display_figure=False, fill_gap=False, fill_extremity=False):
     """
-    :param profile:
+    :param profiles:
     :param y_bins:
     :param y_mid:
     :param display_figure: boolean, default False
@@ -301,24 +324,25 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
     # TODO conductivity cannot be discretized as it's temperature non linearly dependant of the measurement temperature,
     # unless temperature profile of measurement temperature is isotherm.
 
-    profile = Profile(profile)
+    profiles = Profile(profiles)
 
     logger = logging.getLogger(__name__)
 
-    if profile.empty:
-        logger.warning("Discretization impossible, empty profile")
+    # TODO: check profile consistency on columns which are not varibale
+    if profiles.empty:
+        logger.warning("Empty profile %s are impossible to discretize" % profiles.names()[0])
     else:
-        if 'name' in profile.keys():
-            logger.info("Processing %s" % profile.name.unique()[0])
+        if 'name' in profiles.keys():
+            logger.info("Processing %s" % profiles.names()[0])
         else:
             logger.info("Processing core")
 
-    v_ref = profile.v_ref.unique()[0]
+    v_ref = profiles.v_ref.unique()[0]
 
     # VARIABLES CHECK
     if y_bins is None and y_mid is None:
-        y_bins = pd.Series(profile.y_low.dropna().tolist() + profile.y_sup.dropna().tolist()).sort_values().unique()
-        y_mid = profile.y_mid.dropna().sort_values().unique()
+        y_bins = pd.Series(profiles.y_low.dropna().tolist() + profiles.y_sup.dropna().tolist()).sort_values().unique()
+        y_mid = profiles.y_mid.dropna().sort_values().unique()
         logger.info("y_bins and y_mid are empty, creating from profile")
     elif y_bins is None and y_mid is not None:
             logger.info("y_bins is empty, creating from given y_mid")
@@ -337,61 +361,61 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
     # Discretized Profile:
     discretized_profile = Profile()
 
-    #TODO : discretization for temperature by interpolation
-    # 2019-03-08: loop over the variable not the variable groups
-    for _variable in profile.variables():
-        var0 = [_variable]
-        # select variable
-        _profile = Profile(profile.loc[profile.variable.str.contains(_variable)])
+    if DEBUG:
+        import pdb
 
-        if not isinstance(_variable, list):
-            _variable = [_variable]
+    #TODO : discretization for temperature by interpolation
+    for variable in profiles.variables():
+        if not isinstance(variable, list):
+            variable = [variable]
 
         # check if _variable have dependent variable
-        if _variable[0] in subvariable_dict:
-            _variable.extend(subvariable_dict[_variable[0]])
+        if variable[0] in subvariable_dict:
+            variable.extend(subvariable_dict[variable[0]])
 
-        _del_variables = [var for var in _profile.variables() if var not in _variable]
+
+        _del_variables = [var for var in profiles.variables() if var not in variable]
+
         # drop all variables which are not _variable
-        _profile.keep_variable(_variable)
+        profile = profiles.select_variables(variable)
 
         # TODO if 'temperature' goes to continue
-        if _profile.empty:
+        if profile.empty:
             temp = pd.DataFrame()
 
-        elif is_continuous(_profile):
-            yx = _profile[['y_mid'] + _variable].set_index('y_mid').sort_index()
-            y2 = y_mid
+        elif is_continuous(profile):
+            yx = profile[['y_mid'] + variable].set_index('y_mid').sort_index()
+            y2 = y_mid[y_mid < yx.index.max()]
 
             # drop all np.nan columns
             # yx = yx.dropna(axis=1, how='all').astype(float)
             # _variables_notna = yx.keys().tolist()
             # yx = yx.dropna(axis=0, subset=['y_low', 'y_sup'], thresh=2).values
 
-            x2 = np.array([np.interp(y2, yx.index, yx[_var], left=np.nan, right=np.nan) for _var in _variable])
+            x2 = np.array([np.interp(y2, yx.index, yx[_var], left=np.nan, right=np.nan) for _var in variable])
 
-            y2x = pd.DataFrame(x2.transpose(), columns=_variable, index=y2)
+            y2x = pd.DataFrame(x2.transpose(), columns=variable, index=y2)
             for index in yx.index:
-                y2x.loc[abs(y2x.index - index) < 1e-6, _variable] = yx.loc[yx.index == index, _variable].values
+                y2x.loc[abs(y2x.index - index) < 1e-6, variable] = yx.loc[yx.index == index, variable].values
 
             # compute weight, if y_mid is in min(yx) < y_mid < max(yx)
-            w = [1 if yx.index[0] - TOL <= y <= yx.index[-1] + TOL else 0 for y in y_mid ]
+            w = [1 if yx.index[0] - TOL <= y <= yx.index[-1] + TOL else 0 for y in y2]
 
             # add the temperature profile extremum value
-            if not any(abs(yx.index[0]-y2) < TOL):
-                y2x.loc[yx.index[0], _variable] = yx.loc[yx.index == yx.index[0], _variable[0]].values
+            if not any(abs(yx.index[0]-y2) < TOL) and not yx.loc[yx.index[-1]].isnull()[0]:
+                y2x.loc[yx.index[0], variable] = yx.loc[yx.index == yx.index[0], variable[0]].values
                 w = w + [0]
-            if not any(abs(yx.index[-1]-y2) < TOL):
-                y2x.loc[yx.index[-1], _variable] = yx.loc[yx.index == yx.index[-1], _variable[0]].values
+            if not any(abs(yx.index[-1]-y2) < TOL) and not yx.loc[yx.index[-1]].isnull()[0]:
+                y2x.loc[yx.index[-1], variable] = yx.loc[yx.index == yx.index[-1], variable[0]].values
                 w = w + [0]
 
             temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(y2x.__len__()))
             temp.update(y2x.reset_index().rename(columns={'index': 'y_mid'}))
-            temp['w_'+_variable[0]] = pd.Series(w, index=temp.index)
+            temp['w_'+variable[0]] = pd.Series(w, index=temp.index)
             temp = temp.sort_values('y_mid').reset_index(drop=True)
-            profile_prop = _profile.loc[_profile.variable == _variable[0]].head(1)
-            profile_prop = profile_prop.drop(_variable, 1)
-            profile_prop['variable'] = ', '.join(_variable)
+            profile_prop = profile.loc[profile.variable == variable[0]].head(1)
+            profile_prop = profile_prop.drop(variable, 1)
+            profile_prop['variable'] = ', '.join(variable)
             if 'y_low' in profile_prop:
                 profile_prop = profile_prop.drop('y_low', 1)
             profile_prop = profile_prop.drop('y_mid', 1)
@@ -403,23 +427,23 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
 
         # elif 'mass' in _variable: TODO: add step profile type mass
         else:  # step profile (salinity-like)
-            n_var = _variable.__len__()
+            n_var = variable.__len__()
             n_s0 = 2
             n_s1 = n_s0 + n_var
 
-            if v_ref == 'bottom':
-                yx = _profile[['y_sup', 'y_low'] + _variable].sort_values(by='y_low')
-                if (yx.y_sup.head(1) > yx.y_low.head(1)).all():
-                    yx = _profile[['y_low', 'y_sup'] + _variable].sort_values(by='y_low')
+            if (profile['y_sup']-profile['y_low'] >= 0).all():
+                yx = profile[['y_low', 'y_sup'] + variable].sort_values(by='y_low').astype(float)
+            elif (profile['y_sup']-profile['y_low'] < 0).all():
+                yx = profile[['y_sup', 'y_low'] + variable].sort_values(by='y_low').astype(float)
             else:
-                yx = _profile[['y_low', 'y_sup'] + _variable].sort_values(by='y_low').astype(float)
+                logger.error('Horizon depth are mismatched')
 
-            mass_variable = [_var for _var in _variable if 'mass' in _var]
-            cont_variable = [_var for _var in _variable if _var in continuous_variable_list]
+            mass_variable = [_var for _var in variable if 'mass' in _var]
+            cont_variable = [_var for _var in variable if _var in continuous_variable_list]
 
             _ii = 0
             _variable_dict = {}
-            for _var in _variable:
+            for _var in variable:
                 _variable_dict[_var] = _ii
                 _ii += 1
 
@@ -432,7 +456,7 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
             for row in range(yx[:, 0].__len__()-1):
                 yx_new.append(yx[row])
                 if abs(yx[row, 1]-yx[row+1, 0]) > TOL:
-                    yx_new.append([yx[row, 1], yx[row + 1, 0]] + [np.nan] * _variable.__len__())
+                    yx_new.append([yx[row, 1], yx[row + 1, 0]] + [np.nan] * variable.__len__())
             yx_new.append(yx[row+1, :])
             yx = np.array(yx_new)
             del yx_new
@@ -480,7 +504,10 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
             y_step = []
             w_step = []  # weight of the bin, defined as the portion on which the property is define
 
-            for ii_bin in range(y_bins.__len__()-1):
+
+            ii_bin = 0
+            #for ii_bin in range(y_bins.__len__()-1):
+            while ii_bin < len(y_bins) and y_bins[ii_bin] < yx[-1][1]:
                 a = np.flatnonzero((yx[:, 0] - y_bins[ii_bin] < -TOL) & ( y_bins[ii_bin] - yx[:, 1] < -TOL))
                 a = np.concatenate((a, np.flatnonzero((y_bins[ii_bin] - yx[:, 0] <= TOL) & (yx[:, 1] - y_bins[ii_bin+1] <= TOL))))
                 a = np.concatenate((a, np.flatnonzero((yx[:, 0] - y_bins[ii_bin+1] < -TOL) & ( y_bins[ii_bin+1] - yx[:, 1] < -TOL))))
@@ -580,8 +607,13 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                     plt.step(x_plot, y_step, 'x')
                     plt.show()
 
+                ii_bin += 1
+                if DEBUG:
+                    pdb.set_trace()
+
             W = np.array(w_step)
             X = np.array(x_step)
+            Y = y_bins[:np.unique(y_step).__len__()]
 
             if mass_variable.__len__() > 0:
                 x_step = []
@@ -593,6 +625,8 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                 n_s0 = 2
                 n_var = mass_variable.__len__()
                 n_s1 = n_s0 + n_var
+                if DEBUG:
+                    import pdb
                 for ii_bin in range(y_bins.__len__() - 1):
                     a = np.flatnonzero((yx[:, 0] - y_bins[ii_bin] < -TOL) & (y_bins[ii_bin] - yx[:, 1] < -TOL))
                     a = np.concatenate((a, np.flatnonzero(
@@ -669,6 +703,8 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                         else:
                             y_step.append(y_bins[ii_bin])
                             y_step.append(y_bins[ii_bin + 1])
+                        if DEBUG:
+                            pdb.set_trace()
                     else:
                         M = np.array([np.nan] * n_var)
                         w = np.array([0] * n_var)
@@ -676,6 +712,8 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                         y_step.append(y_bins[ii_bin + 1])
                     x_step.append(M)
                     w_step.append(w)
+
+
 
                 X[:, [_variable_dict[_mvar] for _mvar in mass_variable]] = np.array(x_step)
                 W[:, [_variable_dict[_mvar] for _mvar in mass_variable]] = np.array(w_step)
@@ -699,7 +737,7 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
             Y = y_bins[:np.unique(y_step).__len__()]
             y_step = np.array([Y[:-1], Y[:-1] + np.diff(Y) / 2, Y[1:]])
 
-            w_variables = ['w_' + _var for _var in _variable]
+            w_variables = ['w_' + _var for _var in variable]
 
             temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(len(Y) - 1))
             for w in w_variables:
@@ -707,43 +745,46 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
 
             # set the y_step equal to y_bins
             _updated_df = pd.DataFrame(np.vstack((y_step, w_step, x_step)).transpose(),
-                                       columns=['y_low', 'y_mid', 'y_sup'] + w_variables + _variable,
+                                       columns=['y_low', 'y_mid', 'y_sup'] + w_variables + variable,
                                        index=temp.index[0:np.unique(y_step).__len__() - 1])
             temp.update(_updated_df)
 
             # core attribute
-            profile_prop = _profile.head(1).copy()
-            profile_prop['variable'] = var0
+            profile_prop = profile.head(1).copy()
+            profile_prop['variable'] = variable[0]
             profile_prop = profile_prop.drop('y_low', 1)
             profile_prop = profile_prop.drop('y_mid', 1)
             profile_prop = profile_prop.drop('y_sup', 1)
-            profile_prop = profile_prop.drop(_variable, axis=1)
+            profile_prop = profile_prop.drop(variable, axis=1)
             temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
                                      index=temp.index.tolist()))
 
 
         if not temp.empty:
-            temp.loc[temp[_variable[0]].isna(), 'w_'+_variable[0]] = 0
+            temp.loc[temp[variable[0]].isna(), 'w_'+variable[0]] = 0
 
-            # keep only ice core entry
-            l_c = temp.length.unique()[0]
-            if not np.isnan(temp.length.unique()[0]):
-                if l_c > 0:
-                    temp = temp[(temp.y_mid <= temp.length.unique()[0])]
-                elif l_c < 0:
-                    h_i = temp.ice_thickness.mean()
-                    if np.isnan(h_i):
-                        h_i = - l_c
-                    temp = temp[(h_i + l_c <= temp.y_mid) & (temp.y_mid <= h_i)]
-            elif not np.isnan(temp.ice_thickness.unique()[0]):
-                temp = temp[(temp.y_mid <= temp.ice_thickness.unique()[0])]
-            else:
-                # TODO : check if it works from bottom too
-                y_in_ice = [y for y in temp.y_mid[::-1] if not temp.loc[temp.y_mid > y, _variable[0]].isna().all()]
-                temp = temp[temp.y_mid.isin(y_in_ice)]
+            # # keep only ice core entry
+            # l_c = temp.length.unique()[0]
+            # if not np.isnan(temp.length.unique()[0]):
+            #     if l_c > 0:
+            #         temp = temp[(temp.y_mid <= temp.length.unique()[0])]
+            #     elif l_c < 0:
+            #         h_i = temp.ice_thickness.mean()
+            #         if np.isnan(h_i):
+            #             h_i = - l_c
+            #         temp = temp[(h_i + l_c <= temp.y_mid) & (temp.y_mid <= max(h_i, np.abs(l_c)))]
+            # elif not np.isnan(temp.ice_thickness.unique()[0]):
+            #     temp = temp[(temp.y_mid <= temp.ice_thickness.unique()[0])]
+            # else:
+            #     # TODO : check if it works from bottom too
+            #     y_in_ice = [y for y in temp.y_mid[::-1] if not temp.loc[temp.y_mid > y, _variable[0]].isna().all()]
+            #     temp = temp[temp.y_mid.isin(y_in_ice)]
 
             # drop all nan columns, but variable:
             temp = temp.dropna(axis=1, how='all')
+            if 'y_low' not in temp.columns:
+                temp['y_low'] = np.nan
+                temp['y_sup'] = np.nan
 
             # convert column to correct format
             temp = temp.apply(pd.to_numeric, errors='ignore')
@@ -752,35 +793,48 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
             if 'comments' in temp:
                 temp['comments'] = temp['comments'].astype(str)
 
+            temp = temp.set_index('y_mid')
             if discretized_profile.empty:
-                discretized_profile = temp
+                discretized_profile = Profile(temp)
             else:
                 temp = temp.drop('variable', axis=1)
                 temp = temp.rename(columns={'comments': 'comments_temp'})
 
-                col = [col for col in discretized_profile.columns if col in temp.columns]
-                discretized_profile = pd.merge(discretized_profile, temp, on=col, sort=False)
+                # old merging method
+                #col = [col for col in discretized_profile.columns if col in temp.columns]
+                #discretized_profile = pd.merge(discretized_profile, temp, on=col, sort=False)
 
-                for vg in discretized_profile.variable.unique():
-                    new_vg = vg.split(', ')
-                    new_vg += var0
-                    discretized_profile.loc[discretized_profile.variable == vg, 'variable'] = ', '.join(new_vg)
+                # new merging method
+                discretized_profile = discretized_profile.reindex(columns=discretized_profile.columns.union(temp.columns))
+                discretized_profile = discretized_profile.reindex(discretized_profile.index.union(temp.index))
+
+                discretized_profile.update(temp)
+
+
+                # update variable
+                variables = [[var if val is True else None for val in discretized_profile[var].notnull()] for var in set(variable + profiles.variables())]
+                discretized_profile['variable'] = [', '.join(filter(None, list)) for list in zip(*variables)]
+
+                # old update varible group
+                # for vg in discretized_profile.variable.unique():
+                #     new_vg = vg.split(', ')
+                #     new_vg += var0
+                #     discretized_profile.loc[discretized_profile.variable == vg, 'variable'] = ', '.join(new_vg)
 
                 # add comment
                 if 'comments_temp' in discretized_profile.columns:
                     discretized_profile['comments'] = discretized_profile[['comments', 'comments_temp']].astype(str).replace('nan', '').apply(lambda x: ', '.join(filter(None, x)), axis=1)
                     discretized_profile = discretized_profile.drop('comments_temp', axis=1)
-    discretized_profile = Profile(discretized_profile)
+    discretized_profile = Profile(discretized_profile).reset_index()
 
     empty = np.array([profile[variable].isna().all() for variable in profile.variables()]).all()
 
     if display_figure and not empty:
-
-        ax, ax_dict = seaice.core.plot.plot_all_profile_variable(profile, ax=None, display_figure=False,
-                                                                 param_dict={'linestyle': ':', 'color': 'k'})
-        seaice.core.plot.plot_all_profile_variable(discretized_profile, ax=ax, ax_dict=ax_dict,
-                                                   display_figure=display_figure,
-                                                   param_dict={'linestyle': ':', 'marker': 'x', 'color': 'r'})
+        _, ax, ax_dict = seaice.core.plot.plot_profile_ordered(profiles, ax=None, display_figure=False,
+                                                               param_dict={'linestyle': ':', 'color': 'k'})
+        seaice.core.plot.plot_profile_ordered(discretized_profile, ax=ax, ax_dict=ax_dict,
+                                              display_figure=display_figure,
+                                              param_dict={'linestyle': ':', 'marker': 'x', 'color': 'r'})
     return discretized_profile
 
 
@@ -792,80 +846,188 @@ def set_profile_orientation(profile, v_ref):
     :return:
     """
     logger = logging.getLogger(__name__)
+    #
+    # for name in self.names():
+    #     hi = self.loc[self.name == name].ice_thickness.unique()[0]
+    #     y_max = self.loc[self.name == name, ['y_low', 'y_sup']].max().max()
+    #
+    #     if not np.isnan(hi):
+    #         if y_max > hi:
+    #
+    #         else:
+    #             subset =
+    #     else:
 
     for variable in profile.variable.unique():
         # look for ice thickness:
         if profile[profile.variable == variable].v_ref.unique().__len__() > 1:
             logger.error("vertical reference for profile are not consistent")
         if not profile[profile.variable == variable].v_ref.unique().tolist()[0] == v_ref:
-            # search ice core length, or ice thickness
+            # search ice thickness
             if 'ice_thickness' in profile.keys() and \
                     not np.isnan(profile[profile.variable == variable].ice_thickness.astype(float)).all():
                     lc = profile[profile.variable == variable].ice_thickness.astype(float).dropna().unique()[0]
-            elif 'length' in profile.keys() and \
-                    not np.isnan(profile[profile.variable == variable].length.astype(float)).all():
-                    lc = profile[profile.variable == variable].length.astype(float).dropna().unique()[0]
             else:
                 lc = None
+            y_max = profile[['y_low', 'y_mid', 'y_sup']].max().max()
 
             if lc is None:
                 if 'name' in profile.keys():
-                    logger.warning("Mising core length or ice thickness, impossible to set profile orientation to %s.\
+                    logger.warning("Mising core length, impossible to set profile orientation to %s.\
                     Deleting profile (%s)" %(v_ref, profile.name.unique()[0]))
                 else:
-                    logger.warning("Mising core length or ice thickness, impossible to set profile orientation to %s.\
+                    logger.warning("Mising core length, impossible to set profile orientation to %s.\
                     Deleting profile" % v_ref)
                 profile = delete_profile(profile, {'variable': variable})
             else:
-                new_df = profile.loc[profile.variable == variable, 'y_low'].apply(lambda x: lc - x)
-                new_df = pd.concat([new_df, profile.loc[profile.variable == variable, 'y_mid'].apply(lambda x: lc - x)],
+                if y_max > lc:
+                    logger.warning("Maximum value of section depth (%.2f) is larger than ice thickness (%.2f). Using "
+                                   "maximum value of section depth as core length" % (y_max, lc))
+                    lc = y_max
+                    dy = 0
+                else:
+                    dy = y_max - lc
+                    logger.info("Matching maximum depth section to ice layer above interface (dy = %.2f)" % dy)
+                new_df = profile.loc[profile.variable == variable, 'y_low'].apply(lambda x: lc + dy - x )
+                new_df = pd.concat([new_df, profile.loc[profile.variable == variable, 'y_mid'].apply(lambda x: lc + dy - x)],
                                    axis=1, sort=False)
-                new_df = pd.concat([new_df, profile.loc[profile.variable == variable, 'y_sup'].apply(lambda x: lc - x)],
+                new_df = pd.concat([new_df, profile.loc[profile.variable == variable, 'y_sup'].apply(lambda x: lc + dy - x)],
                                    axis=1, sort=False)
+
+                # swap y_low and y_sup if needed
+                index = new_df[new_df['y_low'] - new_df['y_mid'] > 0].index
+                new_df.loc[index, 'y_low_new'] = new_df.loc[index, 'y_sup']
+                new_df.loc[index, 'y_sup'] = new_df.loc[index, 'y_low']
+                new_df.loc[index, 'y_low'] = new_df.loc[index, 'y_low_new']
+                new_df = new_df.drop('y_low_new', axis=1).copy()
                 new_df['v_ref'] = 'bottom'
                 profile.update(new_df)
         else:
             logger.info('profile orientiation already set')
 
     profile.length = -profile.length
-
+    profile = profile.sort_values(by=['variable', 'y_mid']).copy()
     return profile
 
 
+# TODO: create generic remove columns from dataframe
+# TODO: create generic select columns from dataframe
 def delete_variables(ics_stack, variables2del):
+    """
+    Return an excerpt of the profile or dataframe without the variables to remove
+
+    :param ics_stack: Profile, CoreStack
+    :param variables2del: list of variable or column to remove from the DataFrame
+    :return:
+
+    :updated: 2009-04-18
+
+    """
+
+    from seaice import CoreStack
+    from seaice import Profile
+
+    logger = logging.getLogger(__name__)
+
+    # check parameters:
     if not isinstance(variables2del, list):
         variables2del = [variables2del]
 
+    stack_type = None
+    if isinstance(ics_stack, Profile):
+        stack_type = 'Profile'
+    elif isinstance(ics_stack, CoreStack):
+        stack_type = 'CoreStack'
+    else:
+        logger.error('stack should be of class Profile or CoreStack')
+
+    new_stack = ics_stack.copy()
+
     for variable in variables2del:
         if variable in ics_stack.keys():
-            if variable in ics_stack.get_property():
+            if variable in new_stack.get_property():
                 # delete variable column
-                ics_stack.drop(variable, axis=1, inplace=True)
+                new_stack.drop(variable, axis=1, inplace=True)
 
                 # delete associated subvariable column
                 if variable in subvariable_dict:
                     for subvariable in subvariable_dict[variable]:
-                        ics_stack.drop(subvariable, axis=1, inplace=True)
+                        new_stack.drop(subvariable, axis=1, inplace=True)
 
         # delete variable from variable column
-        for group in ics_stack.variable.unique():
+        for group in new_stack.variable.unique():
             new_group = group.split(', ')
             if variable in new_group:
                 new_group.remove(variable)
-                ics_stack['variable'] = ', '.join(new_group)
-    # delete empty column
-    ics_stack.dropna(axis=1, how='all')
-    return ics_stack
+                new_stack.loc[new_stack.variable == group, 'variable'] = ', '.join(filter(None, new_group))
+
+    # remove row with no variable entry
+    new_stack = new_stack[new_stack.variable != '']
+
+    if stack_type == 'Profile':
+        return seaice.Profile(new_stack)
+    elif stack_type == 'CoreStack':
+        return seaice.core.corestack.CoreStack(new_stack)
+    else:
+        logger.warning('Stack class undefined, returning DataFrame')
+        return new_stack
 
 
 def select_variables(ics_stack, variables):
-    variables2del = [_var for _var in ics_stack.variables() if not _var in variables]
+    """
+    Return an excerpt of the profile or dataframe with only the selected variable
 
-    return delete_variables(ics_stack, variables2del)
+    :param ics_stack: Profile, CoreStack
+    :param variables: list of variable to return in the DataFrame
+    :return:
 
+    :updated: 2009-04-18
+    """
+
+    from seaice import CoreStack
+    from seaice import Profile
+
+    logger = logging.getLogger(__name__)
+
+    new_stack = ics_stack.copy()
+
+    # check input:
+    if not isinstance(variables, list):
+        variables = [variables]
+    stack_type = None
+    if isinstance(new_stack, Profile):
+        stack_type = 'Profile'
+    elif isinstance(new_stack, CoreStack):
+        stack_type = 'CoreStack'
+    else:
+        logger.error('stack should be of class Profile or CoreStack')
+
+    for variable in variables:
+        if variable not in new_stack.variables():
+            variables.remove(variable)
+            logger.warning('Variable %s not in stack variables, removing %s' %(variable, variable))
+
+    # create list of variable to remove from the stack:
+    variables2del = [var for var in new_stack.variables() if not var in variables]
+
+    #
+    new_stack = delete_variables(new_stack, variables2del)
+
+    if stack_type == 'Profile':
+        return seaice.core.profile.Profile(new_stack)
+    elif stack_type == 'CoreStack':
+        return seaice.core.corestack.CoreStack(new_stack)
+    else:
+        logger.warning('Stack class undefined, returning DataFrame')
+        return new_stack
 
 
 def select_variable(ics_stack, variable):
+    """
+    DEPRECATED
+    """
+    warnings.warn('Deprecated, used .select_variables() instead')
+
     for group in ics_stack.variable.unique():
         variable_group = group.split(', ')
         if variable in variable_group:
