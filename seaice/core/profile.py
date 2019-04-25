@@ -71,7 +71,7 @@ class Profile(pd.DataFrame):
         """
         self.logger = logging.getLogger(__name__)
 
-        variable = self.get_property()
+        variable = self.variables()
         null_property = self.columns[self.isnull().all(axis=0)].tolist()
         kept_property = [prop for prop in variable if prop not in null_property]
 
@@ -110,9 +110,9 @@ class Profile(pd.DataFrame):
         if not isinstance(property, list):
             property = [property]
 
-        new_property = self.get_property()
+        new_property = self.variables()
         for prop in property:
-            if prop in self.get_property():
+            if prop in self.variables():
                 self.drop(prop, axis=1, inplace=True)
                 new_property.remove(prop)
 
@@ -155,8 +155,8 @@ class Profile(pd.DataFrame):
         return new_profile
 
     def drop_empty_property(self):
-        empty = [prop for prop in self.get_property() if self[prop].isnull().all()]
-        self.variable = ', '.join([prop for prop in self.get_property() if prop not in empty])
+        empty = [prop for prop in self.variables() if self[prop].isnull().all()]
+        self.variable = ', '.join([prop for prop in self.variables() if prop not in empty])
         self.drop(columns=empty, axis=1, inplace=True)
 
     def variables(self, notnan=False):
@@ -333,7 +333,7 @@ def discretize_profile(profiles, y_bins=None, y_mid=None, display_figure=False, 
         logger.warning("Empty profile %s are impossible to discretize" % profiles.names()[0])
     else:
         if 'name' in profiles.keys():
-            logger.info("Processing %s" % profiles.names()[0])
+            logger.info("Processing %s" % profiles.names())
         else:
             logger.info("Processing core")
 
@@ -504,11 +504,9 @@ def discretize_profile(profiles, y_bins=None, y_mid=None, display_figure=False, 
             y_step = []
             w_step = []  # weight of the bin, defined as the portion on which the property is define
 
-
             ii_bin = 0
-            #for ii_bin in range(y_bins.__len__()-1):
             while ii_bin < len(y_bins) and y_bins[ii_bin] < yx[-1][1]:
-                a = np.flatnonzero((yx[:, 0] - y_bins[ii_bin] < -TOL) & ( y_bins[ii_bin] - yx[:, 1] < -TOL))
+                a = np.flatnonzero((yx[:, 0] - y_bins[ii_bin] < -TOL) & (y_bins[ii_bin] - yx[:, 1] < -TOL))
                 a = np.concatenate((a, np.flatnonzero((y_bins[ii_bin] - yx[:, 0] <= TOL) & (yx[:, 1] - y_bins[ii_bin+1] <= TOL))))
                 a = np.concatenate((a, np.flatnonzero((yx[:, 0] - y_bins[ii_bin+1] < -TOL) & ( y_bins[ii_bin+1] - yx[:, 1] < -TOL))))
                 a = np.unique(a)
@@ -574,14 +572,11 @@ def discretize_profile(profiles, y_bins=None, y_mid=None, display_figure=False, 
                     L[L == 0] = np.nan
                     S = S / L
                     if yx[a[0], 0] - y_bins[ii_bin] > TOL and not fill_extremity:
-                        y_step.append(yx[a[0], 0])
-                        y_step.append(y_bins[ii_bin + 1])
+                        y_step.append([yx[a[0], 0], y_bins[ii_bin + 1]])
                     elif yx[a[-1], 1] - y_bins[ii_bin + 1] < -TOL and not fill_extremity:
-                        y_step.append(y_bins[ii_bin])
-                        y_step.append(yx[a[-1], 1])
+                        y_step.append([y_bins[ii_bin], yx[a[-1], 1]])
                     else:
-                        y_step.append(y_bins[ii_bin])
-                        y_step.append(y_bins[ii_bin + 1])
+                        y_step.append([y_bins[ii_bin], y_bins[ii_bin + 1]])
                 else:
                     S = np.array([np.nan] * n_var)
                     w = np.array([0] * n_var)
@@ -597,6 +592,9 @@ def discretize_profile(profiles, y_bins=None, y_mid=None, display_figure=False, 
                         x_plot.extend(x)
                     x_xy_plot = []
                     y_xy_plot = []
+                    y_plot = []
+                    for step in y_step:
+                        y_plot.extend(step)
                     for ii in range(0, len(yx[:, 0])):
                         x_xy_plot.extend([yx[ii, 2]])
                         x_xy_plot.extend([yx[ii, 2]])
@@ -604,7 +602,7 @@ def discretize_profile(profiles, y_bins=None, y_mid=None, display_figure=False, 
                         y_xy_plot.extend([yx[ii, 1]])
                     plt.figure()
                     plt.step(x_xy_plot, y_xy_plot)
-                    plt.step(x_plot, y_step, 'x')
+                    plt.step(x_plot, y_plot, 'x')
                     plt.show()
 
                 ii_bin += 1
@@ -613,7 +611,6 @@ def discretize_profile(profiles, y_bins=None, y_mid=None, display_figure=False, 
 
             W = np.array(w_step)
             X = np.array(x_step)
-            Y = y_bins[:np.unique(y_step).__len__()]
 
             if mass_variable.__len__() > 0:
                 x_step = []
@@ -731,15 +728,19 @@ def discretize_profile(profiles, y_bins=None, y_mid=None, display_figure=False, 
                 X[:, [_variable_dict[_cvar] for _cvar in cont_variable]] = np.array(xc_step).transpose()
                 W[:, [_variable_dict[_cvar] for _cvar in cont_variable]] = np.array(wc_step).transpose()
 
-            x_step = X.transpose()
-            w_step = W.transpose()
+            x_step = np.array(X.transpose())
+            w_step = np.array(W.transpose())
 
-            Y = y_bins[:np.unique(y_step).__len__()]
-            y_step = np.array([Y[:-1], Y[:-1] + np.diff(Y) / 2, Y[1:]])
+            # y_step
+            y_step = np.array(y_step).transpose()
+            y_step = np.array([y_step[0, :], (y_step[0, :]+y_step[1, :]) / 2, y_step[1, :]])
+
+            # Y = y_bins[:np.unique(y_step).__len__()]
+            # y_step = np.array([Y[:-1], Y[:-1] + np.diff(Y) / 2, Y[1:]])
 
             w_variables = ['w_' + _var for _var in variable]
 
-            temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(len(Y) - 1))
+            temp = pd.DataFrame(columns=profile.columns.tolist(), index=range(y_step.shape[1]))
             for w in w_variables:
                 temp[w] = [np.nan]*temp.__len__()
 
@@ -945,7 +946,7 @@ def delete_variables(ics_stack, variables2del):
 
     for variable in variables2del:
         if variable in ics_stack.keys():
-            if variable in new_stack.get_property():
+            if variable in new_stack.variables():
                 # delete variable column
                 new_stack.drop(variable, axis=1, inplace=True)
 
@@ -1036,7 +1037,7 @@ def select_variable(ics_stack, variable):
             ics_stack = ics_stack[ics_stack.variable == group]
 
             # delete other variable
-            variables2del = [_var for _var in ics_stack.get_property() if not _var == variable]
+            variables2del = [_var for _var in ics_stack.variables() if not _var == variable]
             ics_stack = delete_variables(ics_stack, variables2del)
     return ics_stack
 
@@ -1053,7 +1054,7 @@ def select_profile(ics_stack, variable_dict):
     ii = 0
     for ii_key in variable_dict.keys():
         if ii_key is 'variable':
-            if variable_dict[ii_key] in ics_stack.get_property():
+            if variable_dict[ii_key] in ics_stack.variables():
                 ics_stack = select_variable(ics_stack, variable_dict[ii_key])
         elif ii_key in ics_stack.keys():
             ics_stack = ics_stack[ics_stack[ii_key] == variable_dict[ii_key]]

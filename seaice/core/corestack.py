@@ -162,8 +162,6 @@ class CoreStack(pd.DataFrame):
 
         data_binned = pd.DataFrame()
         for core in ics_stack.names():
-            if display_figure:
-                print(core)
             data_binned = data_binned.append(seaice.core.profile.discretize_profile(ics_stack[ics_stack.name == core], y_bins=y_bins, y_mid=y_mid,
                            display_figure=display_figure, fill_gap=fill_gap, fill_extremity=fill_extremity), sort=True)
         data_binned.reset_index(drop=True, inplace=True)
@@ -385,11 +383,8 @@ class CoreStack(pd.DataFrame):
 
         if not isinstance(variable, list):
             variable_group = [variable]
-        for var in variable:
-            variable_groups = [vg for vg in self.variable_groups() if var in vg]
-
-            for vg in variable_groups:
-                print(vg)
+        # for var in variable:
+        #     variable_groups = [vg for vg in self.variable_groups() if var in vg]
 
         for vg in variable_group:
             data = self[self.variable == vg]
@@ -461,7 +456,7 @@ def stack_cores(ic_dict):
     return seaice.CoreStack(ic_stack)
 
 
-def grouped_stat(ic_stack, groups={'y_mid'}, variables=None, stats=None):
+def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
     """
 
     :param ics_stack:
@@ -498,18 +493,21 @@ def grouped_stat(ic_stack, groups={'y_mid'}, variables=None, stats=None):
     ic_stack = ic_stack[ic_stack[['w_' + variable for variable in variables]].sum(axis=1) != 0]
 
     no_y_mid_flag = True
-    if 'y_mid' in groups:
-        no_y_mid_flag = False
-    for group in groups:
-        if isinstance(group, dict):
-            if 'y_mid' in group:
-                no_y_mid_flag = False
-        elif 'y_mid' is groups:
+    if isinstance(groups, dict):
+        if 'y_mid' in groups:
             no_y_mid_flag = False
+    elif isinstance(groups, list):
+        for group in groups:
+            if isinstance(group, dict):
+                if 'y_mid' in group:
+                    no_y_mid_flag = False
+            elif 'y_mid' is group:
+                groups.remove('y_mid')
     if no_y_mid_flag:
         logger.info("y_mid not in grouping option; try to generate y_mid from section horizon")
         try:
-            groups.append({'y_mid': sorted(pd.concat([ic_stack.y_low, ic_stack.y_sup], sort=False).dropna().unique())})
+            y_bins = [0] + [y for y in ic_stack.y_low.dropna().unique() if y in ic_stack.y_sup.dropna().unique()] + [ic_stack.y_sup.max()]
+            groups.append({'y_mid': y_bins})
         except AttributeError:
             logger.error("y_mid not in grouping option; y_mid cannot be generated from section horizon")
         else:
@@ -592,13 +590,13 @@ def grouped_stat(ic_stack, groups={'y_mid'}, variables=None, stats=None):
         core_var = [None for _ in range(int(np.prod(dim)))]
         _core_var_flag = True  # core name does change for different stat.
         for stat in list(stats):
+            # use np.FUNC(...) instead of .FUNC() as panda.groupby().FUNC() return np.nan rather than 0 if there
+            # is only notnull element in the group
             if stat in ['sum', 'mean']:
-                func = "kgroups.loc[~kgroups['wtd_" + prop +"'].isna(), 'wtd_" + prop +"' ]." + stat + "()"
+                func = "np." + stat + "(kgroups.loc[~kgroups['wtd_" + prop +"'].isna(), 'wtd_" + prop +"' ])"
                 w_func = "kgroups.loc[~kgroups['w_" + prop + "'].isna(), 'w_" + prop + "'].sum()"
                 n_func = "kgroups.loc[~kgroups['wtd_" + prop + "'].isna(), 'wtd_" + prop + "'].count()"
             elif stat in ['min', 'max', 'std']:
-                # use .apply(np.FUNC) instead of .FUNC() as panda.groupby().FUNC() return np.nan rather than 0 if there
-                # is only notnull element in the group
                 func = "np." + stat + "(kgroups.loc[~kgroups['wtd_" + prop +"'].isna(), '" + prop + "'])"
             else:
                 logger.error("%s operation not defined. Open a bug report" % stat)
@@ -612,8 +610,8 @@ def grouped_stat(ic_stack, groups={'y_mid'}, variables=None, stats=None):
                     k1 = [k1]
                 try:
                     stat_var[stat][tuple(np.array(k1, dtype=int))] = eval(func)
+                    new_k = k1
                 except Exception:
-                    new_k = []
                     _k_n = 0
                     for k in k1:
                         if isinstance(k, np.integer):
@@ -626,23 +624,22 @@ def grouped_stat(ic_stack, groups={'y_mid'}, variables=None, stats=None):
                             new_k.append(cuts_dict[groups_order[_k_n]][k])
                         _k_n += 1
 
-                    if stat in ['sum', 'mean']:
-                        # Take in account property measured only on a partial bins to computed weighted property
-                        # e.g. S measure on 2 samples
-                        # # 1 : 0-0.1, S = 10, w=1
-                        # # 2 : 0-0.1, S = 8, w=0.5
-                        # weighted mean : 0-0.1 = (10*1+8*0.5)/1.5*2
-                        wtd_stat = eval(func)
-                        w = eval(w_func)
-                        n = eval(n_func)
-                        stat_var[stat][tuple(np.array(new_k, dtype=int))] = wtd_stat * n / w
-                    else:
-                        print(func)
-                        stat_var[stat][tuple(np.array(new_k, dtype=int))] = eval(func)
+                if stat in ['sum', 'mean']:
+                    # Take in account property measured only on a partial bins to computed weighted property
+                    # e.g. S measure on 2 samples
+                    # # 1 : 0-0.1, S = 10, w=1
+                    # # 2 : 0-0.1, S = 8, w=0.5
+                    # weighted mean : 0-0.1 = (10*1+8*0.5)/1.5*2
+                    wtd_stat = eval(func)
+                    w = eval(w_func)
+                    n = eval(n_func)
+                    stat_var[stat][tuple(np.array(new_k, dtype=int))] = wtd_stat * n / w
+                else:
+                    stat_var[stat][tuple(np.array(new_k, dtype=int))] = eval(func)
 
-                    if _core_var_flag:
-                        core_var[int(np.prod(np.array(new_k) + 1) - 1)] = ', '.join(
-                            list(kgroups.loc[~kgroups['wtd_'+prop].isna(), 'name'].unique()))
+                if _core_var_flag:
+                    core_var[int(np.prod(np.array(new_k) + 1) - 1)] = ', '.join(
+                        list(kgroups.loc[~kgroups['wtd_'+prop].isna(), 'name'].unique()))
                 else:
                     if _core_var_flag:
                         core_var[int(np.prod(np.array(k1)+1)-1)] = ', '.join(list(kgroups.loc[~kgroups['wtd_'+prop].isna(),
