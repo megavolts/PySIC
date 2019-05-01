@@ -98,6 +98,11 @@ ic_stat = ic_obs_stack_d.section_stat(groups={'y_mid': y_bins})
 fig, ax = plt.subplots(1, len(ic_stat.variables()), sharey='row', sharex='col')
 ax = np.atleast_2d(ax)
 ax_n = 0
+
+# core colors:
+date_list = ic_obs_stack_d.date.dt.date.unique()
+colors = {date_list[i_core]: cm.jet(i_core / date_list.__len__()) for i_core in range(0, len(date_list))}
+
 for variable in variables:
     # TOP
     variable_dict = {'variable': variable, 'v_ref': 'top'}

@@ -155,7 +155,7 @@ def plot_profile(profile, ax=None, param_dict={}):
     if profile.v_ref.unique()[0] == 'bottom':
         ax.spines['top'].set_visible(False)
         ax.spines['bottom'].set_visible(True)
-        ax.set_ylabel('ice thickness from\nice/water interface(m)')
+        ax.set_ylabel('Distance from\nice/water interface(m)')
         ax.set_ylim([y_min, y_max])
         ax.xaxis.set_label_position('bottom')
         ax.xaxis.set_ticks_position('bottom')
@@ -164,7 +164,7 @@ def plot_profile(profile, ax=None, param_dict={}):
         ax.spines['bottom'].set_visible(False)
         ax.xaxis.set_label_position('top')
         ax.xaxis.set_ticks_position('top')
-        ax.set_ylabel('ice thickness from\n snow/ice interface(m)')
+        ax.set_ylabel('Distance from\n snow/ice interface(m)')
         ax.set_ylim([y_max, y_min])
 
     if f_axnew:
@@ -379,16 +379,16 @@ def plot_all_variable_in_stack(ic_data, variable_dict={}, ax=None, ax_dict=None,
     if 'v_ref' in ic_data.columns:
         if len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
             ax[0].set_ylim([min(ax[0].get_ylim()), max(ax[0].get_ylim())])
-            ax[0].set_ylabel('ice thickness from\nice/water inferface (m)')
+            ax[0].set_ylabel('Distance from\nice/water inferface (m)')
         elif len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
             ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
-            ax[0].set_ylabel('ice thickness from ice surface(m)')
+            ax[0].set_ylabel('Distance from ice surface(m)')
         else:
             ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
-            ax[0].set_ylabel('ice thickness (m)')
+            ax[0].set_ylabel('Ice thickness (m)')
     else:
         ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
-        ax[0].set_ylabel('ice thickness (m)')
+        ax[0].set_ylabel('Ice thickness (m)')
 
     if not t_snow:
         ax[0].set_ylim([max(ax[0].get_ylim()), 0])
@@ -485,16 +485,16 @@ def plot_all_variable_in_stack_by_date(ic_data, variable_dict={}, ax=None, ax_di
     if 'v_ref' in ic_data.columns:
         if len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
             ax[0].set_ylim([min(ax[0].get_ylim()), max(ax[0].get_ylim())])
-            ax[0].set_ylabel('ice thickness from\nice/water inferface (m)')
+            ax[0].set_ylabel('Distance from\nice/water inferface (m)')
         elif len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
             ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
-            ax[0].set_ylabel('ice thickness from ice surface (m)')
+            ax[0].set_ylabel('Distance from ice surface (m)')
         else:
             ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
-            ax[0].set_ylabel('ice thickness (m)')
+            ax[0].set_ylabel('Ice thickness (m)')
     else:
         ax[0].set_ylim([max(ax[0].get_ylim()), min(ax[0].get_ylim())])
-        ax[0].set_ylabel('ice thickness (m)')
+        ax[0].set_ylabel('Ice thickness (m)')
 
     if not t_snow:
         ax[0].set_ylim([max(ax[0].get_ylim()), 0])
@@ -587,16 +587,16 @@ def plot_profile_ordered(profiles, ax=None, ax_dict=None, display_figure=False, 
     if 'v_ref' in profiles.columns:
         if len(profiles.v_ref.unique()) == 1 and profiles.v_ref.unique()[0] == 'bottom':
             ax[0].set_ylim([y_min, y_max])
-            ax[0].set_ylabel('ice thickness from\nice/water inferface (m)')
+            ax[0].set_ylabel('Distance from\nice/water inferface (m)')
         elif len(profiles.v_ref.unique()) == 1 and profiles.v_ref.unique()[0] == 'top':
             ax[0].set_ylim([y_max, y_min])
-            ax[0].set_ylabel('ice thickness from snow/ice inferface (m)')
+            ax[0].set_ylabel('Distance from snow/ice inferface (m)')
         else:
             ax[0].set_ylim([y_max, y_min])
-            ax[0].set_ylabel('ice thickness (m)')
+            ax[0].set_ylabel('Ice thickness (m)')
     else:
         ax[0].set_ylim([y_max, y_min])
-        ax[0].set_ylabel('ice thickness (m)')
+        ax[0].set_ylabel('Ice thickness (m)')
 
     #plt.subplots_adjust(top=0.85, wspace=0.2, hspace=0.2)
     if display_figure:
