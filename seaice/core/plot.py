@@ -141,7 +141,7 @@ def plot_profile(profile, ax=None, param_dict={}):
             ax.plot(x, y)
 
     # label
-    ax.set_xlabel(variable + '  ' + variable_unit_dict[variable])
+    ax.set_xlabel(variable.capitalize() + '  ' + variable_unit_dict[variable])
 
     if len(y_lim) > 0:
         y_min = min(min(y), min(y_lim))
@@ -367,7 +367,7 @@ def plot_all_variable_in_stack(ic_data, variable_dict={}, ax=None, ax_dict=None,
         for core in profile.name.unique():
             param_dict.update({'color': color_core[core]})
             ax[ax_n] = plot_profile(profile[profile.name == core], ax=ax[ax_n], param_dict=param_dict)
-        ax[ax_n].set_xlabel(variable)
+        ax[ax_n].set_xlabel(variable.capitalize())
         ax[ax_n].xaxis.set_label_position('top')
         ax[ax_n].xaxis.tick_top()
         ax[ax_n].spines['top'].set_visible(True)
@@ -475,7 +475,7 @@ def plot_all_variable_in_stack_by_date(ic_data, variable_dict={}, ax=None, ax_di
             for core in profiles.loc[profiles.date.dt.date == date, 'name'].unique():
                 param_dict.update({'color': color_date[date]})
                 ax[ax_n] = plot_profile(profiles[profiles.name == core], ax=ax[ax_n], param_dict=param_dict)
-        ax[ax_n].set_xlabel(variable)
+        ax[ax_n].set_xlabel(variable.capitalize())
         ax[ax_n].xaxis.set_label_position('top')
         ax[ax_n].xaxis.tick_top()
         ax[ax_n].spines['top'].set_visible(True)
