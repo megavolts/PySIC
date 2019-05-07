@@ -694,7 +694,8 @@ def thermal_conductivity(s, t, method='pringle', vf_a=0.005):
         a = 0.13
         lambda_si = ice.thermal_conductivity(t) + a * s / t
 
-    elif method == 'pringle':
+    # default method == 'pringle'
+    else:
         rho_si = density(s, t, vf_a=vf_a)
         rho_i = ice.density(t)
 

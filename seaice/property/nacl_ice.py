@@ -20,7 +20,9 @@ __all__ = ["salt_s", "conductivity2salinity", "brine_volume_fraction", "brine_sa
 # TODO: inverse salinity2conductiviy
 
 import logging
+
 import numpy as np
+
 from seaice.property import sw
 
 module_logger = logging.getLogger(__name__)
@@ -244,6 +246,25 @@ def brine_volume_fraction(s, t):
     vfb_nacl = 1 / ((1+s_b / s-1) * rho_b / rho_i)
 
     return vfb_nacl
+
+
+def brine_porosity(s, t):
+    """
+        Computes brine volume fraction of NaCl artificial sea ice from salinity [g / kg] and temperature [degree C]
+
+        :param s : array_like, float
+            Bulk salinity of NaCl ice [g / kg]
+        :param t : array_like, float
+            Temperature of ice [degree C]
+
+        :return vfb: ndarray, float
+            Brine volume fraction [-]
+
+        : check value:
+            Vfb = 0.0551 for s = 5 [g / kg] and t = -5 [degree C]
+    """
+
+    return brine_volume_fraction(s, t)
 
 
 # aliases

@@ -12,7 +12,6 @@ import numpy as np
 import pandas as pd
 
 import seaice
-from seaice.core.profile import *
 
 __name__ = "seaice"
 __author__ = "Marc Oggier"
@@ -222,8 +221,11 @@ class CoreStack(pd.DataFrame):
 
         return CoreStack(oriented_stack)
 
-    def core_in_collection(self, core):
-        temp = self.loc[self.name == core, 'collection'].values
+    def core_in_collection(self, core=None):
+        if core is None:
+            temp = self.collection.values
+        else:
+            temp = self.loc[self.name == core, 'collection'].values
         col = []
         for ii in range(0, temp.__len__()):
             for c in temp[ii].split(', '):
