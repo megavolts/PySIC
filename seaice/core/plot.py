@@ -84,10 +84,10 @@ def plot_profile(profile, ax=None, param_dict=None):
     """
 
     variable = profile.variables()
-    if variable.__len__() > 1:
+    if len(variable) > 1:
         module_logger.error("more than one variable is selected")
         return 0
-    elif variable.__len__() < 1:
+    elif len(variable) < 1:
         module_logger.warning("no data in the profile")
     else:
         variable = variable[0]
@@ -96,10 +96,19 @@ def plot_profile(profile, ax=None, param_dict=None):
         plt.figure()
         ax = plt.subplot(1, 1, 1)
 
+
     # if profile not empty
     if not profile.empty:
         # step variable
-        if profile[profile.variable == variable].y_low.isnull().all() or 'temperature' in profile.variables()[0]:
+        continuous_variable = False
+        if variable in ['temperature']:
+            continuous_variable = True
+        elif 'y_low' not in profile:
+            continuous_variable = True
+        elif profile[profile.variable == variable].y_low.isnull().all():
+            continuous_variable = True
+
+        if continuous_variable:
             x = profile[variable].values
             y = profile.y_mid.values
         else:

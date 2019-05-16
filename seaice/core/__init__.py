@@ -213,6 +213,9 @@ def import_ic_path(ic_path, variables=None, v_ref='top', drop_empty=False):
             if drop_empty:
                 profile.drop_empty_property()
 
+            if profile.variables() is None:
+                profile = pd.DataFrame()
+
             if not profile.empty:
                 if profile.get_name() is not core.name:
                     logger.error('\t(%s) core name %s and profile name %s does not match'

@@ -162,10 +162,15 @@ class CoreStack(pd.DataFrame):
 
         data_binned = pd.DataFrame()
         for core in ics_stack.names():
-            data_binned = data_binned.append(
-                seaice.core.profile.discretize_profile(ics_stack[ics_stack.name == core], y_bins=y_bins, y_mid=y_mid,
-                                                       display_figure=display_figure, fill_gap=fill_gap,
-                                                       fill_extremity=fill_extremity), sort=True)
+            print(core)
+            profile = ics_stack[ics_stack.name == core]
+            print(profile.variables())
+            profile_d = seaice.core.profile.discretize_profile(profile, y_bins=y_bins, y_mid=y_mid,
+                                                               display_figure=display_figure, fill_gap=fill_gap,
+                                                               fill_extremity=fill_extremity)
+            print(profile_d.variables())
+
+            data_binned = data_binned.append(profile_d, sort=True)
         data_binned.reset_index(drop=True, inplace=True)
         # TODO: check that format of column match before and after discretization
 
@@ -443,7 +448,7 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
 
     for variable in variables:
         if 'w_' + variable not in ic_stack:
-            ic_stack['w_' + variable] = np.ones([1, len(ic_stack.index)])
+            ic_stack['w_' + variable] = np.ones([1, len(ic_stack.index)]).transpose()
             logger.warning('No weight value are defined for %s. Setting weight value to 1' % variable)
         if ic_stack['w_' + variable].isna().any():
             # set w_variable to 0 if variable is nan

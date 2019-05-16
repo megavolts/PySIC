@@ -206,6 +206,9 @@ class Profile(pd.DataFrame):
                 elif self[variable].isna().all():
                     variables.remove(variable)
 
+        if len(variables) == 1 and variables[0] is '':
+            variables = None
+
         return variables
 
     def keep_variable(self, variables2keep):
@@ -272,7 +275,10 @@ class Profile(pd.DataFrame):
                 self.remove_variable(variable)
         # clean profile by removing all-nan column
         col = [c for c in self.columns if c not in ['y_low', 'y_mid', 'y_sup']]
-        self = pd.concat([self[['y_low', 'y_mid', 'y_sup']], self[col].dropna(axis=1, how='all')], sort=False, axis=1)
+
+        y_var = [var for var in ['y_low', 'y_mid', 'y_sup'] if var in self.columns]
+
+        self = pd.concat([self[y_var], self[col].dropna(axis=1, how='all')], sort=False, axis=1)
         return self
 
     @property
@@ -371,7 +377,8 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
             x2 = np.array([np.interp(y2, yx.index, yx[_var], left=np.nan, right=np.nan) for _var in _variable])
 
             y2x = pd.DataFrame(x2.transpose(), columns=_variable, index=y2)
-            for index in yx.index:
+            yx = yx.drop_duplicates()
+            for index in yx.index.unique():
                 y2x.loc[abs(y2x.index - index) < 1e-6, _variable] = yx.loc[yx.index == index, _variable].values
 
             # compute weight, if y_mid is in min(yx) < y_mid < max(yx)
