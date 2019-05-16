@@ -143,7 +143,7 @@ class CoreStack(pd.DataFrame):
         return grouped_stat(self, groups=groups, variables=variables, stats=stats)
 
     def discretize(self, y_bins=None, y_mid=None, display_figure=False, fill_gap=False,
-                   fill_extremity=False):
+                   fill_extremity=False, variables=None):
         """
 
         :param y_bins:
@@ -154,25 +154,22 @@ class CoreStack(pd.DataFrame):
         :return:
         """
 
+        ics_stack = self
+
+        if variables is not None:
+            from seaice.core.profile import select_variables
+            ics_stack = select_variables(ics_stack, variables)
+
         data_binned = pd.DataFrame()
-        for core in self.get_name():
-            if display_figure:
-                print(core)
-            data_binned = data_binned.append(discretize_profile(self[self.name == core], y_bins=y_bins, y_mid=y_mid,
-                           display_figure=display_figure, fill_gap=fill_gap, fill_extremity=fill_extremity), sort=True)
+        for core in ics_stack.names():
+            data_binned = data_binned.append(
+                seaice.core.profile.discretize_profile(ics_stack[ics_stack.name == core], y_bins=y_bins, y_mid=y_mid,
+                                                       display_figure=display_figure, fill_gap=fill_gap,
+                                                       fill_extremity=fill_extremity), sort=True)
         data_binned.reset_index(drop=True, inplace=True)
         # TODO: check that format of column match before and after discretization
+
         return CoreStack(data_binned)
-
-    def compute_phys_prop(self, inplace=True):
-        """
-
-        :param inplace:
-        :return:
-        """
-
-        if inplace is True:
-            return self
 
     def set_vertical_reference(self, new_v_ref, h_ref = None):
         """
@@ -425,9 +422,8 @@ def stack_cores(ics_dict):
     return CoreStack(ics_stack)
 
 
-def grouped_stat(ics_stack, groups, variables=None, stats=None):
+def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
     """
-
     :param ics_stack:
     :param variables:
     :param groups list of string or dictionnary:
@@ -439,45 +435,50 @@ def grouped_stat(ics_stack, groups, variables=None, stats=None):
 
     # function check
     if variables is None:
-        variables = ics_stack.get_property()
+        variables = ic_stack.get_property()
     if not isinstance(variables, list):
         variables = [variables]
     if not isinstance(stats, list):
         stats = [stats]
 
     for variable in variables:
-        if 'w_'+variable not in ics_stack:
-            ics_stack['w_' + variable] = np.ones([1, len(ics_stack.index)])
+        if 'w_' + variable not in ic_stack:
+            ic_stack['w_' + variable] = np.ones([1, len(ic_stack.index)])
             logger.warning('No weight value are defined for %s. Setting weight value to 1' % variable)
-        if ics_stack['w_' + variable].isna().any():
+        if ic_stack['w_' + variable].isna().any():
             # set w_variable to 0 if variable is nan
-            ics_stack.loc[ics_stack[variable].isna(), 'w_'+variable] = 0
+            ic_stack.loc[ic_stack[variable].isna(), 'w_' + variable] = 0
 
             # set w_variable to 1 if it exist
-            ics_stack.loc[ics_stack['w_' + variable].isna(), 'w_' + variable] = 1
+            ic_stack.loc[ic_stack['w_' + variable].isna(), 'w_' + variable] = 1
 
             logger.warning('some weight value are not defined for % s. Setting weight value to 1 if temperature exists, 0 otherway' % variable)
 
-    if groups is None:
-        logger.error("Grouping option cannot be empty; it should contains at least vertical section y_mid")
-    else:
-        no_y_mid_flag = True
+    # Discard any row with no valid data entry
+    ic_stack = ic_stack[ic_stack[['w_' + variable for variable in variables]].sum(axis=1) != 0]
+
+    no_y_mid_flag = True
+    if isinstance(groups, dict):
         if 'y_mid' in groups:
             no_y_mid_flag = False
+    elif isinstance(groups, list):
         for group in groups:
             if isinstance(group, dict):
                 if 'y_mid' in group:
                     no_y_mid_flag = False
-            elif 'y_mid' is groups:
-                no_y_mid_flag = False
-        if no_y_mid_flag:
-            logger.info("y_mid not in grouping option; try to generate y_mid from section horizon")
-            try:
-                groups.append({'y_mid': sorted(pd.concat([ics_stack.y_low, ics_stack.y_sup], sort=False).dropna().unique())})
-            except AttributeError:
-                logger.error("y_mid not in grouping option; y_mid cannot be generated from section horizon")
-            else:
-                logger.info("y_mid succesfully generated from section horizon")
+            elif 'y_mid' is group:
+                groups.remove('y_mid')
+    if no_y_mid_flag:
+        logger.info("y_mid not in grouping option; try to generate y_mid from section horizon")
+        try:
+            y_bins = sorted(
+                [0] + [y for y in ic_stack.y_low.dropna().unique() if y in ic_stack.y_sup.dropna().unique()] + [
+                    ic_stack.y_sup.max()])
+            groups.append({'y_mid': y_bins})
+        except AttributeError:
+            logger.error("y_mid not in grouping option; y_mid cannot be generated from section horizon")
+        else:
+            logger.info("y_mid succesfully generated from section horizon")
 
     # generate the cuts for groupby function and move 'y_mid' at the end if present
     cuts = []
@@ -489,11 +490,11 @@ def grouped_stat(ics_stack, groups, variables=None, stats=None):
     if isinstance(groups, dict):
         for key in groups:
             if key is 'y_mid':
-                _cut_y_mid = pd.cut(ics_stack[key], groups[key], labels=False)
+                _cut_y_mid = pd.cut(ic_stack[key], groups[key], labels=False)
                 _dim_y_mid = groups[key].__len__() - 1
                 _dict_y_mid = {key: groups[key]}
             else:
-                cuts.append(pd.cut(ics_stack[key], groups[key], labels=False))
+                cuts.append(pd.cut(ic_stack[key], groups[key], labels=False))
                 dim.append(groups[key].__len__() - 1)
                 cuts_dict.update({key: groups[key]})
                 groups_order.append(key)
@@ -502,25 +503,33 @@ def grouped_stat(ics_stack, groups, variables=None, stats=None):
             if isinstance(group, dict):
                 for key in group:
                     if key is 'y_mid':
-                        _cut_y_mid = pd.cut(ics_stack[key], group[key], labels=False)
+                        _cut_y_mid = pd.cut(ic_stack[key], group[key], labels=False)
                         _dim_y_mid = group[key].__len__() - 1
                         _dict_y_mid = {key: group[key]}
                     else:
-                        cuts.append(pd.cut(ics_stack[key], group[key], labels=False))
+                        cuts.append(pd.cut(ic_stack[key], group[key], labels=False))
                         dim.append(group[key].__len__() - 1)
                         cuts_dict.update({key: group[key]})
                         groups_order.append(key)
             else:
-                cuts.append(group)
-                _dict = {}
-                n = 0
-                for entry in ics_stack[group].unique():
-                    _dict[entry] = n
-                    n += 1
-                dim.append(n)
-                cuts_dict.update({group: _dict})
-                groups_order.append(group)
-                del _dict
+                if group is 'y_mid':
+                    y_mid = sorted(ic_stack[group].unique())
+                    y_mid = np.concatenate(([0], [y_mid[0] + np.diff(y_mid)[0] / 2], y_mid[1:] + np.diff(y_mid) / 2))
+                    _cut_y_mid = pd.cut(ic_stack[group], y_mid, labels=False)
+                    _dim_y_mid = y_mid.__len__() - 1
+                    _dict_y_mid = {group: y_mid}
+
+                else:
+                    cuts.append(group)
+                    _dict = {}
+                    n = 0
+                    for entry in ic_stack[group].unique():
+                        _dict[entry] = n
+                        n += 1
+                    dim.append(n)
+                    cuts_dict.update({group: _dict})
+                    groups_order.append(group)
+                    del _dict
     if _cut_y_mid.any():
         cuts.append(_cut_y_mid)
         dim.append(_dim_y_mid)
@@ -528,20 +537,17 @@ def grouped_stat(ics_stack, groups, variables=None, stats=None):
         groups_order.append('y_mid')
     del _cut_y_mid, _dim_y_mid, _dict_y_mid
 
+
     all_stat = CoreStack()
     for prop in variables:
         logger.warning('Computing statistic for %s' % prop)
 
         gr = [element if isinstance(element, str) else list(element.keys())[0] for element in groups]
 
-        prop_data = ics_stack.select_property(prop, extra_keys=gr).copy()
+        prop_data = ic_stack.select_property(prop, extra_keys=gr).copy()
 
-        # TODO: remove the 3 next line if it works without
-        # # if property weight is missing, set it to 1
-        # if 'w_' + prop not in prop_data.keys():
-        #     prop_data['w_' + prop] = 1
-        # weighted property is property value * property weight
         prop_data['wtd_'+prop] = prop_data['w_' + prop] * prop_data[prop]
+
         # if property weight is null, weighted property is np.nan
         prop_data.loc[prop_data['w_'+prop] == 0, 'wtd_'+prop] = np.nan
 
@@ -551,22 +557,27 @@ def grouped_stat(ics_stack, groups, variables=None, stats=None):
         core_var = [None for _ in range(int(np.prod(dim)))]
         _core_var_flag = True  # core name does change for different stat.
         for stat in list(stats):
+            # use np.FUNC(...) instead of .FUNC() as panda.groupby().FUNC() return np.nan rather than 0 if there
+            # is only notnull element in the group
             if stat in ['sum', 'mean']:
-                func = "kgroups.loc[~kgroups['wtd_" + prop +"'].isna(), 'wtd_" + prop +"' ]." + stat + "()"
+                func = "np." + stat + "(kgroups.loc[~kgroups['wtd_" + prop + "'].isna(), 'wtd_" + prop + "' ])"
                 w_func = "kgroups.loc[~kgroups['w_" + prop + "'].isna(), 'w_" + prop + "'].sum()"
                 n_func = "kgroups.loc[~kgroups['wtd_" + prop + "'].isna(), 'wtd_" + prop + "'].count()"
             elif stat in ['min', 'max', 'std']:
-                func = "kgroups.loc[~kgroups['wtd_" + prop +"'].isna(), '" + prop + "']." + stat + "()"
+                func = "np." + stat + "(kgroups.loc[~kgroups['wtd_" + prop + "'].isna(), '" + prop + "'])"
             else:
                 logger.error("%s operation not defined. Open a bug report" % stat)
             logger.info('\tcomputing %s' % stat)
 
             stat_var[stat] = np.nan * np.ones(dim)
             for k1, kgroups in data_grouped:
+                # print(k1, kgroups)
+                # break
                 if isinstance(k1, (int, float)):
                     k1 = [k1]
                 try:
                     stat_var[stat][tuple(np.array(k1, dtype=int))] = eval(func)
+                    new_k = k1
                 except Exception:
                     new_k = []
                     _k_n = 0
@@ -581,22 +592,22 @@ def grouped_stat(ics_stack, groups, variables=None, stats=None):
                             new_k.append(cuts_dict[groups_order[_k_n]][k])
                         _k_n += 1
 
-                    if stat in ['sum', 'mean']:
-                        # Take in account property measured only on a partial bins to computed weighted property
-                        # e.g. S measure on 2 samples
-                        # # 1 : 0-0.1, S = 10, w=1
-                        # # 2 : 0-0.1, S = 8, w=0.5
-                        # weighted mean : 0-0.1 = (10*1+8*0.5)/1.5*2
-                        wtd_stat = eval(func)
-                        w = eval(w_func)
-                        n = eval(n_func)
-                        stat_var[stat][tuple(np.array(new_k, dtype=int))] = wtd_stat * n / w
-                    else:
-                        stat_var[stat][tuple(np.array(new_k, dtype=int))] = eval(func)
+                if stat in ['sum', 'mean']:
+                    # Take in account property measured only on a partial bins to computed weighted property
+                    # e.g. S measure on 2 samples
+                    # # 1 : 0-0.1, S = 10, w=1
+                    # # 2 : 0-0.1, S = 8, w=0.5
+                    # weighted mean : 0-0.1 = (10*1+8*0.5)/1.5*2
+                    wtd_stat = eval(func)
+                    w = eval(w_func)
+                    n = eval(n_func)
+                    stat_var[stat][tuple(np.array(new_k, dtype=int))] = wtd_stat * n / w
+                else:
+                    stat_var[stat][tuple(np.array(new_k, dtype=int))] = eval(func)
 
-                    if _core_var_flag:
-                        core_var[int(np.prod(np.array(new_k) + 1) - 1)] = ', '.join(
-                            list(kgroups.loc[~kgroups['wtd_'+prop].isna(), 'name'].unique()))
+                if _core_var_flag:
+                    core_var[int(np.prod(np.array(new_k) + 1) - 1)] = ', '.join(
+                        list(kgroups.loc[~kgroups['wtd_' + prop].isna(), 'name'].unique()))
                 else:
                     if _core_var_flag:
                         core_var[int(np.prod(np.array(k1)+1)-1)] = ', '.join(list(kgroups.loc[~kgroups['wtd_'+prop].isna(),
@@ -652,7 +663,7 @@ def grouped_stat(ics_stack, groups, variables=None, stats=None):
                     key_merge.append('bin_' + groups_order[n_index])
 
             # v_ref, variable
-            df['v_ref'] = ics_stack.v_ref.unique()[0]
+            df['v_ref'] = ic_stack.v_ref.unique()[0]
             df['name'] = '-'.join(name)
             df['variable'] = prop
             # assemble with existing core stat:
@@ -693,10 +704,10 @@ def grouped_stat(ics_stack, groups, variables=None, stats=None):
                 name = []
                 for n_index in range(0, index.__len__()):
                     if groups_order[n_index] in cuts_dict:
-                        df[groups_order[n_index]] = cuts_dict[groups_order[n_index]][index[n_index]]
+                        df[groups_order[n_index]] = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
                         # df[groups_order[n_index]] = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
                         key_merge.append(groups_order[n_index])
-                        _name = cuts_dict[groups_order[n_index]][index[n_index]]
+                        _name = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
                         # _name = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
                         if isinstance(_name, str):
                             name.append(_name)
@@ -709,7 +720,7 @@ def grouped_stat(ics_stack, groups, variables=None, stats=None):
                         key_merge.append('bin_' + groups_order[n_index])
 
                 # v_ref, variable
-                df['v_ref'] = ics_stack.v_ref.unique()[0]
+                df['v_ref'] = ic_stack.v_ref.unique()[0]
                 df['name'] = '-'.join(name)
                 df['variable'] = prop
                 # assemble with existing core stat:
@@ -727,13 +738,33 @@ def grouped_stat(ics_stack, groups, variables=None, stats=None):
         else:
             props = all_stat.get_property() + [prop]
             core_stat['variable'] = ', '.join(props)
-            all_stat = all_stat.merge(core_stat, how='outer', on=key_merge, sort=False)
-            all_stat[all_stat.variable_y.isna()] = all_stat[all_stat.variable_x.isna()]
-            all_stat = all_stat.rename(columns={'variable_y': 'variable'})
-            all_stat = all_stat.drop(labels=['variable_x'], axis =1)
+
+            for key in key_merge:
+                if all_stat[key].isna().all():
+                    all_stat = all_stat.drop(columns=key, axis=1)
+                if core_stat[key].isna().all():
+                    core_stat = core_stat.drop(columns=key, axis=1)
+            key_merge2 = [key for key in key_merge if
+                          key in core_stat.columns and core_stat[key].notnull().any() and key in all_stat.columns]
+            # key_2del = [key for key in key_merge if key not in key_merge2]
+            # for key in key_2del:
+            #    if key in core_stat.columns:
+            #        core_stat = core_stat.drop(key_2del, axis=1)
+
+            all_stat = all_stat.merge(core_stat, how='outer', on=key_merge2, sort=False)
+
+            # update variable:
+            variable_to_update = [[var if val is True else None for val in all_stat[var + '_mean'].notnull()] for var in
+                                  props]
+            all_stat['variable'] = [', '.join(filter(None, list)) for list in zip(*variable_to_update)]
+
+            # all_stat[all_stat.variable_y.isna()] = all_stat[all_stat.variable_x.isna()]
+            # all_stat = all_stat.rename(columns={'variable_y': 'variable'})
+            all_stat = all_stat.drop(labels=['variable_x'], axis=1)
+            all_stat = all_stat.drop(labels=['variable_y'], axis =1)
 
         #all_stat = all_stat.apply(pd.to_numeric, errors='ignore')
-
+        all_stat = all_stat[all_stat['variable'] != '']
     return all_stat
 
 

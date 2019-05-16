@@ -422,9 +422,12 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
         # drop property with all nan value
         _profile_notnull = profile[variable_headers].dropna(axis=1, how='all')
         if 'comments' in _profile_notnull.columns:
-            profile = profile[headers_depth]
-        else:
             profile = profile[headers_depth + ['comments']]
+        elif 'comment' in _profile_notnull.columns:
+            profile = profile[headers_depth + ['comment']]
+        else:
+            profile = profile[headers_depth]
+            profile['comments'] = ''
         profile = pd.concat([profile, _profile_notnull], axis=1, sort=False)
 
         # set comment as string and replace nan value by empty string
@@ -434,7 +437,7 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
         profile = profile.dropna(axis=0, subset=['y_low', 'y_mid', 'y_sup'], how='all')
 
         # get all property variable (e.g. salinity, temperature, ...)
-        property = [var for var in _profile_notnull.columns if var not in ['comments']]
+        property = [var for var in _profile_notnull.columns if var not in ['comments', 'comment']]
 
         # remove subvariable (e.g. conductivity temperature measurement for conductivity
         property = [prop for prop in property if prop not in inverse_dict(subvariable_dict)]

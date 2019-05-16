@@ -854,6 +854,54 @@ def delete_variables(ics_stack, variables2del):
     return ics_stack
 
 
+def select_variables(ics_stack, variables):
+    """
+    Return an excerpt of the profile or dataframe with only the selected variable
+    :param ics_stack: Profile, CoreStack
+    :param variables: list of variable to return in the DataFrame
+    :return:
+    :updated: 2009-04-18
+    """
+
+    from seaice.core.corestack import CoreStack
+    from seaice.core.profile import Profile
+
+    logger = logging.getLogger(__name__)
+
+    new_stack = ics_stack.copy()
+
+    # check input:
+    if not isinstance(variables, list):
+        variables = [variables]
+    stack_type = None
+    if isinstance(new_stack, Profile):
+        stack_type = 'Profile'
+    elif isinstance(new_stack, CoreStack):
+        stack_type = 'CoreStack'
+    else:
+        logger.error('stack should be of class Profile or CoreStack')
+
+    for variable in variables:
+        if variable not in new_stack.variables():
+            variables.remove(variable)
+            logger.warning('Variable %s not in stack variables, removing %s' % (variable, variable))
+
+    # create list of variable to remove from the stack:
+    variables2del = [var for var in new_stack.variables() if not var in variables]
+
+    #
+    new_stack = delete_variables(new_stack, variables2del)
+
+    if stack_type == 'Profile':
+        return seaice.core.profile.Profile(new_stack)
+    elif stack_type == 'CoreStack':
+        return seaice.core.corestack.CoreStack(new_stack)
+    else:
+        logger.warning('Stack class undefined, returning DataFrame')
+        return new_stack
+
+
+
 def select_variable(ics_stack, variable):
     for group in ics_stack.variable.unique():
         variable_group = group.split(', ')
