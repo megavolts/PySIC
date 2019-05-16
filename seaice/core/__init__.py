@@ -325,7 +325,7 @@ def import_ic_sourcefile(f_path, variables=None, ic_dir=None, v_ref='top', drop_
 
 
 # read profile
-def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='top', fill_missing=False):
+def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='top'):
     """
     :param ws_variable:
         openpyxl.worksheet
@@ -393,7 +393,6 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
                 logger.info('(%s - %s ) y_low, y_mid and y_sup read with success'
                             % (name, ws_variable.title))
 
-        data = np.array([y_low, y_mid, y_sup])
 
         # read data
         min_col = sheet_2_data[ws_variable.title][2][0]
@@ -404,43 +403,50 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
         min_row = sheet_2_data[ws_variable.title][0]
         max_row = min_row + y_mid.__len__()-1
 
-        _data = [[cell.value if isinstance(cell.value, (float, int)) else np.nan for cell in row]
+        # _data = [[cell.value if isinstance(cell.value, (float, int)) else np.nan for cell in row]
+        #          for row in ws_variable.iter_cols(min_col, max_col, min_row, max_row)]
+        _data = [[cell.value if isinstance(cell.value, (float, int, str)) else np.nan for cell in row]
                  for row in ws_variable.iter_cols(min_col, max_col, min_row, max_row)]
-        data = np.vstack([data, np.array(_data).astype(float)])
-        data = data.transpose()
+
+        data = np.array([y_low, y_mid, y_sup])
+        data = np.vstack([data, np.array(_data)])
 
         variable_headers = [ws_variable.cell(row_header, col).value for col in range(min_col, max_col+1)]
 
-        # fill missing section with np.nan
-        if fill_missing:
-            idx = np.where(np.abs(y_low[1:-1]-y_sup[0:-2]) > TOL)[0]
-            for ii_idx in idx:
-                empty = [y_sup[ii_idx], (y_sup[ii_idx]+y_low[ii_idx+1])/2, y_low[ii_idx+1]]
-                empty += [np.nan] * (variable_headers.__len__()+1)
-            data = np.vstack([data, empty])
+        # # fill missing section with np.nan
+        # if fill_missing:
+        #     idx = np.where(np.abs(y_low[1:-1]-y_sup[0:-2]) > TOL)[0]
+        #     for ii_idx in idx:
+        #         empty = [y_sup[ii_idx], (y_sup[ii_idx]+y_low[ii_idx+1])/2, y_low[ii_idx+1]]
+        #         empty += [np.nan] * (variable_headers.__len__()+1)
+        #     data = np.vstack([data, empty])
 
         # assemble profile dataframe
-        profile = pd.DataFrame(data, columns=headers_depth+variable_headers)
+        profile = pd.DataFrame(data.transpose(), columns=headers_depth + variable_headers)
+
+        # drop empty varialbe header
+        if None in profile.columns:
+            profile = profile.drop(labels=[None], axis=1)
+
+        if 'comment' in profile.columns:
+            profile.rename(columns={'comment': "comments"}, inplace=True)
+
+        # convert string to float:
+        float_header = [h for h in profile.columns if h not in ['comments']]
+        profile[float_header] = profile[float_header].apply(pd.to_numeric, errors='coerce')
 
         # drop property with all nan value
-        _profile_notnull = profile[variable_headers].dropna(axis=1, how='all')
-        if 'comments' in _profile_notnull.columns:
-            profile = profile[headers_depth + ['comments']]
-        elif 'comment' in _profile_notnull.columns:
-            profile = profile[headers_depth + ['comment']]
-        else:
-            profile = profile[headers_depth]
+        profile = profile.dropna(axis=1, how='all')
+        if 'comments' not in profile.columns:
             profile['comments'] = ''
-        profile = pd.concat([profile, _profile_notnull], axis=1, sort=False)
-
-        # set comment as string and replace nan value by empty string
-        profile.comments = profile.comments.apply(str).replace('nan', '')
+        else:
+            profile.comments = profile.comments.apply(str).replace('nan', '')
 
         # remove empty line:
         profile = profile.dropna(axis=0, subset=['y_low', 'y_mid', 'y_sup'], how='all')
 
         # get all property variable (e.g. salinity, temperature, ...)
-        property = [var for var in _profile_notnull.columns if var not in ['comments', 'comment']]
+        property = [var for var in profile.columns if var not in ['comments'] + headers_depth]
 
         # remove subvariable (e.g. conductivity temperature measurement for conductivity
         property = [prop for prop in property if prop not in inverse_dict(subvariable_dict)]

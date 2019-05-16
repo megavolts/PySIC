@@ -115,7 +115,42 @@ class Profile(pd.DataFrame):
         :param profile: seaice.Profile()
         """
         if profile.get_name() is self.get_name():
-            self = self.merge(profile, how='outer', sort=False).reset_index(drop=True)
+            var_merge = [var for var in profile.columns if var in self.columns]
+            if 'comments' in var_merge:
+                var_merge.remove('comments')
+                f_comments = True
+            else:
+                f_comments = False
+            if 'comment' in var_merge:
+                var_merge.remove('comment')
+                f_comment = True
+            else:
+                f_comment = False
+            if 'variable' in var_merge:
+                var_merge.remove('variable')
+                f_variable = True
+            else:
+                f_comment = False
+
+            self = self.merge(profile, how='outer', sort=False, on=var_merge).reset_index(drop=True)
+
+            if f_variable:
+                self['variable'] = self['variable_x'] + ', ' + self['variable_y']
+                self['variable'].apply(lambda x: ', '.join(filter(None, x.split(', '))))
+                self.drop(['variable_x', 'variable_y'], axis=1, inplace=True)
+            if f_comments:
+                self['comments'] = self['comments_x'] + '; ' + self['comments_y']
+                self['comments'] = self['comments'].apply(lambda x: '; '.join(set(filter(None, x.split('; ')))))
+                self.drop(['comments_x', 'comments_y'], axis=1, inplace=True)
+            if f_comment:
+                self['comment'] = self['comment_x'] + '; ' + self['comment_y']
+                self['comment'] = self['comment'].apply(lambda x: '; '.join(set(filter(None, x.split('; ')))))
+                self.drop(['comment_x', 'comment_y'], axis=1, inplace=True)
+            if 'comment' in self.columns and 'comments' in self.columns:
+                self['comment'] = self['comment'] + '; ' + self['comments']
+                self['comment'] = self['comment'].apply(lambda x: '; '.join(set(filter(None, x.split('; ')))))
+                self.drop(['comments'], axis=1, inplace=True)
+
             return self
         else:
             self.logger = logging.getLogger(__name__)
