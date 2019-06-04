@@ -4,8 +4,9 @@
 property/brine.py contains function to compute physical property relative to the sea ice brine
 """
 
-import numpy as np
 import logging
+
+import numpy as np
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -18,7 +19,7 @@ __date__ = "2018/08/15"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 __name__ = "brine"
 
-__all__ = ["density", "electric_conductivity", "salinity_from_conductivity", "salinity", "thermal_conductivity"]
+__all__ = ["density", "electric_conductivity", "salinity", "thermal_conductivity"]
 
 module_logger = logging.getLogger(__name__)
 
