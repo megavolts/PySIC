@@ -17,7 +17,6 @@ __name__ = "seaice"
 
 import logging
 import numpy as np
-import pandas as pd
 import seaice.core.corestack
 import seaice.core.plot
 import seaice.core.profile

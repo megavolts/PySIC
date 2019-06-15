@@ -49,8 +49,13 @@ variable_2_sheet = {'temperature': 'T_ice',
                     # 'Phae': 'algal_pigment'
                     }
 
+## Default values:
+variables = None
+v_ref = 'top'
+verbose = False
+drop_empty = False
 
-def import_ic_path(ic_path, variables=None, v_ref='top', drop_empty=False):
+def import_ic_path(ic_path, variables=variables, v_ref=v_ref, drop_empty=drop_empty):
     """
     :param ic_path:
         string, path to the xlsx ice core spreadsheet
@@ -76,6 +81,7 @@ def import_ic_path(ic_path, variables=None, v_ref='top', drop_empty=False):
     else:
         logger.error("(%s) ice core spreadsheet version not unavailable" % name)
     wb.close()
+
     # convert ice core spreadsheet to last version
     if version < __CoreVersion__:
         wb.close()
@@ -213,8 +219,9 @@ def import_ic_path(ic_path, variables=None, v_ref='top', drop_empty=False):
             if drop_empty:
                 profile.drop_empty_property()
 
-            if profile.variables() is None:
-                profile = pd.DataFrame()
+            # 20190615 - read_profile should return an empty profile if there is no variables
+            # if profile.variables() is None:
+            #     profile = pd.DataFrame()
 
             if not profile.empty:
                 if profile.get_name() is not core.name:
@@ -260,7 +267,7 @@ def import_ic_path(ic_path, variables=None, v_ref='top', drop_empty=False):
     return core
 
 
-def import_ic_list(ic_list, variables=None, v_ref='top', verbose=False, drop_empty=False):
+def import_ic_list(ic_list, variables=variables, v_ref=v_ref, verbose=verbose, drop_empty=drop_empty):
     """
     :param ic_list:
             array, array contains absolute filepath for the cores
@@ -333,8 +340,6 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
     :param version:
     :param v_ref:
         top, or bottom
-    :param fill_missing:
-
     """
     logger = logging.getLogger(__name__)
 
@@ -356,11 +361,10 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
     #                'stratigraphy': [row_data_start, 'AB', 'C', 'D'],
     #                'seawater': [row_data_start, 'A', 'DEFGF', 'G']}
 
-
     # define section
     headers_depth = ['y_low', 'y_mid', 'y_sup']
-    # Continuous profile
-    if not ws_variable.title in sheet_2_data:
+
+    if not ws_variable.title in sheet_2_data:  # if the sheet does not exist, return an empty profile
         profile = seaice.core.profile.Profile()
     else:
         name = ws_variable['C1'].value
@@ -442,8 +446,9 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
         else:
             profile.comments = profile.comments.apply(str).replace('nan', '')
 
-        # remove empty line:
-        profile = profile.dropna(axis=0, subset=['y_low', 'y_mid', 'y_sup'], how='all')
+        # remove empty line if all element of depth are nan:
+        subset = [col for col in ['y_low', 'y_mid', 'y_sup'] if col in profile.columns]
+        profile = profile.dropna(axis=0, subset=subset, how='all')
 
         # get all property variable (e.g. salinity, temperature, ...)
         property = [var for var in profile.columns if var not in ['comments'] + headers_depth]

@@ -130,25 +130,27 @@ class Profile(pd.DataFrame):
                 var_merge.remove('variable')
                 f_variable = True
             else:
-                f_comment = False
+                f_variable = False
 
             self = self.merge(profile, how='outer', sort=False, on=var_merge).reset_index(drop=True)
 
             if f_variable:
-                self['variable'] = self['variable_x'] + ', ' + self['variable_y']
-                self['variable'].apply(lambda x: ', '.join(filter(None, x.split(', '))))
+                self['variable'] = self[['variable_x', 'variable_y']].apply(lambda x: '{}, {}'.format(x[0], x[1]), axis=1)
+                self['variable'] = self['variable'].apply(lambda x: ', '.join(filter(lambda y: y not in [None, 'nan'], x.split(', '))))
                 self.drop(['variable_x', 'variable_y'], axis=1, inplace=True)
-            if f_comments:
-                self['comments'] = self['comments_x'] + '; ' + self['comments_y']
-                self['comments'] = self['comments'].apply(lambda x: '; '.join(set(filter(None, x.split('; ')))))
-                self.drop(['comments_x', 'comments_y'], axis=1, inplace=True)
             if f_comment:
-                self['comment'] = self['comment_x'] + '; ' + self['comment_y']
-                self['comment'] = self['comment'].apply(lambda x: '; '.join(set(filter(None, x.split('; ')))))
+                self['comment'] = self[['comment_x', 'comment_y']].apply(lambda x: '{}, {}'.format(x[0], x[1]), axis=1)
+                self['comment'] = self['comment'].apply(lambda x: ', '.join(filter(lambda y: y not in [None, 'nan'], x.split(', '))))
                 self.drop(['comment_x', 'comment_y'], axis=1, inplace=True)
-            if 'comment' in self.columns and 'comments' in self.columns:
-                self['comment'] = self['comment'] + '; ' + self['comments']
-                self['comment'] = self['comment'].apply(lambda x: '; '.join(set(filter(None, x.split('; ')))))
+            if f_comments:
+                self['comments'] = self[['comments_x', 'comments_y']].apply(lambda x: '{}, {}'.format(x[0], x[1]), axis=1)
+                self['comments'] = self['comments'].apply(lambda x: ', '.join(filter(lambda y: y not in [None, 'nan'], x.split(', '))))
+                self.drop(['comments_x', 'comments_y'], axis=1, inplace=True)
+                if f_comment:
+                    self['comment'] = self[['comment', 'comments']].apply(lambda x: '{}, {}'.format(x[0], x[1]), axis=1)
+                    self['comment'] = self['comment'].apply(lambda x: ', '.join(filter(lambda y: y not in [None, 'nan'], x.split(', '))))
+                else:
+                    self['comment'] = self['comments']
                 self.drop(['comments'], axis=1, inplace=True)
 
             return self
