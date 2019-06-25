@@ -428,30 +428,32 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
         # assemble profile dataframe
         profile = pd.DataFrame(data.transpose(), columns=headers_depth + variable_headers)
 
-        # drop empty varialbe header
+        # drop empty variable header
         if None in profile.columns:
             profile = profile.drop(labels=[None], axis=1)
 
-        if 'comment' in profile.columns:
-            profile.rename(columns={'comment': "comments"}, inplace=True)
-
-        # convert string to float:
-        float_header = [h for h in profile.columns if h not in ['comments']]
-        profile[float_header] = profile[float_header].apply(pd.to_numeric, errors='coerce')
+        # # convert string to float:
+        # float_header = [h for h in profile.columns if h not in ['comments']]
+        # profile[float_header] = profile[float_header].apply(pd.to_numeric, errors='coerce')
 
         # drop property with all nan value
         profile = profile.dropna(axis=1, how='all')
-        if 'comments' not in profile.columns:
-            profile['comments'] = ''
-        else:
-            profile.comments = profile.comments.apply(str).replace('nan', '')
 
         # remove empty line if all element of depth are nan:
         subset = [col for col in ['y_low', 'y_mid', 'y_sup'] if col in profile.columns]
         profile = profile.dropna(axis=0, subset=subset, how='all')
 
+        # singularize comments
+        if 'comments' in profile.columns:
+            profile.rename(columns={'comments': "comment"}, inplace=True)
+        # add comment column if it does not exist
+        if 'comment' not in profile.columns:
+            profile['comment'] = None
+        else:
+            profile['comment'] = profile['comment'].astype(str).replace({'nan': None})
+
         # get all property variable (e.g. salinity, temperature, ...)
-        property = [var for var in profile.columns if var not in ['comments'] + headers_depth]
+        property = [var for var in profile.columns if var not in ['comment'] + headers_depth]
 
         # remove subvariable (e.g. conductivity temperature measurement for conductivity
         property = [prop for prop in property if prop not in inverse_dict(subvariable_dict)]
@@ -459,7 +461,7 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
         # set variable to string of property
         profile['variable'] = [', '.join(property)]*len(profile.index)
 
-        # ice thickness
+        # ice core length
         try:
             length = float(ws_variable['C2'].value)
         except:
@@ -467,10 +469,12 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
             length = np.nan
         else:
             if length == 'n/a':
+                profile['comment'] = 'ice core length not available'
                 logger.info('(%s) ice core length is not available (n/a)' % name)
                 length = np.nan
             elif not isinstance(length, (int, float)):
                 logger.info('%s ice core length is not a number' % name)
+                profile['comment'] = 'ice core length not available'
                 length = np.nan
         profile['length'] = [length]*len(profile.index)
 
@@ -480,12 +484,15 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
         # set ice core name for profile
         profile['name'] = [name]*len(profile.index)
 
-        # set depth and property type to float
-        headers_float = [h for h in profile.columns if h not in ['comments', 'v_ref', 'name', 'profile', 'variable']]
-        profile[headers_float] = profile[headers_float].astype(float)
+        # set columns type
+        col_string = ['comment', 'v_ref', 'name', 'profile', 'variable']
+        col_date = ['date']
+        col_float = [h for h in profile.columns if h not in col_string and h not in col_date]
+        profile[col_float] = profile[col_float].apply(pd.to_numeric, errors='coerce')
+        c_string = [h for h in col_string if h in profile.columns]
+        profile[c_string] = profile[c_string].astype(str).replace({'nan': None})
 
         profile = seaice.core.profile.Profile(profile)
-
         # remove variable not in variables
         if variables is not None:
             for property in profile.properties():

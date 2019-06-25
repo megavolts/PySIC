@@ -31,6 +31,11 @@ subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
 continuous_variable_list = ['temperature']
 DEBUG = False
 
+
+fill_gap = False
+y_mid = None
+fill_extremity=False
+save_fig = False
 class Profile(pd.DataFrame):
     """
 
@@ -329,7 +334,7 @@ class Profile(pd.DataFrame):
         return self.get_property()
 
 
-def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, fill_gap=False, fill_extremity=False, save_fig=False):
+def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, fill_gap=fill_gap, fill_extremity=fill_extremity, save_fig=save_fig):
     """
     :param profile:
     :param y_bins:
@@ -499,7 +504,6 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
 
                 yx[:, 2] = value
 
-
             # yx and y_bins should be ascendent suit
             if (np.diff(y_bins) < 0).all():
                 logger.info("y_bins is descending reverting the list")
@@ -567,9 +571,9 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                     # check if a_ii-1 was not the last element of a
                     if a_ii < a.size:
                         if yx[a[a_ii], 1] - y_bins[ii_bin+1] > -TOL:
-                            S_temp = yx[a[a_ii], n_s0:n_s1] * (y_bins[ii_bin+1] -yx[a[a_ii], 0])
+                            l = y_bins[ii_bin+1] - yx[a[a_ii], 0]  # length of the suction
+                            S_temp = yx[a[a_ii], n_s0:n_s1] * l
                             S = np.nansum([S, S_temp], axis=0)
-                            l = y_bins[ii_bin+1] - yx[a[a_ii], 0]
                             L = np.nansum([L, l * ~np.isnan(S_temp)], axis=0)
                             L_nan = np.nansum([L_nan, l * np.isnan(S_temp)], axis=0)
                             if DEBUG:
@@ -767,20 +771,41 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
 
 
         if not temp.empty:
+            temp.reset_index(drop=True, inplace=True)
             temp.loc[temp[_variable[0]].isna(), 'w_'+_variable[0]] = 0
 
-            # keep only ice core entry
+            # keep only ice core length by entry
+            # TODO: remove all np.nan entry for the variable, this implies better merging function for pandas
             l_c = temp.length.unique()[0]
             if not np.isnan(temp.length.unique()[0]):
-                if l_c > 0:
-                    temp = temp[(temp.y_mid <= temp.length.unique()[0])]
-                elif l_c < 0:
+                if l_c > 0 and temp.v_ref.unique()[0] == 'top':
+                    n_y_mid_max = np.where(l_c <= temp.y_mid)[0][0]
+                    temp = temp.loc[temp.index <= n_y_mid_max]
+                    # temp = temp[(temp.y_mid <= l_c)]
+                elif l_c > 0 and temp.v_ref.unique()[0] == 'bottom':
                     h_i = temp.ice_thickness.mean()
                     if np.isnan(h_i):
                         h_i = - l_c
-                    temp = temp[(h_i + l_c <= temp.y_mid) & (temp.y_mid <= h_i)]
+                    try:
+                        n_y_mid_min = np.where(temp.y_mid <= h_i-l_c)[0][-1]
+                    except IndexError:
+                        n_y_mid_min =0
+                    n_y_mid_max = np.where(h_i <= temp.y_mid)[0][0]
+                    temp = temp.loc[(n_y_mid_min <= temp.index) & (temp.index <= n_y_mid_max)]
+                    # temp = temp[(h_i + l_c <= temp.y_mid) & (temp.y_mid <= h_i)]
+                elif l_c < 0 and temp.v_ref.unique()[0] == 'bottom':
+                    h_i = temp.ice_thickness.mean()
+                    if np.isnan(h_i):
+                        h_i = - l_c
+                    n_y_mid_max = np.where(temp.y_mid <= h_i+l_c & h_i <= temp.y_mid)
+                    temp = temp.loc[temp.index <= n_y_mid_max]
+                    # temp = temp[(h_i + l_c <= temp.y_mid) & (temp.y_mid <= h_i)]
+                else:
+                    logger.error('ERROR PROFILE.DISCRETIZED_PROFILE')
             elif not np.isnan(temp.ice_thickness.unique()[0]):
-                temp = temp[(temp.y_mid <= temp.ice_thickness.unique()[0])]
+                n_y_mid_max = np.where(temp.ice_thickness.unique()[0] <= temp.y_mid)[0][0]
+                temp = temp.loc[temp.index <= n_y_mid_max]
+                # temp = temp[(temp.y_mid <= temp.ice_thickness.unique()[0])]
             else:
                 # TODO : check if it works from bottom too
                 y_in_ice = [y for y in temp.y_mid[::-1] if not temp.loc[temp.y_mid > y, _variable[0]].isna().all()]
@@ -794,21 +819,55 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
             if 'date' in temp:
                 temp['date'] = pd.to_datetime(temp['date'])
             if 'comments' in temp:
-                temp['comments'] = temp['comments'].astype(str)
+                temp['comments'] = temp['comments'].astype(str).replace('nan', None)
+            if 'comment' in temp:
+                temp['comments'] = temp['comment'].astype(str).replace('nan', None)
+                temp = temp.drop('comment', axis=1)
 
             if discretized_profile.empty:
                 discretized_profile = temp
             else:
-                temp = temp.drop('variable', axis=1)
+                if 'variable' in temp.columns:
+                    temp = temp.drop('variable', axis=1)
                 temp = temp.rename(columns={'comments': 'comments_temp'})
 
                 col = [col for col in discretized_profile.columns if col in temp.columns]
-                discretized_profile = pd.merge(discretized_profile, temp, on=col, sort=False)
 
-                for vg in discretized_profile.variable.unique():
-                    new_vg = vg.split(', ')
-                    new_vg += var0
-                    discretized_profile.loc[discretized_profile.variable == vg, 'variable'] = ', '.join(new_vg)
+                not_matching_col = [c for c in col if not discretized_profile.iloc[0][c] == temp.iloc[0][c]]
+
+                if len(not_matching_col) == 0:
+                    discretized_profile = pd.merge(discretized_profile, temp, on=col, sort=False)
+                    for vg in discretized_profile.variable.unique():
+                        new_vg = vg.split(', ')
+                        new_vg += var0
+                        discretized_profile.loc[discretized_profile.variable == vg, 'variable'] = ', '.join(new_vg)
+                else:
+                    logger.warning('%s not matching between profile' % ', '.join(not_matching_col))
+                    if not_matching_col == ['length']:
+                        l_c_p = discretized_profile.length.unique()[0]
+                        # merge profile up to maximum common depth
+                        if l_c < l_c_p:
+                            temp.length = l_c_p
+                            discretized_profile_extra = discretized_profile.loc[l_c < discretized_profile.y_mid].copy()
+                            discretized_profile = pd.merge(discretized_profile, temp, on=col, sort=False)
+                            for vg in discretized_profile.variable.unique():
+                                new_vg = vg.split(', ')
+                                new_vg += var0
+                                discretized_profile.loc[discretized_profile.variable == vg, 'variable'] = ', '.join(list(set(filter(None, new_vg))))
+                            discretized_profile = pd.concat([discretized_profile, discretized_profile_extra])
+                        else:
+                            discretized_profile.length = l_c
+                            temp_extra = temp.loc[l_c_p < temp.y_mid].copy()
+                            temp_extra['variable'] = var0[0]
+                            discretized_profile = pd.merge(discretized_profile, temp, on=col, sort=False)
+                            for vg in discretized_profile.variable.unique():
+                                new_vg = vg.split(', ')
+                                new_vg += var0
+                                discretized_profile.loc[discretized_profile.variable == vg, 'variable'] = ', '.join(list(set(filter(None, new_vg))))
+                            discretized_profile = pd.concat([discretized_profile, temp_extra])
+                    else:
+                        temp['variable'] = var0[0]
+                        discretized_profile = pd.concat([discretized_profile, temp])
 
                 # add comment
                 if 'comments_temp' in discretized_profile.columns:
@@ -816,13 +875,21 @@ def discretize_profile(profile, y_bins=None, y_mid=None, display_figure=False, f
                     discretized_profile = discretized_profile.drop('comments_temp', axis=1)
     discretized_profile = Profile(discretized_profile)
 
+    # clean up:
+    discretized_profile.reset_index(drop=True, inplace=True)
+    discretized_profile.sort_values(by='y_mid', inplace=True)
+
     if display_figure:
+        if profile.v_ref.unique()[0] == 'top':
+            profile.sort_values(by='y_mid', inplace=True)
+        else:
+            profile.sort_values(by='y_mid', inplace=True, ascending=False)
         ax, ax_dict = seaice.core.plot.plot_all_profile_variable(profile, ax=None, display_figure=False,
                                                                  param_dict={'linestyle': ':', 'color': 'k'})
         seaice.core.plot.plot_all_profile_variable(discretized_profile, ax=ax, ax_dict=ax_dict,
                                                    display_figure=display_figure,
                                                    param_dict={'linestyle': ':', 'marker': 'x', 'color': 'r'})
-    return discretized_profile
+    return Profile(discretized_profile)
 
 
 def set_profile_orientation(profile, v_ref):
@@ -834,18 +901,18 @@ def set_profile_orientation(profile, v_ref):
     """
     logger = logging.getLogger(__name__)
 
-    for variable in profile.variable.unique():
+    for vg in profile.variable.unique():
         # look for ice thickness:
-        if profile[profile.variable == variable].v_ref.unique().__len__() > 1:
+        if profile[profile.variable == vg].v_ref.unique().__len__() > 1:
             logger.error("vertical reference for profile are not consistent")
-        if not profile[profile.variable == variable].v_ref.unique().tolist()[0] == v_ref:
+        if not profile[profile.variable == vg].v_ref.unique().tolist()[0] == v_ref:
             # search ice core length, or ice thickness
             if 'ice_thickness' in profile.keys() and \
-                    not np.isnan(profile[profile.variable == variable].ice_thickness.astype(float)).all():
-                    lc = profile[profile.variable == variable].ice_thickness.astype(float).dropna().unique()[0]
+                    not np.isnan(profile[profile.variable == vg].ice_thickness.astype(float)).all():
+                    lc = profile[profile.variable == vg].ice_thickness.astype(float).dropna().unique()[0]
             elif 'length' in profile.keys() and \
-                    not np.isnan(profile[profile.variable == variable].length.astype(float)).all():
-                    lc = profile[profile.variable == variable].length.astype(float).dropna().unique()[0]
+                    not np.isnan(profile[profile.variable == vg].length.astype(float)).all():
+                    lc = profile[profile.variable == vg].length.astype(float).dropna().unique()[0]
             else:
                 lc = None
 
@@ -856,19 +923,22 @@ def set_profile_orientation(profile, v_ref):
                 else:
                     logger.warning("Mising core length or ice thickness, impossible to set profile orientation to %s.\
                     Deleting profile" % v_ref)
-                profile = delete_profile(profile, {'variable': variable})
+                profile = delete_profile(profile, {'variable': vg})
             else:
-                new_df = profile.loc[profile.variable == variable, 'y_low'].apply(lambda x: lc - x)
-                new_df = pd.concat([new_df, profile.loc[profile.variable == variable, 'y_mid'].apply(lambda x: lc - x)],
+                new_df = profile.loc[profile.variable == vg, 'y_low'].apply(lambda x: lc - x)
+                new_df = pd.concat([new_df, profile.loc[profile.variable == vg, 'y_mid'].apply(lambda x: lc - x)],
                                    axis=1, sort=False)
-                new_df = pd.concat([new_df, profile.loc[profile.variable == variable, 'y_sup'].apply(lambda x: lc - x)],
+                new_df = pd.concat([new_df, profile.loc[profile.variable == vg, 'y_sup'].apply(lambda x: lc - x)],
                                    axis=1, sort=False)
                 new_df['v_ref'] = 'bottom'
                 profile.update(new_df)
         else:
             logger.info('profile orientiation already set')
 
-    profile.length = -profile.length
+    if v_ref == ' bottom':
+        profile.length = -np.abs(profile.length)
+    else:
+        profile.length = np.abs(profile.length)
 
     return profile
 

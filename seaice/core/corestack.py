@@ -36,6 +36,13 @@ essential_property = ['y_low', 'y_mid', 'y_sup', 'name', 'collection', 'comment'
 # enable logging module to capture warning
 logging.captureWarnings(True)
 
+y_bins = None
+y_mid = None
+display_figure = False
+fill_gap = False
+fill_extremity = False
+variables = None
+
 class CoreStack(pd.DataFrame):
     """
         CoreStack
@@ -103,7 +110,7 @@ class CoreStack(pd.DataFrame):
         else:
             return CoreStack(self)
 
-    def remove_profile_from_core(self, name, variables=None):
+    def remove_profile_from_core(self, name, variables=variables):
         """
 
         :param name: name of the core
@@ -142,8 +149,8 @@ class CoreStack(pd.DataFrame):
 
         return grouped_stat(self, groups=groups, variables=variables, stats=stats)
 
-    def discretize(self, y_bins=None, y_mid=None, display_figure=False, fill_gap=False,
-                   fill_extremity=False, variables=None):
+    def discretize(self, y_bins=y_bins, y_mid=y_mid, display_figure=display_figure, fill_gap=fill_gap,
+                   fill_extremity=fill_extremity, variables=variables):
         """
 
         :param y_bins:
@@ -195,22 +202,25 @@ class CoreStack(pd.DataFrame):
         :return:
         """
 
-        oriented_stack = CoreStack()
+        oriented_stack = self.loc[self.v_ref == v_ref]
+        unoriented_stack = self.loc[self.v_ref != v_ref]
 
-        for hi in self.ice_thickness.unique():
-            subset = self[self.ice_thickness == hi]
-            if np.isnan(hi):
-                subset = self[self.ice_thickness.isna()]
-                for hi in subset.length.unique():
-                    _subset = subset[subset.length == hi]
-                    if not  np.isnan(hi):
-                        oriented_stack = oriented_stack.append(seaice.core.profile.set_profile_orientation(_subset, v_ref))
-                        print('NO ICE THICKNESS ' + ', '.join(_subset.names()))
-                    else:
-                        _subset = subset[subset.length.isna()]
-                        print('NO LENGTH, NO ICE THICKNESS ' + ', '.join(_subset.names()))
-            else:
-                oriented_stack = oriented_stack.append(seaice.core.profile.set_profile_orientation(subset, v_ref))
+        if not unoriented_stack.empty:
+            for hi in unoriented_stack.ice_thickness.unique():
+                print(hi)
+                subset = unoriented_stack[unoriented_stack.ice_thickness == hi]
+                if np.isnan(hi):
+                    subset = unoriented_stack[unoriented_stack.ice_thickness.isna()]
+                    for hi in subset.length.unique():
+                        _subset = subset[subset.length == hi]
+                        if not np.isnan(hi):
+                            oriented_stack = oriented_stack.append(seaice.core.profile.set_profile_orientation(_subset, v_ref))
+                            print('NO ICE THICKNESS ' + ', '.join(_subset.names()))
+                        else:
+                            _subset = subset[subset.length.isna()]
+                            print('NO LENGTH, NO ICE THICKNESS ' + ', '.join(_subset.names()))
+                else:
+                    oriented_stack = oriented_stack.append(seaice.core.profile.set_profile_orientation(subset, v_ref))
 
 
         return CoreStack(oriented_stack)
@@ -424,6 +434,11 @@ def stack_cores(ics_dict):
         print(core)
         ics_stack = ics_stack.add_core(ics_dict[core])
     ics_stack.reset_index(drop=True)
+
+    # clean the stack
+    col_string = ['v_ref', 'name', 'variable', 'comment', 'collection']
+    ics_stack[col_string].astype(str).replace({'nan':None})
+
     return CoreStack(ics_stack)
 
 
