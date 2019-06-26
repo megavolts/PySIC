@@ -307,9 +307,24 @@ class CoreStack(pd.DataFrame):
 
     def clean_stack(self):
         """
-
         :return:
         """
+
+        # check types:
+        col_float = ['y_low', 'y_mid', 'y_sup']
+        col_float += ['length', 'ice_thickness', 'freeboard', 'snow_depth']
+        col_float += self.variables()
+        col_float += ['w_'+v for v in self.variables()]
+        col_date = ['date']
+        col_string = [c for c in self.columns if c not in col_float and c not in col_date]
+
+        c_float = [c for c in col_float if c in self.columns]
+        self[c_float] = self[c_float].apply(pd.to_numeric)
+        c_date = [c for c in col_date if c in self.columns]
+        self[c_date] = self[c_date].apply(pd.to_datetime)
+        c_string = [c for c in col_string if c in self.columns]
+        self[c_string] = self[c_string].astype(str).replace({'nan': None})
+
         # remove all-nan variable
         for variable in self.variables():
             if self[variable].isna().all():
@@ -317,7 +332,8 @@ class CoreStack(pd.DataFrame):
 
         # clean profile by removing all-nan column
         col = [c for c in self.columns if c not in ['y_low', 'y_mid', 'y_sup']]
-        self = pd.concat([self[['y_low', 'y_mid', 'y_sup']], self[col].dropna(axis=1, how='all')], sort=False)
+        self = pd.concat([self[['y_low', 'y_mid', 'y_sup']], self[col].dropna(axis=1, how='all')], axis=1, sort=False)
+
         return self
 
     def keep_variables(self, variables2keep):
