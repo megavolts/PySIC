@@ -42,6 +42,7 @@ display_figure = False
 fill_gap = False
 fill_extremity = False
 variables = None
+verbose = False
 
 class CoreStack(pd.DataFrame):
     """
@@ -150,9 +151,8 @@ class CoreStack(pd.DataFrame):
         return grouped_stat(self, groups=groups, variables=variables, stats=stats)
 
     def discretize(self, y_bins=y_bins, y_mid=y_mid, display_figure=display_figure, fill_gap=fill_gap,
-                   fill_extremity=fill_extremity, variables=variables):
+                   fill_extremity=fill_extremity, variables=variables, verbose=verbose):
         """
-
         :param y_bins:
         :param y_mid:
         :param display_figure:
@@ -169,18 +169,17 @@ class CoreStack(pd.DataFrame):
 
         data_binned = pd.DataFrame()
         for core in ics_stack.names():
-            print(core)
+            if verbose:
+                print(core)
             profile = ics_stack[ics_stack.name == core]
-            print(profile.variables())
             profile_d = seaice.core.profile.discretize_profile(profile, y_bins=y_bins, y_mid=y_mid,
                                                                display_figure=display_figure, fill_gap=fill_gap,
                                                                fill_extremity=fill_extremity)
-            print(profile_d.variables())
 
             data_binned = data_binned.append(profile_d, sort=True)
-        data_binned.reset_index(drop=True, inplace=True)
-        # TODO: check that format of column match before and after discretization
-
+        data_binned = CoreStack(data_binned)
+        data_binned = data_binned.reset_index(drop=True)
+        data_binned = data_binned.clean_stack()
         return CoreStack(data_binned)
 
     def set_vertical_reference(self, new_v_ref, h_ref = None):
@@ -321,13 +320,15 @@ class CoreStack(pd.DataFrame):
                 self[c] = None
 
         # check types:
+        col_string = ['name', 'collection', 'variable', 'comment', 'v_ref']
+        col_string += [var+'_core' for var in self.variables()]
+        col_date = [c for c in ['date', 'datetime']]
         col_float = ['y_low', 'y_mid', 'y_sup']
         col_float += ['length', 'ice_thickness', 'freeboard', 'snow_depth']
         col_float += self.variables()
         if len(col_float) > 0:
-            col_float += ['w_'+v for v in self.variables()]
-        col_date = [c for c in ['date', 'datetime']]
-        col_string = [c for c in self.columns if c not in col_float and c not in col_date]
+            col_float += ['w_' + v for v in self.variables()]
+        col_float += [c for c in self.columns if c not in col_string and c not in col_date]
 
         c_float = [c for c in col_float if c in self.columns]
         self[c_float] = self[c_float].apply(pd.to_numeric)
@@ -751,11 +752,9 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
                 name = []
                 for n_index in range(0, index.__len__()):
                     if groups_order[n_index] in cuts_dict:
-                        df[groups_order[n_index]] = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
-                        # df[groups_order[n_index]] = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
+                        df[groups_order[n_index]] = cuts_dict[groups_order[n_index]][index[n_index]]
                         key_merge.append(groups_order[n_index])
-                        _name = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
-                        # _name = inverse_dict(cuts_dict[groups_order[n_index]])[index[n_index]][0]
+                        _name = cuts_dict[groups_order[n_index]][index[n_index]]
                         if isinstance(_name, str):
                             name.append(_name)
                         elif isinstance(_name, np.datetime64):
@@ -770,6 +769,7 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
                 df['v_ref'] = ic_stack.v_ref.unique()[0]
                 df['name'] = '-'.join(name)
                 df['variable'] = prop
+
                 # assemble with existing core stat:
                 if core_stat.empty:
                     core_stat = CoreStack(df)
@@ -809,8 +809,6 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
             # all_stat = all_stat.rename(columns={'variable_y': 'variable'})
             all_stat = all_stat.drop(labels=['variable_x'], axis=1)
             all_stat = all_stat.drop(labels=['variable_y'], axis =1)
-
-        #all_stat = all_stat.apply(pd.to_numeric, errors='ignore')
         all_stat = all_stat[all_stat['variable'] != '']
     return all_stat
 

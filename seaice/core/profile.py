@@ -121,11 +121,6 @@ class Profile(pd.DataFrame):
         """
         if profile.get_name() is self.get_name():
             var_merge = [var for var in profile.columns if var in self.columns]
-            if 'comments' in var_merge:
-                var_merge.remove('comments')
-                f_comments = True
-            else:
-                f_comments = False
             if 'comment' in var_merge:
                 var_merge.remove('comment')
                 f_comment = True
@@ -147,16 +142,6 @@ class Profile(pd.DataFrame):
                 self['comment'] = self[['comment_x', 'comment_y']].apply(lambda x: '{}, {}'.format(x[0], x[1]), axis=1)
                 self['comment'] = self['comment'].apply(lambda x: ', '.join(filter(lambda y: y not in [None, 'nan'], x.split(', '))))
                 self.drop(['comment_x', 'comment_y'], axis=1, inplace=True)
-            if f_comments:
-                self['comments'] = self[['comments_x', 'comments_y']].apply(lambda x: '{}, {}'.format(x[0], x[1]), axis=1)
-                self['comments'] = self['comments'].apply(lambda x: ', '.join(filter(lambda y: y not in [None, 'nan'], x.split(', '))))
-                self.drop(['comments_x', 'comments_y'], axis=1, inplace=True)
-                if f_comment:
-                    self['comment'] = self[['comment', 'comments']].apply(lambda x: '{}, {}'.format(x[0], x[1]), axis=1)
-                    self['comment'] = self['comment'].apply(lambda x: ', '.join(filter(lambda y: y not in [None, 'nan'], x.split(', '))))
-                else:
-                    self['comment'] = self['comments']
-                self.drop(['comments'], axis=1, inplace=True)
 
             return self
         else:
@@ -188,6 +173,7 @@ class Profile(pd.DataFrame):
         self['variable'] = ', '.join(new_property)
 
     def discretize(self, y_bins=None, y_mid=None, display_figure=False, fill_gap=False, fill_extremity=False):
+        logger.error('Method not implemented yet')
         return 'nothing'
 
     def set_vertical_reference(profile, h_ref=None, new_v_ref=None, inplace=True):
@@ -818,18 +804,15 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
             temp = temp.apply(pd.to_numeric, errors='ignore')
             if 'date' in temp:
                 temp['date'] = pd.to_datetime(temp['date'])
-            if 'comments' in temp:
-                temp['comments'] = temp['comments'].astype(str).replace('nan', None)
             if 'comment' in temp:
-                temp['comments'] = temp['comment'].astype(str).replace('nan', None)
-                temp = temp.drop('comment', axis=1)
+                temp['comment'] = temp['comment'].astype(str).replace('nan', None)
 
             if discretized_profile.empty:
                 discretized_profile = temp
             else:
                 if 'variable' in temp.columns:
                     temp = temp.drop('variable', axis=1)
-                temp = temp.rename(columns={'comments': 'comments_temp'})
+                temp = temp.rename(columns={'comment': 'comment_temp'})
 
                 col = [col for col in discretized_profile.columns if col in temp.columns]
 
@@ -870,9 +853,9 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                         discretized_profile = pd.concat([discretized_profile, temp])
 
                 # add comment
-                if 'comments_temp' in discretized_profile.columns:
-                    discretized_profile['comments'] = discretized_profile[['comments', 'comments_temp']].astype(str).replace('nan', '').apply(lambda x: ', '.join(filter(None, x)), axis=1)
-                    discretized_profile = discretized_profile.drop('comments_temp', axis=1)
+                if 'comment_temp' in discretized_profile.columns:
+                    discretized_profile['comment'] = discretized_profile[['comment', 'comment_temp']].astype(str).replace('nan', '').apply(lambda x: ', '.join(filter(None, x)), axis=1)
+                    discretized_profile = discretized_profile.drop('comment_temp', axis=1)
     discretized_profile = Profile(discretized_profile)
 
     # clean up:
