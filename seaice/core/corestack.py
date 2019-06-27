@@ -309,13 +309,24 @@ class CoreStack(pd.DataFrame):
         """
         :return:
         """
+        # add essential column if missing:
+        col_essential = ['y_low', 'y_mid', 'y_sup', 'length', 'ice_thickness', 'freeboard', 'snow_depth', 'comment']
+        if not 'date' in self.columns:
+            col_essential += ['datetime']
+        c_essential = [c for c in col_essential if c not in self.columns]
+        if len(c_essential) > 0:
+            print("Missing essential columns are added: ")
+            for c in c_essential:
+                print("\t%s" %c)
+                self[c] = None
 
         # check types:
         col_float = ['y_low', 'y_mid', 'y_sup']
         col_float += ['length', 'ice_thickness', 'freeboard', 'snow_depth']
         col_float += self.variables()
-        col_float += ['w_'+v for v in self.variables()]
-        col_date = ['date']
+        if len(col_float) > 0:
+            col_float += ['w_'+v for v in self.variables()]
+        col_date = [c for c in ['date', 'datetime']]
         col_string = [c for c in self.columns if c not in col_float and c not in col_date]
 
         c_float = [c for c in col_float if c in self.columns]
@@ -436,7 +447,7 @@ class CoreStack(pd.DataFrame):
     pass
 
 # Ice core operation
-def stack_cores(ics_dict):
+def stack_cores(ics_dict, verbose=False):
     """"
     :param ics_dict:
         dictionnary of core
@@ -447,13 +458,13 @@ def stack_cores(ics_dict):
     logger.info("Stacking ice cores")
     ics_stack = CoreStack()
     for core in ics_dict.keys():
-        print(core)
+        if verbose:
+            print(core)
         ics_stack = ics_stack.add_core(ics_dict[core])
     ics_stack.reset_index(drop=True)
 
     # clean the stack
-    col_string = ['v_ref', 'name', 'variable', 'comment', 'collection']
-    ics_stack[col_string].astype(str).replace({'nan':None})
+    #ics_stack.clean_stack()
 
     return CoreStack(ics_stack)
 
