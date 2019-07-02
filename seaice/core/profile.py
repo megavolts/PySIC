@@ -36,6 +36,10 @@ fill_gap = False
 y_mid = None
 fill_extremity=False
 save_fig = False
+
+essential_property = ['y_low', 'y_mid', 'y_sup', 'name', 'collection', 'comment', 'date', 'freeboard',
+                      'ice_thickness', 'length', 'snow_depth', 'v_ref', 'variable', 'weight']
+
 class Profile(pd.DataFrame):
     """
 
@@ -119,7 +123,7 @@ class Profile(pd.DataFrame):
         Profile name should match.
         :param profile: seaice.Profile()
         """
-        if profile.get_name() is self.get_name():
+        if profile.get_name() is self.get_name() or profile.get_name() == self.get_name():
             var_merge = [var for var in profile.columns if var in self.columns]
             if 'comment' in var_merge:
                 var_merge.remove('comment')
@@ -146,7 +150,7 @@ class Profile(pd.DataFrame):
             return self
         else:
             self.logger = logging.getLogger(__name__)
-            self.logger.warning('Profile name does not match %s, %s' %(profile.get_name(). self.get_name()))
+            self.logger.warning('Profile name does not match %s, %s' % ( profile.get_name(), self.get_name()))
 
     def delete_property(self, property):
         """
@@ -171,6 +175,33 @@ class Profile(pd.DataFrame):
 
          # write variable
         self['variable'] = ', '.join(new_property)
+
+    def select_property(self, vg_property=None, extra_keys=[]):
+        # TODO hard code sea ice property
+        # TODO merge with profile.select_variable
+        if vg_property is None:
+            vg_property =self.get_property()
+        elif not isinstance(vg_property, list):
+            vg_property = [vg_property]
+
+        vg_group = [vg_group for vg_group in self.variable.unique() for vg_prop in vg_group.split(', ') if vg_prop in vg_property]
+
+        # add property weight if it was discretized
+        keys = essential_property + [prop for prop in vg_property] + ['w_'+prop for prop in vg_property]
+
+        # add extra keys if define
+        keys = list(set([key for key in keys if key in self.keys()]+extra_keys))
+
+        # select profile
+        data_prop = self[self.variable.isin(vg_group)][keys]
+
+        # change variable:
+        for vg in vg_group:
+            new_vg = ', '.join([prop for prop in vg_property if prop in vg])
+            data_prop.loc[data_prop.variable == vg, 'variable'] = new_vg
+
+        return data_prop
+
 
     def discretize(self, y_bins=None, y_mid=None, display_figure=False, fill_gap=False, fill_extremity=False):
         logger.error('Method not implemented yet')
@@ -825,7 +856,8 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                         new_vg += var0
                         discretized_profile.loc[discretized_profile.variable == vg, 'variable'] = ', '.join(new_vg)
                 else:
-                    logger.warning('%s not matching between profile' % ', '.join(not_matching_col))
+                    logger.warning('%s - %s not matching between profile' % (__package__+'.'+__name__,
+                                                                             ', '.join(not_matching_col)))
                     if not_matching_col == ['length']:
                         l_c_p = discretized_profile.length.unique()[0]
                         # merge profile up to maximum common depth
@@ -889,17 +921,20 @@ def set_profile_orientation(profile, v_ref):
         if profile[profile.variable == vg].v_ref.unique().__len__() > 1:
             logger.error("vertical reference for profile are not consistent")
         if not profile[profile.variable == vg].v_ref.unique().tolist()[0] == v_ref:
-            # search ice core length, or ice thickness
+            # search ice core length, and ice thickness
             if 'ice_thickness' in profile.keys() and \
                     not np.isnan(profile[profile.variable == vg].ice_thickness.astype(float)).all():
-                    lc = profile[profile.variable == vg].ice_thickness.astype(float).dropna().unique()[0]
-            elif 'length' in profile.keys() and \
-                    not np.isnan(profile[profile.variable == vg].length.astype(float)).all():
-                    lc = profile[profile.variable == vg].length.astype(float).dropna().unique()[0]
+                    hi = profile[profile.variable == vg].ice_thickness.astype(float).unique()[-1]
             else:
-                lc = None
+                hi = np.nan
 
-            if lc is None:
+            if 'length' in profile.keys() and \
+                    not np.isnan(profile[profile.variable == vg].length.astype(float)).all():
+                    lc = profile[profile.variable == vg].length.astype(float).unique()[-1]
+            else:
+                lc = np.nan
+
+            if lc is np.nan and hi is np.nan:
                 if 'name' in profile.keys():
                     logger.warning("Mising core length or ice thickness, impossible to set profile orientation to %s.\
                     Deleting profile (%s)" %(v_ref, profile.name.unique()[0]))
@@ -908,10 +943,22 @@ def set_profile_orientation(profile, v_ref):
                     Deleting profile" % v_ref)
                 profile = delete_profile(profile, {'variable': vg})
             else:
-                new_df = profile.loc[profile.variable == vg, 'y_low'].apply(lambda x: lc - x)
-                new_df = pd.concat([new_df, profile.loc[profile.variable == vg, 'y_mid'].apply(lambda x: lc - x)],
+                print(profile.name.unique()[0])
+                if np.abs(lc - hi) < 0.1*hi:
+                    href = lc
+                    logger.info("Bottom reference set to ice core length:\
+                    as ice core length is within 10% of the ice thickness")
+                elif hi is not None:
+                    href = hi
+                    logger.info("Bottom reference set to ice thickness")
+                elif lc is not None:
+                    href = lc
+                    logger.info("Bottom reference set to ice core length in absence of ice thickness")
+
+                new_df = profile.loc[profile.variable == vg, 'y_low'].apply(lambda x: href - x)
+                new_df = pd.concat([new_df, profile.loc[profile.variable == vg, 'y_mid'].apply(lambda x: href - x)],
                                    axis=1, sort=False)
-                new_df = pd.concat([new_df, profile.loc[profile.variable == vg, 'y_sup'].apply(lambda x: lc - x)],
+                new_df = pd.concat([new_df, profile.loc[profile.variable == vg, 'y_sup'].apply(lambda x: href - x)],
                                    axis=1, sort=False)
                 new_df['v_ref'] = 'bottom'
                 profile.update(new_df)
@@ -927,28 +974,56 @@ def set_profile_orientation(profile, v_ref):
 
 
 def delete_variables(ics_stack, variables2del):
+    """
+
+    :param ics_stack:
+    :param variables2del:
+    :return:
+    """
     if not isinstance(variables2del, list):
         variables2del = [variables2del]
-    for variable in variables2del:
-        if variable in ics_stack.keys():
-            if variable in ics_stack.get_property():
+
+    __temp = Profile()
+    __removed_columns = []
+    if len(variables2del) == 0:
+        __temp = ics_stack
+    else:
+        for variable in variables2del:
+            # delete all columns which are related to variaibles, i.e. column name contains variable or variable_ or_variable
+            columns2del = [col for col in ics_stack.columns if any(v in col for v in [variable, '_'+variable, variable+'_'])]
+            __removed_columns.extend(columns2del)
+            for col in columns2del:
                 # delete variable column
-                ics_stack.drop(variable, axis=1, inplace=True)
+                ics_stack.drop(col, axis=1, inplace=True)
 
-                # delete associated subvariable column
-                if variable in subvariable_dict:
-                    for subvariable in subvariable_dict[variable]:
-                        ics_stack.drop(subvariable, axis=1, inplace=True)
+            # delete associated subvariable column
+            if variable in subvariable_dict:
+                for subvariable in subvariable_dict[col]:
+                    ics_stack.drop(subvariable, axis=1, inplace=True)
 
-        # delete variable from variable column
-        for group in ics_stack.variable.unique():
-            new_group = group.split(', ')
-            if variable in new_group:
-                new_group.remove(variable)
-                ics_stack['variable'] = ', '.join(new_group)
-    # delete empty column
-    ics_stack.dropna(axis=1, how='all')
-    return ics_stack
+            # remove variable from variable groups, remove rows if the variable group is empty
+            for group in ics_stack.variable.unique():
+                new_group = group.split(', ')
+                if variable in new_group:
+                    new_group.remove(variable)
+                    if len(new_group) > 0:
+                        _temp = ics_stack.loc[ics_stack.variable == group]
+                        _temp['variable'] = ', '.join(new_group)
+                    else:
+                        _temp = Profile()
+                else:
+                    _temp = ics_stack[ics_stack.variable == group]
+
+                _temp = Profile(_temp)
+                if not _temp.empty:
+                    if __temp.empty:
+                        __temp = _temp
+                    else:
+                        __temp = __temp.add_profile(_temp)
+    if __temp.empty:
+        headers = [c for c in ics_stack if c not in __removed_columns]
+        __temp = seaice.core.corestack.CoreStack(pd.DataFrame(columns=headers))
+    return __temp
 
 
 def select_variables(ics_stack, variables):
@@ -986,7 +1061,7 @@ def select_variables(ics_stack, variables):
     # create list of variable to remove from the stack:
     variables2del = [var for var in new_stack.variables() if not var in variables]
 
-    #
+    # new stack is ics_stack without variables2del
     new_stack = delete_variables(new_stack, variables2del)
 
     if stack_type == 'Profile':
@@ -997,20 +1072,26 @@ def select_variables(ics_stack, variables):
         logger.warning('Stack class undefined, returning DataFrame')
         return new_stack
 
-
-
-def select_variable(ics_stack, variable):
-    for group in ics_stack.variable.unique():
-        variable_group = group.split(', ')
-        if variable in variable_group:
-            # TODO: convert data to Profile rather than CoreStack, REQUIRE: Profile should inherit Profile
-            # property (@property _constructor)
-            ics_stack = ics_stack[ics_stack.variable == group]
-
-            # delete other variable
-            variables2del = [_var for _var in ics_stack.get_property() if not _var == variable]
-            ics_stack = delete_variables(ics_stack, variables2del)
-    return ics_stack
+#
+#
+# def select_variable(ics_stack, variable):
+#     profile = Profile()
+#     for group in ics_stack.variable.unique():
+#         variable_group = group.split(', ')
+#         if variable in variable_group:
+#             # TODO: convert data to Profile rather than CoreStack, REQUIRE: Profile should inherit Profile
+#             # property (@property _constructor)
+#             temp_profile = ics_stack[ics_stack.variable == group]
+#
+#             # delete other variable
+#             variables2del = [_var for _var in temp_profile.get_property() if not _var == variable]
+#
+#             temp_profile = delete_variables(temp_profile, variables2del)
+#         if profile.empty:
+#             profile = temp_profile
+#         else:
+#             profile = profile.add_profile(temp_profile)
+#     return profile
 
 
 def select_profile(ics_stack, variable_dict):
@@ -1020,15 +1101,20 @@ def select_profile(ics_stack, variable_dict):
     :param variable_dict:
     :return:
     """
-    str_select = '('
-    ii_var = []
-    ii = 0
     for ii_key in variable_dict.keys():
         if ii_key is 'variable':
             if variable_dict[ii_key] in ics_stack.get_property():
-                ics_stack = select_variable(ics_stack, variable_dict[ii_key])
+                ics_stack = select_variables(ics_stack, variable_dict[ii_key])
+            else:
+                ics_stack = delete_variables(ics_stack, ics_stack.get_property())
         elif ii_key in ics_stack.keys():
             ics_stack = ics_stack[ics_stack[ii_key] == variable_dict[ii_key]]
+
+    if 'y_mid'  in ics_stack.columns:
+        ics_stack.sort_values(by=['y_mid'], inplace=True)
+    elif 'y_low' in ics_stack.columns:
+        ics_stack.sort_values(by=['y_low'], inplace=True)
+
     return ics_stack
 
 

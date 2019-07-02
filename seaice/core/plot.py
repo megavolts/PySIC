@@ -51,6 +51,7 @@ def plot_profileV0(profile, ax=None, param_dict=None):
     if ax is None:
         plt.figure()
         ax = plt.subplot(1, 1, 1)
+
     # if profile not empty
     if not profile.empty:
         # step variable
@@ -62,7 +63,6 @@ def plot_profileV0(profile, ax=None, param_dict=None):
                 y.append(profile['y_sup'][ii])
                 x.append(profile[prop][ii])
                 x.append(profile[prop][ii])
-
         # continuous variable
         else:
             x = profile[prop].values
@@ -71,16 +71,22 @@ def plot_profileV0(profile, ax=None, param_dict=None):
             ax.plot(x, y)
         else:
             ax.plot(x, y, **param_dict)
+
     return ax
 
 
 def plot_profile(profile, ax=None, param_dict=None):
     """
     :param profile:
-    :param _ax:
+    :param ax:
     :param param_dict:
     :return:
     """
+    profile = Profile(profile)
+
+    if ax is None:
+        plt.figure()
+        ax = plt.subplot(1, 1, 1)
 
     variable = profile.variables()
     if len(variable) > 1:
@@ -91,11 +97,7 @@ def plot_profile(profile, ax=None, param_dict=None):
     else:
         variable = variable[0]
 
-    if ax is None:
-        plt.figure()
-        ax = plt.subplot(1, 1, 1)
-
-
+    profile = profile.select_property(variable)
     # if profile not empty
     if not profile.empty:
         # step variable
@@ -120,11 +122,29 @@ def plot_profile(profile, ax=None, param_dict=None):
                 x.append(profile[variable][ii])
 
         # continuous variable
-
         if param_dict is None:
             ax.plot(x, y)
         else:
             ax.plot(x, y, **param_dict)
+
+        # label
+        y_lim_max = np.nanmax(np.nanmax(ax.get_ylim()))
+        if 'v_ref' in profile.columns:
+            if len(profile.v_ref.unique()) == 1 and profile.v_ref.unique()[0] == 'bottom':
+                ax.set_ylim([0, y_lim_max])
+                ax.set_ylabel('Distance from ice bottom (m)')
+            elif len(profile.v_ref.unique()) == 1 and profile.v_ref.unique()[0] == 'top':
+                ax.set_ylim([y_lim_max, 0])
+                ax.set_ylabel('Distance from ice surface (m)')
+            else:
+                ax.set_ylim([y_lim_max, 0])
+                ax.set_ylabel('Ice thickness (m)')
+        else:
+            ax[0].set_ylim([y_lim_max, 0])
+            ax[0].set_ylabel('Ice thickness (m)')
+        ax.set_xlabel(variable.capitalize())
+    else:
+        module_logger.warning('Empty profile')
     return ax
 
 
@@ -183,7 +203,6 @@ def plot_profile_variable(ic_data, variable_dict=None, ax=None, param_dict=None)
     :return:
     """
 
-
     if variable_dict == None:
         variable_dict = {'variable':ic_data.variables()}
 
@@ -191,8 +210,9 @@ def plot_profile_variable(ic_data, variable_dict=None, ax=None, param_dict=None)
         module_logger.error("a variable should be specified for plotting")
 
     profile = select_profile(ic_data, variable_dict)
-    _ax = plot_profile(profile, ax=ax, param_dict=param_dict)
-    return _ax
+    if not profile.empty:
+        ax = plot_profile(profile, ax=ax, param_dict=param_dict)
+    return ax
 
 
 def plot_all_profile_variable(ic_data, variable_dict={}, ax=None, ax_dict=None, display_figure=False, param_dict={}):
@@ -254,16 +274,16 @@ def plot_all_profile_variable(ic_data, variable_dict={}, ax=None, ax_dict=None, 
     if 'v_ref' in ic_data.columns:
         if len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
             ax[0].set_ylim([0, y_lim_max])
-            ax[0].set_ylabel('ice thickness from ice/water inferface (m)')
-        elif len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
+            ax[0].set_ylabel('Distance from ice bottom (m)')
+        elif len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'top':
             ax[0].set_ylim([y_lim_max, 0])
-            ax[0].set_ylabel('ice thickness from ice surface(m)')
+            ax[0].set_ylabel('Distance from ice surface (m)')
         else:
             ax[0].set_ylim([y_lim_max, 0])
-            ax[0].set_ylabel('ice thickness (m)')
+            ax[0].set_ylabel('Ice thickness (m)')
     else:
         ax[0].set_ylim([y_lim_max, 0])
-        ax[0].set_ylabel('ice thickness (m)')
+        ax[0].set_ylabel('Ice thickness (m)')
     plt.subplots_adjust(top=0.85, wspace=0.2, hspace=0.2)
     if display_figure:
         plt.show()
@@ -544,27 +564,22 @@ def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=Fal
     # TODO: check if all stat are present for the variable
 
     prop = variable_dict['variable']
-
+    ic_data = Profile(ic_data)
     _profiles = select_profile(ic_data, variable_dict)
 
     # minimum
-    param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
+    param_dict.update({'linewidth': 2, 'color': 'b', 'label': 'min'})
     ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_min']], param_dict=param_dict, ax=ax)
 
     # mean
-    variable_dict.update({'stats': 'mean'})
-    param_dict.update({'color': 'k'})
+    param_dict.update({'linewidth': 2, 'color': 'k', 'label':'mean'})
     ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_mean']], param_dict=param_dict, ax=ax)
-#    ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
 
     # maximum
-    variable_dict.update({'stats': 'max'})
-    param_dict.update({'color': 'r'})
+    param_dict.update({'linewidth': 2, 'color': 'r', 'label':'max'})
     ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_max']], param_dict=param_dict, ax=ax)
-    #ax = plot_profile_variable(ic_data, variable_dict=variable_dict, param_dict=param_dict, ax=ax)
 
     # std/mean envelop
-    #variable_dict.pop('stats')
     plot_mean_envelop(ic_data, variable_dict, ax=ax)
     if flag_number:
         variable_dict.update({'stats': 'mean'})
@@ -572,7 +587,20 @@ def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=Fal
 
     # cosmetic
     ax.xaxis.set_label_position('top')
-    ax.axes.set_ylabel('Ice depth (m)')
+    y_lim_max = np.nanmax(np.nanmax(ax.get_ylim()))
+    if 'v_ref' in ic_data.columns:
+        if len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
+            ax.set_ylim([0, y_lim_max])
+            ax.set_ylabel('Distance from ice bottom (m)')
+        elif len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'top':
+            ax.set_ylim([y_lim_max, 0])
+            ax.set_ylabel('Distance from ice surface (m)')
+        else:
+            ax.set_ylim([y_lim_max, 0])
+            ax.set_ylabel('Ice thickness (m)')
+    else:
+        ax.set_ylim([y_lim_max, 0])
+        ax.set_ylabel('Ice thickness (m)')
     ax.xaxis.tick_top()
     ax.xaxis.set_label_position('top')
     ax.spines['right'].set_visible(False)

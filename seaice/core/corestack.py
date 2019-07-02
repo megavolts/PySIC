@@ -304,24 +304,24 @@ class CoreStack(pd.DataFrame):
         # clean profile by removing empty column
         self.clean_stack()
 
-    def clean_stack(self):
-        """
-        :return:
-        """
+
+    def fix_dtypes(self, verbose=False):
         # add essential column if missing:
         col_essential = ['y_low', 'y_mid', 'y_sup', 'length', 'ice_thickness', 'freeboard', 'snow_depth', 'comment']
         if not 'date' in self.columns:
             col_essential += ['datetime']
         c_essential = [c for c in col_essential if c not in self.columns]
-        if len(c_essential) > 0:
+        if len(c_essential) > 0 and verbose:
             print("Missing essential columns are added: ")
             for c in c_essential:
-                print("\t%s" %c)
+                print("\t%s" % c)
                 self[c] = None
 
         # check types:
         col_string = ['name', 'collection', 'variable', 'comment', 'v_ref']
         col_string += [var+'_core' for var in self.variables()]
+        col_string += [var+'_collection' for var in self.variables()]
+
         col_date = [c for c in ['date', 'datetime']]
         col_float = ['y_low', 'y_mid', 'y_sup']
         col_float += ['length', 'ice_thickness', 'freeboard', 'snow_depth']
@@ -336,6 +336,14 @@ class CoreStack(pd.DataFrame):
         self[c_date] = self[c_date].apply(pd.to_datetime)
         c_string = [c for c in col_string if c in self.columns]
         self[c_string] = self[c_string].astype(str).replace({'nan': None})
+
+        return self
+
+    def clean_stack(self):
+        """
+        :return:
+        """
+        self = self.fix_dtypes()
 
         # remove all-nan variable
         for variable in self.variables():
@@ -376,9 +384,6 @@ class CoreStack(pd.DataFrame):
             vg_property = [vg_property]
 
         vg_group = [vg_group for vg_group in self.variable.unique() for vg_prop in vg_group.split(', ') if vg_prop in vg_property]
-
-
-
 
         # add property weight if it was discretized
         keys = essential_property + [prop for prop in vg_property] + ['w_'+prop for prop in vg_property]
@@ -582,7 +587,7 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
         cuts.append(_cut_y_mid)
         dim.append(_dim_y_mid)
         cuts_dict.update(_dict_y_mid)
-        groups_order.append('y_mid')
+    groups_order.append('y_mid')
     del _cut_y_mid, _dim_y_mid, _dict_y_mid
 
 
@@ -602,8 +607,7 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
         data_grouped = prop_data.groupby(cuts)
 
         stat_var = {}
-        core_var = [None for _ in range(int(np.prod(dim)))]
-        _core_var_flag = True  # core name does change for different stat.
+        core_var = np.zeros(dim).astype(str)
         for stat in list(stats):
             # use np.FUNC(...) instead of .FUNC() as panda.groupby().FUNC() return np.nan rather than 0 if there
             # is only notnull element in the group
@@ -618,9 +622,8 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
             logger.info('\tcomputing %s' % stat)
 
             stat_var[stat] = np.nan * np.ones(dim)
+            core_var = np.zeros(dim).astype(str)
             for k1, kgroups in data_grouped:
-                # print(k1, kgroups)
-                # break
                 if isinstance(k1, (int, float)):
                     k1 = [k1]
                 try:
@@ -652,17 +655,12 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
                     stat_var[stat][tuple(np.array(new_k, dtype=int))] = wtd_stat * n / w
                 else:
                     stat_var[stat][tuple(np.array(new_k, dtype=int))] = eval(func)
+                #
+                # print(k1, groups)
+                # print('\t %s' % ', '.join(list(kgroups.loc[~kgroups['wtd_' + prop].isna(), 'name'].unique())))
+                # print('\t %s %s' %(new_k, int(np.prod(np.array(new_k) + 1) - 1) ))
 
-                if _core_var_flag:
-                    core_var[int(np.prod(np.array(new_k) + 1) - 1)] = ', '.join(
-                        list(kgroups.loc[~kgroups['wtd_' + prop].isna(), 'name'].unique()))
-                else:
-                    if _core_var_flag:
-                        core_var[int(np.prod(np.array(k1)+1)-1)] = ', '.join(list(kgroups.loc[~kgroups['wtd_'+prop].isna(),
-                                                                                              'name'].unique()))
-            if _core_var_flag:
-                core_var = np.reshape(core_var, dim)
-                _core_var_flag = False
+                core_var[k1] = ', '.join(list(kgroups.loc[~kgroups['wtd_' + prop].isna(), 'name'].unique()))
 
         core_stat = CoreStack()
         # run over ndim, minus the ice thickness
@@ -739,7 +737,8 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
 
                 # stat data by prop
                 headers.extend([prop + '_' + stat for stat in stats + ['collection']])
-                stats_data = np.vstack([stats_data, [stat_var[stat][index] for stat in stats] + [core_var[index]]])
+                core_name = [None if c in ['0.0', ''] else c for c in core_var[index].tolist()]
+                stats_data = np.vstack([stats_data, [stat_var[stat][index] for stat in stats] + [core_name]])
                 # assemble dataframe
                 df = CoreStack(np.array(stats_data).transpose(), columns=headers)
 
@@ -759,12 +758,11 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
                             name.append(_name)
                         elif isinstance(_name, np.datetime64):
                             name.append(pd.to_datetime(np.datetime64(_name)).strftime('%Y%m%d'))
-                        elif isinstance(_name, float):
+                        elif isinstance(_name, (float, int)):
                             name.append(str(_name))
                     else:
                         df['bin_' + groups_order[n_index]] = index[n_index]
                         key_merge.append('bin_' + groups_order[n_index])
-
                 # v_ref, variable
                 df['v_ref'] = ic_stack.v_ref.unique()[0]
                 df['name'] = '-'.join(name)
@@ -810,7 +808,7 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
             all_stat = all_stat.drop(labels=['variable_x'], axis=1)
             all_stat = all_stat.drop(labels=['variable_y'], axis =1)
         all_stat = all_stat[all_stat['variable'] != '']
-    return all_stat
+    return CoreStack(all_stat)
 
 
 def grouped_ic(ics_stack, groups):
