@@ -41,7 +41,8 @@ def density(t):
         t = np.atleast_1d(t)
     if (t > 0).any():
         module_logger.warning('For element with temperature T > 0°C, T=np.nan')
-        t[t > 0] = np.nan
+        t[t > 0] = [np.nan] * len(t[t > 0])
+        #t[t > 0] = np.nan
 
     # Physical constant
     a = [-0.1403, 916.7]

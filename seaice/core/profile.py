@@ -437,6 +437,9 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
 
             y2x = pd.DataFrame(x2.transpose(), columns=_variable, index=y2)
             yx = yx.drop_duplicates()
+
+            # 'BRW_CS-20030224A' : if aligned at the bottom, double value for 0 : np.nan, -1.86
+            yx = yx.dropna(axis=0)
             for index in yx.index.unique():
                 y2x.loc[abs(y2x.index - index) < 1e-6, _variable] = yx.loc[yx.index == index, _variable].values
 
@@ -643,7 +646,9 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                     plt.figure()
                     plt.step(x_xy_plot, y_xy_plot)
                     plt.step(x_plot, y_step, 'x')
+                    plt.title(profile.get_name())
                     plt.show()
+            # for end
 
             W = np.array(w_step)
             X = np.array(x_step)
@@ -796,7 +801,10 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
             l_c = temp.length.unique()[0]
             if not np.isnan(temp.length.unique()[0]):
                 if l_c > 0 and temp.v_ref.unique()[0] == 'top':
-                    n_y_mid_max = np.where(l_c <= temp.y_mid)[0][0]
+                    try:
+                        n_y_mid_max = np.where(l_c <= temp.y_mid)[0][0]
+                    except IndexError:
+                        n_y_mid_max = temp.y_mid.max()
                     temp = temp.loc[temp.index <= n_y_mid_max]
                     # temp = temp[(temp.y_mid <= l_c)]
                 elif l_c > 0 and temp.v_ref.unique()[0] == 'bottom':
@@ -806,8 +814,11 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                     try:
                         n_y_mid_min = np.where(temp.y_mid <= h_i-l_c)[0][-1]
                     except IndexError:
-                        n_y_mid_min =0
-                    n_y_mid_max = np.where(h_i <= temp.y_mid)[0][0]
+                        n_y_mid_min = 0
+                    try:
+                        n_y_mid_max = np.where(h_i <= temp.y_mid)[0][0]
+                    except IndexError:
+                        n_y_mid_max = temp.y_mid.max()
                     temp = temp.loc[(n_y_mid_min <= temp.index) & (temp.index <= n_y_mid_max)]
                     # temp = temp[(h_i + l_c <= temp.y_mid) & (temp.y_mid <= h_i)]
                 elif l_c < 0 and temp.v_ref.unique()[0] == 'bottom':

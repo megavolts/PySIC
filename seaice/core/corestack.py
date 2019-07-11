@@ -80,14 +80,15 @@ class CoreStack(pd.DataFrame):
         """
         return CoreStack(delete_profile(self, variable_dict))
 
-    def add_core(self, ic_data):
+    def add_core(self, ic_data, verbose=False):
         """
         :param ic_data:
         :return:
         """
-        if ic_data.variables():
+        if len(ic_data.variables()):
             self.logger.info("Adding %s profiles for core %s" % (", ".join(ic_data.variables()), ic_data.name))
             profile = seaice.core.profile.Profile(ic_data.profile)
+            # TODO: should not need those 3 if case
             if isinstance(ic_data.ice_thickness, (int, float)):
                 profile['ice_thickness'] = ic_data.ice_thickness
             else:
@@ -106,8 +107,10 @@ class CoreStack(pd.DataFrame):
 
             profile['date'] = ic_data.date
             profile['collection'] = ', '.join(ic_data.collection)
-            temp = self.add_profile(profile)
-            return CoreStack(temp)
+            self = self.add_profile(profile)
+            if verbose and ic_data.name not in self.names():
+                print(ic_data.name)
+            return CoreStack(self)
         else:
             return CoreStack(self)
 
@@ -206,7 +209,6 @@ class CoreStack(pd.DataFrame):
 
         if not unoriented_stack.empty:
             for hi in unoriented_stack.ice_thickness.unique():
-                print(hi)
                 subset = unoriented_stack[unoriented_stack.ice_thickness == hi]
                 if np.isnan(hi):
                     subset = unoriented_stack[unoriented_stack.ice_thickness.isna()]
@@ -214,10 +216,10 @@ class CoreStack(pd.DataFrame):
                         _subset = subset[subset.length == hi]
                         if not np.isnan(hi):
                             oriented_stack = oriented_stack.append(seaice.core.profile.set_profile_orientation(_subset, v_ref))
-                            print('NO ICE THICKNESS ' + ', '.join(_subset.names()))
+                            self.logger.info('NO ICE THICKNESS ' + ', '.join(_subset.names()))
                         else:
                             _subset = subset[subset.length.isna()]
-                            print('NO LENGTH, NO ICE THICKNESS ' + ', '.join(_subset.names()))
+                            self.logger.info('NO LENGTH, NO ICE THICKNESS ' + ', '.join(_subset.names()))
                 else:
                     oriented_stack = oriented_stack.append(seaice.core.profile.set_profile_orientation(subset, v_ref))
 
@@ -247,7 +249,10 @@ class CoreStack(pd.DataFrame):
         return list(set(variables))
 
     def names(self):
-        return self.name.unique()
+        if 'name' not in self.columns:
+            return []
+        else:
+             return self.name.unique()
 
     def get_name(self):
         warnings.warn('get_name() will be deprecated in next version, use names() instead', FutureWarning)
@@ -303,7 +308,6 @@ class CoreStack(pd.DataFrame):
 
         # clean profile by removing empty column
         self.clean_stack()
-
 
     def fix_dtypes(self, verbose=False):
         # add essential column if missing:
@@ -425,26 +429,6 @@ class CoreStack(pd.DataFrame):
         """
         """
         return self.variable.unique()
-    #
-    # def add_comments(self, comment, inplace=True):
-    #     """
-    #
-    #     :param comment:
-    #     :return:
-    #     """
-    #
-    #     # check if comment column is string:
-    #     if not self.comments.dtype == object:
-    #         self.comments = self.comments.astype(str)
-    #
-    #
-    #
-    #     if inplace:
-    #         self = pd.concat([self.drop('comments', axis=1),
-    #                    super(CoreStack, self).__getitem__('comments').apply(lambda x: ';'.join(filter(None, [comment] + x.split('; ')))) ], axis=1)
-    #     else:
-    #         return self['comments'] = super(CoreStack, self).__getitem__('comments').apply(lambda x: ';'.join(filter(None, [comment] + x.split('; '))))
-
 
     @property
     def _constructor(self):
@@ -466,7 +450,7 @@ def stack_cores(ics_dict, verbose=False):
     for core in ics_dict.keys():
         if verbose:
             print(core)
-        ics_stack = ics_stack.add_core(ics_dict[core])
+        ics_stack = ics_stack.add_core(ics_dict[core], verbose=verbose)
     ics_stack.reset_index(drop=True)
 
     # clean the stack
@@ -655,12 +639,15 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
                     stat_var[stat][tuple(np.array(new_k, dtype=int))] = wtd_stat * n / w
                 else:
                     stat_var[stat][tuple(np.array(new_k, dtype=int))] = eval(func)
-                #
+                # #
                 # print(k1, groups)
                 # print('\t %s' % ', '.join(list(kgroups.loc[~kgroups['wtd_' + prop].isna(), 'name'].unique())))
                 # print('\t %s %s' %(new_k, int(np.prod(np.array(new_k) + 1) - 1) ))
 
-                core_var[k1] = ', '.join(list(kgroups.loc[~kgroups['wtd_' + prop].isna(), 'name'].unique()))
+                k1_int = []
+                k1_int = tuple([int(k) for k in k1])
+
+                core_var[k1_int] = ', '.join(list(kgroups.loc[~kgroups['wtd_' + prop].isna(), 'name'].unique()))
 
         core_stat = CoreStack()
         # run over ndim, minus the ice thickness
