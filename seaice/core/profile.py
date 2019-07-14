@@ -351,7 +351,8 @@ class Profile(pd.DataFrame):
         return self.get_property()
 
 
-def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, fill_gap=fill_gap, fill_extremity=fill_extremity, save_fig=save_fig):
+def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, fill_gap=fill_gap,
+                       fill_extremity=fill_extremity, save_fig=save_fig, dropemptyrow=True):
     """
     :param profile:
     :param y_bins:
@@ -791,7 +792,6 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
             temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
                                      index=temp.index.tolist()))
 
-
         if not temp.empty:
             temp.reset_index(drop=True, inplace=True)
             temp.loc[temp[_variable[0]].isna(), 'w_'+_variable[0]] = 0
@@ -805,8 +805,11 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                         n_y_mid_max = np.where(l_c <= temp.y_mid)[0][0]
                     except IndexError:
                         n_y_mid_max = temp.y_mid.max()
-                    temp = temp.loc[temp.index <= n_y_mid_max]
-                    # temp = temp[(temp.y_mid <= l_c)]
+                    if dropemptyrow:
+                        temp = temp.loc[temp.index <= n_y_mid_max]
+                    else:
+                        temp.loc[n_y_mid_max < temp.index, 'w_'+_variable[0]] = 0
+                        temp.loc[n_y_mid_max < temp.index, _variable[0]] = np.nan
                 elif l_c > 0 and temp.v_ref.unique()[0] == 'bottom':
                     h_i = temp.ice_thickness.mean()
                     if np.isnan(h_i):
@@ -819,25 +822,43 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                         n_y_mid_max = np.where(h_i <= temp.y_mid)[0][0]
                     except IndexError:
                         n_y_mid_max = temp.y_mid.max()
-                    temp = temp.loc[(n_y_mid_min <= temp.index) & (temp.index <= n_y_mid_max)]
+                    if dropemptyrow:
+                        temp = temp.loc[(n_y_mid_min <= temp.index) & (temp.index <= n_y_mid_max)]
+                    else:
+                        temp.loc[temp.index < n_y_mid_max, 'w_'+_variable[0]] = 0
+                        temp.loc[temp.index < n_y_mid_max, _variable[0]] = np.nan
+                        temp.loc[n_y_mid_max < temp.index, 'w_'+_variable[0]] = 0
+                        temp.loc[n_y_mid_max < temp.index, _variable[0]] = np.nan
                     # temp = temp[(h_i + l_c <= temp.y_mid) & (temp.y_mid <= h_i)]
                 elif l_c < 0 and temp.v_ref.unique()[0] == 'bottom':
                     h_i = temp.ice_thickness.mean()
                     if np.isnan(h_i):
                         h_i = - l_c
                     n_y_mid_max = np.where(temp.y_mid <= h_i+l_c & h_i <= temp.y_mid)
-                    temp = temp.loc[temp.index <= n_y_mid_max]
+                    if dropemptyrow:
+                        temp = temp.loc[temp.index <= n_y_mid_max]
+                    else:
+                        temp.loc[n_y_mid_max < temp.index, 'w_'+_variable[0]] = 0
+                        temp.loc[n_y_mid_max < temp.index, _variable[0]] = np.nan
                     # temp = temp[(h_i + l_c <= temp.y_mid) & (temp.y_mid <= h_i)]
                 else:
                     logger.error('ERROR PROFILE.DISCRETIZED_PROFILE')
             elif not np.isnan(temp.ice_thickness.unique()[0]):
                 n_y_mid_max = np.where(temp.ice_thickness.unique()[0] <= temp.y_mid)[0][0]
-                temp = temp.loc[temp.index <= n_y_mid_max]
+                if dropemptyrow:
+                    temp = temp.loc[temp.index <= n_y_mid_max]
+                else:
+                    temp.loc[n_y_mid_max < temp.index, 'w_' + _variable[0]] = 0
+                    temp.loc[n_y_mid_max < temp.index, _variable[0]] = np.nan
                 # temp = temp[(temp.y_mid <= temp.ice_thickness.unique()[0])]
             else:
                 # TODO : check if it works from bottom too
                 y_in_ice = [y for y in temp.y_mid[::-1] if not temp.loc[temp.y_mid > y, _variable[0]].isna().all()]
-                temp = temp[temp.y_mid.isin(y_in_ice)]
+                if dropemptyrow:
+                    temp = temp[temp.y_mid.isin(y_in_ice)]
+                else:
+                    temp.loc[~temp.y_mid.notin(y_in_ice), 'w_' + _variable[0]] = 0
+                    temp.loc[~temp.y_mid.notin(y_in_ice), _variable[0]] = np.nan
 
             # drop all nan columns, but variable:
             temp = temp.dropna(axis=1, how='all')

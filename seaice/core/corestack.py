@@ -154,7 +154,7 @@ class CoreStack(pd.DataFrame):
         return grouped_stat(self, groups=groups, variables=variables, stats=stats)
 
     def discretize(self, y_bins=y_bins, y_mid=y_mid, display_figure=display_figure, fill_gap=fill_gap,
-                   fill_extremity=fill_extremity, variables=variables, verbose=verbose):
+                   fill_extremity=fill_extremity, variables=variables, verbose=verbose, dropemptyrow=False):
         """
         :param y_bins:
         :param y_mid:
@@ -177,7 +177,7 @@ class CoreStack(pd.DataFrame):
             profile = ics_stack[ics_stack.name == core]
             profile_d = seaice.core.profile.discretize_profile(profile, y_bins=y_bins, y_mid=y_mid,
                                                                display_figure=display_figure, fill_gap=fill_gap,
-                                                               fill_extremity=fill_extremity)
+                                                               fill_extremity=fill_extremity, dropemptyrow=dropemptyrow)
 
             data_binned = data_binned.append(profile_d, sort=True)
         data_binned = CoreStack(data_binned)
