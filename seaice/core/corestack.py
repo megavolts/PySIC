@@ -43,6 +43,7 @@ fill_gap = False
 fill_extremity = False
 variables = None
 verbose = False
+dropemptyrow=False
 
 class CoreStack(pd.DataFrame):
     """
@@ -142,7 +143,7 @@ class CoreStack(pd.DataFrame):
                     _ic.loc[(_ic.variable == vg), 'variables'] = ', '.join(new_vg)
         return pd.concat([_ic_stack, _ic], sort=False)
 
-    def section_stat(self, groups=None, variables=None, stats=['min', 'mean', 'max', 'std']):
+    def section_stat(self, groups=None, variables=None, stats=['min', 'mean', 'max', 'std'], dropemptyrow=dropemptyrow):
         """
 
         :param variables:
@@ -151,7 +152,7 @@ class CoreStack(pd.DataFrame):
         :return:
         """
 
-        return grouped_stat(self, groups=groups, variables=variables, stats=stats)
+        return grouped_stat(self, groups=groups, variables=variables, stats=stats, dropemptyrow=dropemptyrow)
 
     def discretize(self, y_bins=y_bins, y_mid=y_mid, display_figure=display_figure, fill_gap=fill_gap,
                    fill_extremity=fill_extremity, variables=variables, verbose=verbose, dropemptyrow=False):
@@ -459,7 +460,7 @@ def stack_cores(ics_dict, verbose=False):
     return CoreStack(ics_stack)
 
 
-def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
+def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None, dropemptyrow=dropemptyrow):
     """
     :param ics_stack:
     :param variables:
@@ -666,6 +667,7 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
             # stat data by prop
             headers.extend([prop + '_' + stat for stat in stats + ['collection']])
             stats_data = np.vstack([stats_data, [stat_var[stat] for stat in stats] + [core_var]])
+
             # assemble dataframe
             df = CoreStack(np.array(stats_data).transpose(), columns=headers)
 
@@ -770,7 +772,6 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
         else:
             props = all_stat.get_property() + [prop]
             core_stat['variable'] = ', '.join(props)
-
             for key in key_merge:
                 if all_stat[key].isna().all():
                     all_stat = all_stat.drop(columns=key, axis=1)
@@ -784,17 +785,18 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None):
             #        core_stat = core_stat.drop(key_2del, axis=1)
 
             all_stat = all_stat.merge(core_stat, how='outer', on=key_merge2, sort=False)
-
             # update variable:
             variable_to_update = [[var if val is True else None for val in all_stat[var + '_mean'].notnull()] for var in
                                   props]
             all_stat['variable'] = [', '.join(filter(None, list)) for list in zip(*variable_to_update)]
-
             # all_stat[all_stat.variable_y.isna()] = all_stat[all_stat.variable_x.isna()]
             # all_stat = all_stat.rename(columns={'variable_y': 'variable'})
             all_stat = all_stat.drop(labels=['variable_x'], axis=1)
-            all_stat = all_stat.drop(labels=['variable_y'], axis =1)
-        all_stat = all_stat[all_stat['variable'] != '']
+            all_stat = all_stat.drop(labels=['variable_y'], axis=1)
+        if dropemptyrow:
+            all_stat = all_stat[all_stat['variable'] != '']
+        else:
+            all_stat['variable'] = ', '.join(variables)
     return CoreStack(all_stat)
 
 
@@ -890,3 +892,5 @@ def inverse_dict(map):
         revdict.setdefault(v, []).append(k)
 
     return revdict
+
+

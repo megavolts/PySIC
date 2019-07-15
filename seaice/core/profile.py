@@ -819,14 +819,14 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                     except IndexError:
                         n_y_mid_min = 0
                     try:
-                        n_y_mid_max = np.where(h_i <= temp.y_mid)[0][0]
+                        n_y_mid_max = np.where(temp.y_mid <= h_i)[0][-1]
                     except IndexError:
                         n_y_mid_max = temp.y_mid.max()
                     if dropemptyrow:
                         temp = temp.loc[(n_y_mid_min <= temp.index) & (temp.index <= n_y_mid_max)]
                     else:
-                        temp.loc[temp.index < n_y_mid_max, 'w_'+_variable[0]] = 0
-                        temp.loc[temp.index < n_y_mid_max, _variable[0]] = np.nan
+                        temp.loc[temp.index < n_y_mid_min, 'w_'+_variable[0]] = 0
+                        temp.loc[temp.index < n_y_mid_min, _variable[0]] = np.nan
                         temp.loc[n_y_mid_max < temp.index, 'w_'+_variable[0]] = 0
                         temp.loc[n_y_mid_max < temp.index, _variable[0]] = np.nan
                     # temp = temp[(h_i + l_c <= temp.y_mid) & (temp.y_mid <= h_i)]
@@ -888,9 +888,11 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                         new_vg += var0
                         discretized_profile.loc[discretized_profile.variable == vg, 'variable'] = ', '.join(new_vg)
                 else:
-                    logger.warning('%s - %s not matching between profile' % (__package__+'.'+__name__,
-                                                                             ', '.join(not_matching_col)))
+                    #TODO: check if not matching 'y_mid' is extrmum point for continuous profile
                     if not_matching_col == ['length']:
+                        logger.warning('%s - (%s) %s length not matching between profile' % (__package__ + '.' + __name__,
+                                                                                      profile.name.unique()[0],
+                                                                                      ', '.join(not_matching_col)))
                         l_c_p = discretized_profile.length.unique()[0]
                         # merge profile up to maximum common depth
                         if l_c < l_c_p:

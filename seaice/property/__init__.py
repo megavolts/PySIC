@@ -32,7 +32,7 @@ prop_list = {'brine volume fraction': 'brine volume fraction',
              'vbf': 'brine volume fraction', 'vb': 'brine volume fraction',
              'permeability': 'permeability', 'k': 'permeability',
              'sea ice permeability': 'permeability'}
-prop_unit = {'salinity': '-',
+prop_unit = {'salinity': '‰',
              'temperature': '°C',
              'vb': '-', 'brine volume fraction': '-',
              'seaice permeability': 'm$^{-2}$'}
