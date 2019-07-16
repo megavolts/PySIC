@@ -36,7 +36,7 @@ fill_gap = False
 y_mid = None
 fill_extremity=False
 save_fig = False
-
+dropemptyrow = False
 essential_property = ['y_low', 'y_mid', 'y_sup', 'name', 'collection', 'comment', 'date', 'freeboard',
                       'ice_thickness', 'length', 'snow_depth', 'v_ref', 'variable', 'weight']
 
@@ -352,7 +352,7 @@ class Profile(pd.DataFrame):
 
 
 def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, fill_gap=fill_gap,
-                       fill_extremity=fill_extremity, save_fig=save_fig, dropemptyrow=True):
+                       fill_extremity=fill_extremity, save_fig=save_fig, dropemptyrow=dropemptyrow):
     """
     :param profile:
     :param y_bins:
@@ -813,7 +813,8 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                 elif l_c > 0 and temp.v_ref.unique()[0] == 'bottom':
                     h_i = temp.ice_thickness.mean()
                     if np.isnan(h_i):
-                        h_i = - l_c
+                        h_i = l_c
+                        print(profile.get_name(), h_i)
                     try:
                         n_y_mid_min = np.where(temp.y_mid <= h_i-l_c)[0][-1]
                     except IndexError:
@@ -882,7 +883,8 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                 not_matching_col = [c for c in col if not discretized_profile.iloc[0][c] == temp.iloc[0][c]]
 
                 if len(not_matching_col) == 0:
-                    discretized_profile = pd.merge(discretized_profile, temp, on=col, sort=False)
+                    discretized_profile = pd.merge(discretized_profile, temp, on=col, sort=False, how='outer')
+                    discretized_profile['variable'] = discretized_profile['variable'].astype(str).replace('nan', None)
                     for vg in discretized_profile.variable.unique():
                         new_vg = vg.split(', ')
                         new_vg += var0
@@ -932,7 +934,9 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
         if profile.v_ref.unique()[0] == 'top':
             profile.sort_values(by='y_mid', inplace=True)
         else:
-            profile.sort_values(by='y_mid', inplace=True, ascending=False)
+            profile.sort_values(by='y_low', inplace=True, ascending=False)
+            if 'y_low' in profile.columns and (profile.y_low - profile.y_sup < 0).all():
+                profile.sort_values(by='y_mid', inplace=True)
         ax, ax_dict = seaice.core.plot.plot_all_profile_variable(profile, ax=None, display_figure=False,
                                                                  param_dict={'linestyle': ':', 'color': 'k'})
         seaice.core.plot.plot_all_profile_variable(discretized_profile, ax=ax, ax_dict=ax_dict,
@@ -982,10 +986,10 @@ def set_profile_orientation(profile, v_ref):
                     href = lc
                     logger.info("Bottom reference set to ice core length:\
                     as ice core length is within 10% of the ice thickness")
-                elif hi is not None:
+                elif not ( hi is None or np.isnan(hi)):
                     href = hi
                     logger.info("Bottom reference set to ice thickness")
-                elif lc is not None:
+                elif not ( lc is None or np.isnan(lc)):
                     href = lc
                     logger.info("Bottom reference set to ice core length in absence of ice thickness")
 
@@ -1000,7 +1004,7 @@ def set_profile_orientation(profile, v_ref):
             logger.info('profile orientiation already set')
 
     if v_ref == ' bottom':
-        profile.length = -np.abs(profile.length)
+        profile.length = np.abs(profile.length)
     else:
         profile.length = np.abs(profile.length)
 

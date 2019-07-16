@@ -155,7 +155,7 @@ class CoreStack(pd.DataFrame):
         return grouped_stat(self, groups=groups, variables=variables, stats=stats, dropemptyrow=dropemptyrow)
 
     def discretize(self, y_bins=y_bins, y_mid=y_mid, display_figure=display_figure, fill_gap=fill_gap,
-                   fill_extremity=fill_extremity, variables=variables, verbose=verbose, dropemptyrow=False):
+                   fill_extremity=fill_extremity, variables=variables, verbose=verbose, dropemptyrow=dropemptyrow):
         """
         :param y_bins:
         :param y_mid:
@@ -209,22 +209,21 @@ class CoreStack(pd.DataFrame):
         unoriented_stack = self.loc[self.v_ref != v_ref]
 
         if not unoriented_stack.empty:
-            for hi in unoriented_stack.ice_thickness.unique():
-                subset = unoriented_stack[unoriented_stack.ice_thickness == hi]
+            for hi in unoriented_stack.ice_thickness.unique().astype(float):
                 if np.isnan(hi):
                     subset = unoriented_stack[unoriented_stack.ice_thickness.isna()]
                     for hi in subset.length.unique():
                         _subset = subset[subset.length == hi]
                         if not np.isnan(hi):
-                            oriented_stack = oriented_stack.append(seaice.core.profile.set_profile_orientation(_subset, v_ref))
+                            oriented_stack = oriented_stack.append(
+                                seaice.core.profile.set_profile_orientation(_subset, v_ref))
                             self.logger.info('NO ICE THICKNESS ' + ', '.join(_subset.names()))
                         else:
                             _subset = subset[subset.length.isna()]
                             self.logger.info('NO LENGTH, NO ICE THICKNESS ' + ', '.join(_subset.names()))
                 else:
+                    subset = unoriented_stack[unoriented_stack.ice_thickness == hi]
                     oriented_stack = oriented_stack.append(seaice.core.profile.set_profile_orientation(subset, v_ref))
-
-
         return CoreStack(oriented_stack)
 
     def core_in_collection(self, core):
@@ -293,7 +292,8 @@ class CoreStack(pd.DataFrame):
                 # delete associated subvariable column
                 if variable in seaice.subvariable_dict:
                     for subvariable in seaice.subvariable_dict[variable]:
-                        self.drop(subvariable, axis=1, inplace=True)
+                        if subvariable in self.variables():
+                            self.drop(subvariable, axis=1, inplace=True)
 
                 # delete variable from variable
                 for group in self.variable.unique():
@@ -308,7 +308,7 @@ class CoreStack(pd.DataFrame):
                             self.loc[self.variable == group, 'variable'] = ', '.join(new_group)
 
         # clean profile by removing empty column
-        self.clean_stack()
+        # removed self.clean_stack()
 
     def fix_dtypes(self, verbose=False):
         # add essential column if missing:

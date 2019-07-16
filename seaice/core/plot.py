@@ -263,14 +263,19 @@ def plot_all_profile_variable(ic_data, variable_dict={}, ax=None, ax_dict=None, 
         ax[ax_n].spines['top'].set_visible(False)
         ax[ax_n].spines['right'].set_visible(False)
         if variable + '_core' in ic_data.columns:
-            name = ic_data['temperature_core'].unique()[0]
-            if name == ic_data.name.unique()[0]:
-                name = ''
+            if len(variable_dict['variable']) > 1:
+                name = ic_data['temperature_core'].unique()[0]
+                if name == ic_data.name.unique()[0]:
+                    name = ''
+            else:
+                 name = ic_data['name'].unique()[0]
+            print(name, ic_data['name'].unique()[0], ic_data['temperature_core'].unique()[0],
+                  len(variable_dict['variable']))
         else:
             name = ic_data.name.unique()[0]
         ax[ax_n].set_title(name)
 
-    y_lim_max = np.max([np.max(ax[ii].get_ylim()) for ii in range(0, ax_n+1)])
+    y_lim_max = np.max([np.max(ax[ii].get_ylim()) for ii in range(0, len(ax))])
     if 'v_ref' in ic_data.columns:
         if len(ic_data.v_ref.unique()) == 1 and ic_data.v_ref.unique()[0] == 'bottom':
             ax[0].set_ylim([0, y_lim_max])
