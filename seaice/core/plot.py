@@ -573,15 +573,15 @@ def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=Fal
     _profiles = select_profile(ic_data, variable_dict)
 
     # minimum
-    param_dict.update({'linewidth': 2, 'color': 'b', 'label': 'min'})
+    param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
     ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_min']], param_dict=param_dict, ax=ax)
 
     # mean
-    param_dict.update({'linewidth': 2, 'color': 'k', 'label':'mean'})
+    param_dict.update({'linewidth': 1, 'color': 'k', 'label':'mean'})
     ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_mean']], param_dict=param_dict, ax=ax)
 
     # maximum
-    param_dict.update({'linewidth': 2, 'color': 'r', 'label':'max'})
+    param_dict.update({'linewidth': 1, 'color': 'r', 'label':'max'})
     ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_max']], param_dict=param_dict, ax=ax)
 
     # std/mean envelop
