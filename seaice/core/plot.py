@@ -33,7 +33,7 @@ module_logger = logging.getLogger(__name__)
 # New version have 2019 in name
 
 variable_unit_dict = {'salinity': '(g kg$^{-1}$)', 'temperature': ' $^\circ$C'}
-
+continuous_property = ['temperature']
 
 
 ## Old plot
@@ -55,7 +55,7 @@ def plot_profileV0(profile, ax=None, param_dict=None):
     # if profile not empty
     if not profile.empty:
         # step variable
-        if not profile.y_low.isnull().all():
+        if not profile.y_low.isnull().all() and profile.variables()[0] not in continuous_property:
             x = []
             y = []
             for ii in profile.index.tolist():
@@ -102,7 +102,7 @@ def plot_profile(profile, ax=None, param_dict=None):
     if not profile.empty:
         # step variable
         continuous_variable = False
-        if variable in ['temperature']:
+        if variable in continuous_property:
             continuous_variable = True
         elif 'y_low' not in profile:
             continuous_variable = True
@@ -172,7 +172,7 @@ def semilogx_profile(profile, ax=None, param_dict=None):
     # if profile not empty
     if not profile.empty:
         # step variable
-        if not profile[profile.variable == variable].y_low.isnull().all():
+        if not profile[profile.variable == variable].y_low.isnull().all() and variable not in continuous_property:
             x = []
             y = []
             for ii in profile[profile.variable == variable].index.tolist():
@@ -574,15 +574,15 @@ def plot_envelop(ic_data, variable_dict, ax=None, param_dict={}, flag_number=Fal
 
     # minimum
     param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
-    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_min']], param_dict=param_dict, ax=ax)
+    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_min', 'variable']], param_dict=param_dict, ax=ax)
 
     # mean
-    param_dict.update({'linewidth': 1, 'color': 'k', 'label':'mean'})
-    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_mean']], param_dict=param_dict, ax=ax)
+    param_dict.update({'linewidth': 1, 'color': 'k', 'label': 'mean'})
+    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_mean', 'variable']], param_dict=param_dict, ax=ax)
 
     # maximum
-    param_dict.update({'linewidth': 1, 'color': 'r', 'label':'max'})
-    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_max']], param_dict=param_dict, ax=ax)
+    param_dict.update({'linewidth': 1, 'color': 'r', 'label': 'max'})
+    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_max', 'variable']], param_dict=param_dict, ax=ax)
 
     # std/mean envelop
     plot_mean_envelop(ic_data, variable_dict, ax=ax)
