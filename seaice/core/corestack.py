@@ -489,10 +489,10 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None, dropemp
 
             # set w_variable to 1 if it exist
             ic_stack.loc[ic_stack['w_' + variable].isna(), 'w_' + variable] = 1
-
             logger.warning('some weight value are not defined for % s. Setting weight value to 1 if temperature exists, 0 otherway' % variable)
-
-    # Discard any row with no valid data entry
+        # # mod01: 20190917, replace
+        if ic_stack[variable].isna().any():
+            ic_stack.loc[ic_stack[variable].isna(), 'w_'+ variable ] = 0
     ic_stack = ic_stack[ic_stack[['w_' + variable for variable in variables]].sum(axis=1) != 0]
 
     no_y_mid_flag = True
@@ -588,6 +588,8 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None, dropemp
 
         # if property weight is null, weighted property is np.nan
         prop_data.loc[prop_data['w_'+prop] == 0, 'wtd_'+prop] = np.nan
+
+        # if property is nan, weighted property is np.nan
 
         data_grouped = prop_data.groupby(cuts)
 
