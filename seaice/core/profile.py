@@ -301,7 +301,8 @@ class Profile(pd.DataFrame):
         for variable in variables:
             if variable in self.variables():
                 # delete variable column
-                self.drop(variable, axis=1, inplace=True)
+                if variable in self.columns:
+                    self.drop(variable, axis=1, inplace=True)
 
                 # delete associated subvariable column
                 if variable in seaice.subvariable_dict:
