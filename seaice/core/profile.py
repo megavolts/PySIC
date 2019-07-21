@@ -918,7 +918,7 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                             discretized_profile = pd.concat([discretized_profile, temp_extra])
                     else:
                         temp['variable'] = var0[0]
-                        discretized_profile = pd.concat([discretized_profile, temp])
+                        discretized_profile = pd.concat([discretized_profile, temp], sort=True)
 
                 # add comment
                 if 'comment_temp' in discretized_profile.columns:
