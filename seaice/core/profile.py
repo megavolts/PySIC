@@ -276,6 +276,7 @@ class Profile(pd.DataFrame):
         :param variables2keep:
         :return:
         """
+        # variables2keep = _variable
         if not isinstance(variables2keep, list):
             variables2keep = [variables2keep]
 
@@ -313,7 +314,8 @@ class Profile(pd.DataFrame):
                 for group in self.variable.unique():
                     new_group = group.split(', ')
                     if variable in new_group:
-                        new_group.remove(variable)
+                        while variable in new_group:
+                            new_group.remove(variable)
 
                         # if the group is empty, remove the row
                         if len(new_group) == 0:
