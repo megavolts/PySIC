@@ -72,12 +72,14 @@ def scale_profile(profile, h_ice_f):
         return profile
 
 
+# TODO: add kwarg in arguments
 def compute_phys_prop_from_core(s_profile, t_profile, si_prop, resize_core=False,
                                 display_figure=True, ice_type='sw'):
     """
     :param s_profile:
     :param t_profile:
     :param si_prop:
+    :param si_prop_dict: dictionary containing additional data
     :param si_prop_format: 'linear' or 'step' (default)
     :param resize_core: 'S', 'T', 'None' (default)
     :param attribut_core: 'salinity' (default), 'temperature'
@@ -193,6 +195,164 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, resize_core=False
 
         # TODO: WIKI always add to salinity, properties is always a step
         s_profile[f_prop] = function(np.array(s_profile['salinity']), np.array(s_profile['temperature']))
+
+        # update variable:
+        new_var = s_profile.get_variable() + ['temperature', f_prop]
+        new_var = list(set(new_var))
+        s_profile['variable'] = ', '.join(new_var)
+
+        if display_figure:
+            ax = seaice.core.plot.plot_profile_variable(s_profile.copy(), variable_dict={'variable': prop},
+                                                        ax=None, param_dict=None)
+            ax.set_xlabel(prop)
+            ax.set_ylabel('ice thickness)')
+            ax.set_title(S_core_name)
+            plt.show()
+    # TODO: replace corestack by profile, REQUIRE: Profile should inherit Profile property (@property _constructor)
+    return s_profile
+
+
+def compute_phys_prop_from_core_STrho(s_profile, t_profile, d_profile, si_prop, resize_core=False,
+                                      display_figure=True, ice_type='sw'):
+    """
+    :param s_profile:
+    :param t_profile:
+    :param d_profile:
+    :param si_prop:
+    :param si_prop_dict: dictionary containing additional data
+    :param si_prop_format: 'linear' or 'step' (default)
+    :param resize_core: 'S', 'T', 'None' (default)
+    :param attribut_core: 'salinity' (default), 'temperature'
+    :param display_figure:
+    :param ice_type:
+    :return:
+    """
+
+    if not isinstance(si_prop, list):
+        si_prop = [si_prop]
+
+    logger = logging.getLogger(__name__)
+
+    # check parameters
+    if 'salinity' not in s_profile.keys() or not s_profile['salinity'].notnull().any():
+        logger.error("salinity profile does not have salinity data")
+    else:
+        S_core_name = s_profile.name.values[0]
+        s_profile.loc[:, 'salinity'] = pd.to_numeric(s_profile['salinity']).values
+
+    if 'temperature' not in t_profile.keys() or not t_profile['temperature'].notnull().any():
+        logger.error("temperature profile does not have temperature data")
+    else:
+        t_profile.loc[:, 'temperature'] = pd.to_numeric(t_profile['temperature']).values
+
+    if 'density' not in d_profile.keys() or not d_profile['density'].notnull().any():
+        logger.error("density profile does not have density data")
+    else:
+        d_profile.loc[:, 'density'] = pd.to_numeric(d_profile['density']).values
+
+    # sort profile by y_mid
+    s_profile.sort_values(by='y_mid', inplace=True)
+    t_profile.sort_values(by='y_mid', inplace=True)
+    d_profile.sort_values(by='y_mid', inplace=True)
+
+    # check if profiles have same orientation
+    if s_profile.v_ref.unique() != t_profile.v_ref.unique():
+        v_ref = s_profile.v_ref.unique()[0]
+        t_profile = t_profile.set_orientation(v_ref)
+
+    if s_profile.v_ref.unique() != d_profile.v_ref.unique():
+        v_ref = s_profile.v_ref.unique()[0]
+        d_profile = d_profile.set_orientation(v_ref)
+
+    if resize_core in ['salinity']:
+        if s_profile.length.notnull().all():
+            profile_length = s_profile.length.unique()[0]
+        elif s_profile.ice_thickness.notnull().all():
+            profile_length = s_profile.ice_thickness.unique()[0]
+            print("ice core length unknown, using ice thickness instead")
+        else:
+            profile_length = max(s_profile.y_low.min(), s_profile.y_sup.max())
+            print("todo: need warning text")
+        if not t_profile.length.unique() == profile_length:
+            t_profile = scale_profile(t_profile, profile_length)
+            d_profile = scale_profile(d_profile, profile_length)
+        keep_index = True
+    elif resize_core in ['temperature']:
+        if t_profile.length.notnull().all():
+            profile_length = t_profile.length.unique()[0]
+        elif t_profile.ice_thickness.notnull().all():
+            profile_length = t_profile.ice_thickness.unique()[0]
+            print("ice core length unknown, using ice thickness instead")
+        else:
+            profile_length = max(t_profile.y_low.min(), t_profile.y_sup.max())
+            print("todo: need warning text")
+        if not t_profile.length.unique() == profile_length:
+            s_profile = scale_profile(s_profile, profile_length)
+            d_profile = scale_profile(d_profile, profile_length)
+    elif resize_core in ['density']:
+        if d_profile.length.notnull().all():
+            profile_length = d_profile.length.unique()[0]
+        elif d_profile.ice_thickness.notnull().all():
+            profile_length = d_profile.ice_thickness.unique()[0]
+            print("ice core length unknown, using ice thickness instead")
+        else:
+            profile_length = max(d_profile.y_low.min(), d_profile.y_sup.max())
+            print("todo: need warning text")
+        if not d_profile.length.unique() == profile_length:
+            s_profile = scale_profile(s_profile, profile_length)
+            t_profile = scale_profile(t_profile, profile_length)
+    elif resize_core is False:
+        keep_index = True
+
+    # interpolate temperature profile to match salinity profile
+    y_mid = s_profile.y_mid.dropna().values
+    if y_mid.__len__() < 1:
+        y_mid = (s_profile.y_low / 2. + s_profile.y_sup / 2).dropna().astype(float)
+
+    if 'temperature' in s_profile.keys():
+        s_profile = s_profile.drop('temperature', axis=1)
+
+    # replace the 2 following lines
+    t_profile = t_profile.sort_values(by='y_mid')
+    interp_data = np.interp(y_mid, t_profile['y_mid'].values, t_profile['temperature'].values, left=np.nan, right=np.nan)
+
+    # Discretize density core according to salinity sections:
+    y_bins = np.unique(s_profile.y_low.to_list() + s_profile.y_sup.to_list())
+    d_profile_d = seaice.core.profile.discretize_profile(d_profile, y_bins)
+    # TODO check density sections correspond to salinity section
+
+    if keep_index:
+        t_profile2 = pd.DataFrame(np.transpose([interp_data, y_mid]), columns=['temperature', 'y_mid'], index=s_profile.index)
+        s_profile = s_profile.join(t_profile2.temperature, how='outer')
+        d_profile_d = pd.DataFrame(np.transpose([d_profile_d.density, y_mid]), columns=['density', 'y_mid'], index=s_profile.index)
+        s_profile = s_profile.join(d_profile_d.density, how='outer')
+    else:
+        t_profile2 = pd.DataFrame(np.transpose([interp_data, y_mid]), columns=['temperature', 'y_mid'])
+        s_profile = pd.merge(s_profile, t_profile2, on=['y_mid'])
+        s_profile = pd.merge(s_profile, d_profile, on=['y_mid'])
+        d_profile_d = pd.DataFrame(np.transpose([d_profile_d.density, y_mid]), columns=['density', 'y_mid'])
+        d_profile = pd.merge(s_profile, d_profile_d, on=['y_mid'])
+
+    # add name of t_profile
+    s_profile['t_name'] = t_profile.get_name()[0]
+    s_profile['d_name'] = d_profile.get_name()[0]
+
+    # compute properties
+    for f_prop in si_prop:
+        if f_prop not in prop_list.keys():
+            print('property %s not defined in the ice core property module' % property)
+
+        prop = prop_list[f_prop]
+        if ice_type is 'nacl':
+            function = getattr(seaice.property.nacl_ice, prop.replace(" ", "_"))
+            #TODO: check if prop exist, if prop does not exist use si
+        else:
+            function = getattr(seaice.property.si, prop.replace(" ", "_"))
+
+        # TODO: WIKI always add to salinity, properties is always a step
+        s_profile[f_prop] = function(np.array(s_profile['salinity']),
+                                     np.array(s_profile['temperature']),
+                                     np.array(s_profile['density']))
 
         # update variable:
         new_var = s_profile.get_variable() + ['temperature', f_prop]

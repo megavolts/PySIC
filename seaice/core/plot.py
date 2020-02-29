@@ -140,8 +140,8 @@ def plot_profile(profile, ax=None, param_dict=None):
                 ax.set_ylim([y_lim_max, 0])
                 ax.set_ylabel('Ice thickness (m)')
         else:
-            ax[0].set_ylim([y_lim_max, 0])
-            ax[0].set_ylabel('Ice thickness (m)')
+            ax.set_ylim([y_lim_max, 0])
+            ax.set_ylabel('Ice thickness (m)')
         ax.set_xlabel(variable.capitalize())
     else:
         module_logger.warning('Empty profile')
@@ -204,12 +204,14 @@ def plot_profile_variable(ic_data, variable_dict=None, ax=None, param_dict=None)
     """
 
     if variable_dict == None:
-        variable_dict = {'variable':ic_data.variables()}
+        print('FAILING: need at least one variable')
+        variable_dict = {'variable': ic_data.variables()}
 
     if 'variable' not in variable_dict.keys():
         module_logger.error("a variable should be specified for plotting")
 
     profile = select_profile(ic_data, variable_dict)
+    profile['variable'] = variable_dict['variable']
     if not profile.empty:
         ax = plot_profile(profile, ax=ax, param_dict=param_dict)
     return ax
@@ -369,8 +371,10 @@ def plot_mean_envelop(ic_data, variable_dict, ax=None, param_dict=None):
             param_dict['alpha'] = {0.3}
         if 'label' not in param_dict.keys():
             param_dict['label'] = str(r"$\pm$" + "std dev")
+        #x_std_l = np.atleast_2d(x_std_l)
+        #x_std_h = np.atleast_2d(x_std_h)
         ax.fill_betweenx(x_std_l[1, :], x_std_l[0, :], x_std_h[0, :], facecolor='black', alpha=0.2,
-                         label=param_dict['label'])
+                         label=param_dict['label'])  # use to be x_std_l [1] at first
     return ax
 
 

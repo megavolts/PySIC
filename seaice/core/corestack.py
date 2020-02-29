@@ -97,14 +97,36 @@ class CoreStack(pd.DataFrame):
                 logging.info("ice thickness is the mean of all not-nan ice thickness")
 
             if isinstance(ic_data.freeboard, (int, float)):
-                profile['ice_thickness'] = ic_data.freeboard
-            else:
+                profile['freeboard'] = ic_data.freeboard
+            elif len(ic_data.snow_depth) > 1:
                 profile['freeboard'] = np.nanmean(ic_data.freeboard)
+            else:
+
+                profile['freeboard'] = np.nan
+
+            # TODO: add freeboard
+            # if isinstance(ic_data.draft, (int, float)):
+            #     profile['draft'] = ic_data.freeboard
+            # else:
+            #     profile['draft'] = np.nanmean(ic_data.freeboard)
 
             if isinstance(ic_data.snow_depth, (int, float)):
                 profile['snow_depth'] = ic_data.snow_depth
-            else:
+            elif len(ic_data.snow_depth) > 1:
                 profile['snow_depth'] = np.nanmean(ic_data.snow_depth)
+            else:
+                profile['snow_depth'] = np.nan
+
+
+            if isinstance(ic_data.length(), (int, float)):
+                profile['length'] = ic_data.length
+            else:
+                try:
+                    np.nanmean(ic_data.length)
+                except AttributeError:
+                    profile['length'] = np.nanmean(ic_data.length())
+                else:
+                    profile['length'] = np.nanmean(ic_data.length)
 
             profile['date'] = ic_data.date
             profile['collection'] = ', '.join(ic_data.collection)
@@ -609,7 +631,7 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None, dropemp
             logger.info('\tcomputing %s' % stat)
 
             stat_var[stat] = np.nan * np.ones(dim)
-            core_var = np.zeros(dim).astype(str)
+            core_var = np.zeros(dim).astype(object)
             for k1, kgroups in data_grouped:
                 if isinstance(k1, (int, float)):
                     k1 = [k1]
@@ -650,9 +672,10 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None, dropemp
                 k1_int = []
                 k1_int = tuple([int(k) for k in k1])
 
-                core_var[k1_int] = ', '.join(list(kgroups.loc[~kgroups['wtd_' + prop].isna(), 'name'].unique()))
+                core_var[k1_int] = ', '.join(sorted(list(kgroups.loc[~kgroups['wtd_' + prop].isna(), 'name'].unique())))
 
         core_stat = CoreStack()
+
         # run over ndim, minus the ice thickness
         if len(dim) == 1:
             headers = ['y_low', 'y_mid', 'y_sup']
@@ -674,6 +697,8 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None, dropemp
             df = CoreStack(np.array(stats_data).transpose(), columns=headers)
 
             # number of sample
+            df.loc[df[prop + '_collection'] == 0, prop + '_collection'] = None
+            df[prop + '_collection'] = df[prop + '_collection'].replace(0, None)
             df[prop + '_count'] = df[prop + '_collection'].apply(
                 lambda x: x.split(', ').__len__() if x not in [None, ''] else 0)
 
@@ -728,14 +753,14 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None, dropemp
 
                 # stat data by prop
                 headers.extend([prop + '_' + stat for stat in stats + ['collection']])
-                core_name = [None if c in ['0.0', ''] else c for c in core_var[index].tolist()]
+                core_name = [None if c in ['0.0', ''] or c == 0 else c for c in core_var[index].tolist()]
+
                 stats_data = np.vstack([stats_data, [stat_var[stat][index] for stat in stats] + [core_name]])
                 # assemble dataframe
                 df = CoreStack(np.array(stats_data).transpose(), columns=headers)
 
                 # number of sample
-                df[prop + '_count'] = df[prop + '_collection'].apply(
-                    lambda x: x.split(', ').__len__() if x not in [None, ''] else 0)
+                df[prop + '_count'] = df[prop + '_collection'].apply(lambda x: x.split(', ').__len__() if x not in [None, ''] else 0)
 
                 # define bins
                 key_merge = ['y_low', 'y_mid', 'y_sup', 'v_ref', 'name']

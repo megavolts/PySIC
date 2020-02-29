@@ -49,7 +49,7 @@ def freezingtemp(s, p=10.1325, validity=True):
             Freezing point of seawater [degree C]
 
         :reference:
-            UNESCO (1978) Eighth report of the Joint Panel on Oceanographic Tables and Standards UNESCO Technical Papers
+            UNESCO (1978) Eigth report of the Joint Panel on Oceanographic Tables and Standards UNESCO Technical Papers
             in Marine Science 28. UNESCO, Paris.
             Annex 6 freezing point of seawater F.J. Millero pp.29-35.
 
@@ -58,10 +58,10 @@ def freezingtemp(s, p=10.1325, validity=True):
     """
 
     if isinstance(s, (int, float, list)):
-        s = np.atleast_1d(s)
+        s = np.atleast_1d(s).astype(float)
 
     if isinstance(p, (int, float, list)):
-        p = np.atleast_1d(p)
+        p = np.atleast_1d(p).astype(float)
 
     if s.shape != p.shape:
         module_logger.warning('s, p must all have the same dimensions')

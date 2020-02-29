@@ -89,10 +89,15 @@ class Profile(pd.DataFrame):
         :return name: string
         """
         self.logger = logging.getLogger(__name__)
-        name = self.name.unique()
-        if name.__len__() > 1:
-            self.logger.warning(' %s more than one name in the profile: %s ' % (name[0], ', '.join(name)))
-        return self.name.unique()[0]
+        try:
+            name = self.name.unique()
+        except AttributeError:
+            return None
+        else:
+            if name.__len__() > 1:
+                self.logger.warning(' %s more than one name in the profile: %s ' % (name[0], ', '.join(name)))
+            return self.name.unique()[0]
+
 
     def clean(self, inplace=True):
         """
@@ -265,7 +270,7 @@ class Profile(pd.DataFrame):
                 elif self[variable].isna().all():
                     variables.remove(variable)
 
-        if len(variables) == 1 and variables[0] is '':
+        if len(variables) == 1 and variables[0] == '':
             variables = None
 
         return variables
@@ -432,6 +437,18 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
             yx = _profile[['y_mid'] + _variable].set_index('y_mid').sort_index()
             y2 = y_mid
 
+            if fill_extremity:
+                if 0 not in yx.index:
+                    from scipy.interpolate import InterpolatedUnivariateSpline
+                    if len(yx.index) >= 2:
+                        _x = np.array(yx.index[0:2].to_list())
+                        _y = np.array(yx.loc[yx.index[0:2]].values.flatten())
+                        f = InterpolatedUnivariateSpline(_x, _y, k=1)
+                        _new = pd.Series([f(0)], index=['temperature'], name=0)
+                        yx = yx.append(_new).astype(float)
+                        yx.sort_index(inplace=True)
+                    logger.info("\t fill_extremity is True: setting temperature at y=0, T= " + str("%.2f" %f(0)))
+
             # drop all np.nan columns
             # yx = yx.dropna(axis=1, how='all').astype(float)
             # _variables_notna = yx.keys().tolist()
@@ -501,14 +518,15 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
             yx = yx.values
 
             # if missing section, add an emtpy section with np.nan as property value
-            yx_new = []
-            for row in range(yx[:, 0].__len__()-1):
-                yx_new.append(yx[row])
-                if abs(yx[row, 1]-yx[row+1, 0]) > TOL:
-                    yx_new.append([yx[row, 1], yx[row + 1, 0]] + [np.nan] * _variable.__len__())
-            yx_new.append(yx[row+1, :])
-            yx = np.array(yx_new)
-            del yx_new
+            if len(yx) > 1:
+                yx_new = []
+                for row in range(yx[:, 0].__len__()-1):
+                    yx_new.append(yx[row])
+                    if abs(yx[row, 1]-yx[row+1, 0]) > TOL:
+                        yx_new.append([yx[row, 1], yx[row + 1, 0]] + [np.nan] * _variable.__len__())
+                yx_new.append(yx[row+1, :])
+                yx = np.array(yx_new)
+                del yx_new
 
             if fill_gap:
                 value = pd.Series(yx[:, 2])
@@ -650,7 +668,8 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                     plt.figure()
                     plt.step(x_xy_plot, y_xy_plot)
                     plt.step(x_plot, y_step, 'x')
-                    plt.title(profile.get_name())
+                    if profile.get_name() != None:
+                        plt.title(profile.get_name())
                     plt.show()
             # for end
 
@@ -809,10 +828,10 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                     except IndexError:
                         n_y_mid_max = temp.y_mid.max()
                     if dropemptyrow:
-                        temp = temp.loc[temp.index <= n_y_mid_max]
+                        temp = temp.loc[temp.y_mid <= n_y_mid_max]
                     else:
-                        temp.loc[n_y_mid_max < temp.index, 'w_'+_variable[0]] = 0
-                        temp.loc[n_y_mid_max < temp.index, _variable[0]] = np.nan
+                        temp.loc[n_y_mid_max < temp.y_mid, 'w_'+_variable[0]] = 0
+                        temp.loc[n_y_mid_max < temp.y_mid, _variable[0]] = np.nan
                 elif l_c > 0 and temp.v_ref.unique()[0] == 'bottom':
                     h_i = temp.ice_thickness.mean()
                     if np.isnan(h_i):
@@ -827,12 +846,12 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                     except IndexError:
                         n_y_mid_max = temp.y_mid.max()
                     if dropemptyrow:
-                        temp = temp.loc[(n_y_mid_min <= temp.index) & (temp.index <= n_y_mid_max)]
+                        temp = temp.loc[(n_y_mid_min <= temp.y_mid) & (temp.y_mid <= n_y_mid_max)]
                     else:
-                        temp.loc[temp.index < n_y_mid_min, 'w_'+_variable[0]] = 0
-                        temp.loc[temp.index < n_y_mid_min, _variable[0]] = np.nan
-                        temp.loc[n_y_mid_max < temp.index, 'w_'+_variable[0]] = 0
-                        temp.loc[n_y_mid_max < temp.index, _variable[0]] = np.nan
+                        temp.loc[temp.y_mid < n_y_mid_min, 'w_'+_variable[0]] = 0
+                        temp.loc[temp.y_mid < n_y_mid_min, _variable[0]] = np.nan
+                        temp.loc[n_y_mid_max < temp.y_mid, 'w_'+_variable[0]] = 0
+                        temp.loc[n_y_mid_max < temp.y_mid, _variable[0]] = np.nan
                     # temp = temp[(h_i + l_c <= temp.y_mid) & (temp.y_mid <= h_i)]
                 elif l_c < 0 and temp.v_ref.unique()[0] == 'bottom':
                     h_i = temp.ice_thickness.mean()
@@ -840,20 +859,20 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                         h_i = - l_c
                     n_y_mid_max = np.where(temp.y_mid <= h_i+l_c & h_i <= temp.y_mid)
                     if dropemptyrow:
-                        temp = temp.loc[temp.index <= n_y_mid_max]
+                        temp = temp.loc[temp.y_mid <= n_y_mid_max]
                     else:
-                        temp.loc[n_y_mid_max < temp.index, 'w_'+_variable[0]] = 0
-                        temp.loc[n_y_mid_max < temp.index, _variable[0]] = np.nan
+                        temp.loc[n_y_mid_max < temp.y_mid, 'w_'+_variable[0]] = 0
+                        temp.loc[n_y_mid_max < temp.y_mid, _variable[0]] = np.nan
                     # temp = temp[(h_i + l_c <= temp.y_mid) & (temp.y_mid <= h_i)]
                 else:
                     logger.error('ERROR PROFILE.DISCRETIZED_PROFILE')
             elif not np.isnan(temp.ice_thickness.unique()[0]):
                 n_y_mid_max = np.where(temp.ice_thickness.unique()[0] <= temp.y_mid)[0][0]
                 if dropemptyrow:
-                    temp = temp.loc[temp.index <= n_y_mid_max]
+                    temp = temp.loc[temp.y_mid <= n_y_mid_max]
                 else:
-                    temp.loc[n_y_mid_max < temp.index, 'w_' + _variable[0]] = 0
-                    temp.loc[n_y_mid_max < temp.index, _variable[0]] = np.nan
+                    temp.loc[n_y_mid_max < temp.y_mid, 'w_' + _variable[0]] = 0
+                    temp.loc[n_y_mid_max < temp.y_mid, _variable[0]] = np.nan
                 # temp = temp[(temp.y_mid <= temp.ice_thickness.unique()[0])]
             else:
                 # TODO : check if it works from bottom too
@@ -861,8 +880,8 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                 if dropemptyrow:
                     temp = temp[temp.y_mid.isin(y_in_ice)]
                 else:
-                    temp.loc[~temp.y_mid.notin(y_in_ice), 'w_' + _variable[0]] = 0
-                    temp.loc[~temp.y_mid.notin(y_in_ice), _variable[0]] = np.nan
+                    temp.loc[temp.y_mid.isin(y_in_ice), 'w_' + _variable[0]] = 0
+                    temp.loc[temp.y_mid.isin(y_in_ice), _variable[0]] = np.nan
 
             # drop all nan columns, but variable:
             temp = temp.dropna(axis=1, how='all')
@@ -1143,7 +1162,7 @@ def select_profile(ics_stack, variable_dict):
     :return:
     """
     for ii_key in variable_dict.keys():
-        if ii_key is 'variable':
+        if ii_key == 'variable':
             if variable_dict[ii_key] in ics_stack.get_property():
                 ics_stack = select_variables(ics_stack, variable_dict[ii_key])
             else:

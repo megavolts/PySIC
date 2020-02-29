@@ -31,7 +31,7 @@ import seaice.property.nacl_ice
 TOL = 1e-6
 subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
 
-
+# TODO: add test function
 # TODO: add function Core.check() to check the integrity of the ice core and profiles
 
 class Core():
@@ -90,6 +90,7 @@ class Core():
         self.t_ice_surface = np.nan
         self.t_water = np.nan
         self.protocol = None
+        self.unit = {}
 
     def add_to_collection(self, core_list):
         """
@@ -242,12 +243,14 @@ class Core():
         """
         self.snow_depth = np.concatenate(self.snow_depth, [snow_depth])
 
-    def add_profile(self, profile):
+    def add_profile(self, profile, unit=None):
         """
         Add new profile to core.
         Profile name should match core name
         :param profile:
             pd.DataFrame, profile to add
+        :param unit:
+            dict, profile units
         """
         if self.profile.empty:
             self.profile = profile
@@ -328,6 +331,10 @@ def inverse_dict(map):
         if isinstance(v, list):
             for _v in v:
                 revdict.setdefault(_v, k)
+        elif isinstance(v, dict):
+            for _v in v:
+                revdict[_v] = k
         else:
             revdict.setdefault(v, k)
+
     return revdict

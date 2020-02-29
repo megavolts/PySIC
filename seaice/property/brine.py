@@ -138,7 +138,7 @@ def salinity(t, method='cw'):
         a[2, :] = [-3.9921, -22.700, -1.0015, -0.019956]
         b[2] = [-22.9, -2]
 
-        s_b = np.nan*np.ones(t)
+        s_b = np.nan*np.ones_like(t)
         for mm in range(0, 3):
             p1 = [a[mm, 3], a[mm, 2], a[mm, 1], a[mm, 0]]
             s_b[(b[mm, 0] <= t) & (t <= b[mm, 1])] = (np.polyval(p1, t[(b[mm, 0] <= t) & (t <= b[mm, 1])]))

@@ -53,7 +53,8 @@ def air_volume_fraction(s, t, rho_si='default'):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = 999
+        t = t.copy()
+        t.loc[t > 0] = 999
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
@@ -145,28 +146,33 @@ def brine_volume_fraction(s, t, rho_si='default', vf_a=0.005, method='cw'):
     Frankenstein, G., Garner, R., 1967. Equations for determining the brine volume of sea ice from −0.5 to −22.9 C,
         Journal of Glaciology (Vol. 6, pp. 943–944).
     """
+    t = t.copy()
     # check parameters
-    if isinstance(t, (int, float, list)):
-        t = np.atleast_1d(t)
+    if isinstance(t, (int, float, list, np.ndarray)):
+        t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = 999
+        t = t.copy()
+        t.loc[t > 0] = 999
 
-    if isinstance(s, (int, float, list)):
-        s = np.atleast_1d(s)
+    if isinstance(s, (int, float, list, np.ndarray)):
+        s = np.atleast_1d(s).astype(float)
 
-    if isinstance(vf_a, (int, float, list)):
-        vf_a = np.atleast_1d(vf_a)
+    if isinstance(vf_a, (int, float, list, np.ndarray)):
+        vf_a = np.atleast_1d(vf_a).astype(float)
     if vf_a.size == 1:
         logger.info('Air volume fraction set to 0.0005')
-        vf_a = vf_a * np.ones_like(s)
+        vf_a = vf_a * np.ones_like(s).astype(float)
 
     if rho_si is 'default':
         logger.info('rho_si computed from t and s')
         rho_si = density(s, t)
     elif isinstance(rho_si, (int, float)):
         rho_si = rho_si * np.ones_like(s)
+    elif isinstance(rho_si, (list, np.ndarray)):
+        rho_si = rho_si.astype(float)
 
+    ## Check for rho_si, t, S --> vf_a
     if t.shape != s.shape or t.shape != vf_a.shape or t.shape != rho_si.shape or s.shape != rho_si.shape or \
                     s.shape != vf_a.shape or rho_si.shape != vf_a.shape:
         logger.warning('s, t, rho_si, vf_a must all have the same dimensions')
@@ -264,7 +270,8 @@ def density(s, t, vf_a=0.005):
         t = np.atleast_1d([t]).astype(float)
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = 999  # use 999 rather np.nan
+        t = t.copy()
+        t.loc[t > 0] = 999  # use 999 rather np.nan
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
@@ -348,7 +355,8 @@ def electric_conductivity(s, t, rho_si='default', vf_a=0.005):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = np.nan
+        t = t.copy()
+        t.loc[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
@@ -406,7 +414,8 @@ def latentheat(s, t, transformation='solidification', s0=35.):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = np.nan
+        t = t.copy()
+        t.loc[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
@@ -491,7 +500,8 @@ def permeability(s, t, rho_si='default', vf_a=0.005):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = 999
+        t = t.copy()
+        t.loc[t > 0] = 999
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
@@ -549,7 +559,8 @@ def resistivity(s, t, rho_si='default', vf_a=0.005):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = np.nan
+        t = t.copy()
+        t.loc[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
@@ -577,9 +588,9 @@ def resistivity(s, t, rho_si='default', vf_a=0.005):
     return rhoel_si
 
 
-def specific_heat_capacity(s, t, method='untersteiner'):
+def heat_capacity(s, t, method='untersteiner'):
     """
-        Calculate specific heat capacity of sea ice in function of temperature and salinity
+        Calculate heat capacity of sea ice in function of temperature and salinity
 
         :param t : array_like, float
             temperature [degree C]
@@ -591,7 +602,7 @@ def specific_heat_capacity(s, t, method='untersteiner'):
             Thermal conductivity can be calculate either from 'untersteiner' or 'ono' approach
 
         :return c_si: ndarray
-            sea ice specific heat capacity [J/kgK^2]
+            sea ice heat capacity [J/kgK^2]
 
         :references:
             Equation 2.18 and 2.19 in Eicken, H. (2003). From the microscopic, to the macroscopic, to the regional
@@ -608,7 +619,8 @@ def specific_heat_capacity(s, t, method='untersteiner'):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = np.nan
+        t = t.copy()
+        t.loc[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
@@ -624,16 +636,49 @@ def specific_heat_capacity(s, t, method='untersteiner'):
 
     if method == 'untersteiner':
         a = 17.2  # [kJ/kgK]
-        c_si = c_i + a * s / t ** 2
+        c_si = c_i + a * s / (t ** 2)
 
     elif method == 'ono':
-        beta = 7.5 * 10 ** -3  # [kJ/kgK^2]
+        beta = 7.5 * 1e-3  # [kJ/kgK^2]
         lice = 333.4  # [kJ/kg] latent heat of fusion of freshwater
         m_m = -0.05411  # [K]  slope of the liquid
 
-        c_si = c_i + beta * t + m_m * lice * s / t ** 2
+        c_si = c_i + beta * t - m_m * lice * s / (t ** 2)
 
     return c_si * 10 ** 3  # return [J/kgK]
+
+
+def specific_heat_capacity(s, t, method='untersteiner'):
+    """
+        Calculate specific heat capacity of sea ice in function of temperature and salinity
+
+        :param t : array_like, float
+            temperature [degree C]
+            If t is an array, s, tmust be of same length
+        :param s : array_like, float
+            salinity [PsU]
+            If s is an array, s, t must be of same length
+        :param method : optional, 'untersteiner' or 'ono, Default:'untersteiner'
+            Thermal conductivity can be calculate either from 'untersteiner' or 'ono' approach
+
+        :return c_si: ndarray
+            sea ice heat capacity [J/kgK^2]
+
+        :references:
+            Equation 2.18 and 2.19 in Eicken, H. (2003). From the microscopic, to the macroscopic, to the regional
+            scale: growth, microstructure and properties of sea ice. In thomas, D. & G. s. Dieckmann, eds. (2010) sea
+            ice. London:
+            Wiley-Blackwell
+            Understeiner, N. (1961) Natural desalination and equilibrium salinity profile
+            of perennial sea ice. Journal of Geophysical Research, 73, 1251-1257
+            Equation (16) Ono, N. (1967). specific heat and heat of fusion of sea ice. In Physic of snow and Ice (H.
+            Oura., Vol. 1, pp. 599–610).
+    """
+
+    c = heat_capacity(s, t, method=method)  # [J/kgK]
+    rho = density(s, t)  # kg/m3
+
+    return c * rho  # J/Km3
 
 
 def thermal_conductivity(s, t, method='pringle', vf_a=0.005):
@@ -673,7 +718,8 @@ def thermal_conductivity(s, t, method='pringle', vf_a=0.005):
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = np.nan
+        t = t.copy()
+        t.loc[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s)
@@ -734,7 +780,8 @@ def thermal_diffusivity(s, t, method_l='pringle', method_cp='untersteiner', rho_
         t = np.atleast_1d(t).astype(float)
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
-        t[t > 0] = np.nan
+        t = t.copy()
+        t.loc[t > 0] = np.nan
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)
