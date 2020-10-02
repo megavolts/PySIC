@@ -118,13 +118,13 @@ class CoreStack(pd.DataFrame):
                 profile['snow_depth'] = np.nan
 
 
-            if isinstance(ic_data.length(), (int, float)):
+            if isinstance(ic_data.length, (int, float)):
                 profile['length'] = ic_data.length
             else:
                 try:
                     np.nanmean(ic_data.length)
                 except AttributeError:
-                    profile['length'] = np.nanmean(ic_data.length())
+                    profile['length'] = np.nanmean(ic_data.length)
                 else:
                     profile['length'] = np.nanmean(ic_data.length)
 

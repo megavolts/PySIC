@@ -174,3 +174,7 @@ def electric_conductivity(t):
     sigma_b[t < -22.9] = np.exp(np.polyval(a[1], t[t < -22.9]))
 
     return sigma_b
+
+
+def viscosity(s, t):
+    impo

@@ -12,7 +12,7 @@ CSIrO MatLAB Seawater Library, Phil Morgan, CMr (maintained by Lindsay Pender), 
 import numpy as np
 import logging
 from scipy import optimize
-
+from seaice.property.brine_nacl import dynamic_viscosity as nacl_dynamic_viscosity
 __author__ = "Marc Oggier"
 __license__ = "GPL"
 __version__ = "1.1.0"
@@ -395,6 +395,212 @@ def salinity2conductivity(s, t=15, p= 10.1325):
     return c
 
 
+def dynamic_viscosity(s, t, override_s=True, override_t=True):
+    """
+    Returns the dynamic viscosity as function of salinity and temperature at p = 1 atm
+    pressure dependance not implemented
+
+    :param s: array-like, float
+        Salinity [PSU] or [g / kg], s = 0-160
+    :param t: array-like, float
+        Temperature [degree C (IPTS-68)], t = 10-180
+    :param override_s: boolean
+        Override validity domain for salinity, default False
+    :param override_s: boolean
+        Override validity domain for temperature, default False
+
+    :return c: ndarray float
+        dynamic viscosity [kg m^-1 s^-1] or [Pa s]
+
+    :source:
+    El-Dessouky, Ettouny (2002): Fundamentals of Sea Water Desalination (Appendix A: Themodynamic Properties)
+    """
+
+    if isinstance(s, (int, float, list)):
+        s = np.atleast_1d(s).astype(float)
+    if isinstance(t, (int, float, list)):
+        t = np.atleast_1d(t).astype(float)
+
+    if s.shape != t.shape:
+        module_logger.warning('s, t must all have the same dimensions')
+        return 0
+
+    # NEED To PIECE THINGS TOGETHER:
+    # if ((s <= 0).any() or (130 < s).any()) and not override_s:
+    #     s[(s <= 0) | (1000 < s)] = np.nan
+    #     module_logger.warning('salinity value must be 0 < s < 1000 [PSU]')
+    #
+    # if ((t <= 10).any() or (180 < t).any()) and not override_t:
+    #     t[(t <= 10) | (1000 < t)] = np.nan
+    #     module_logger.warning('salinity value must be 0 < s < 1000 [PSU]')
+    #
+    # # Constant
+    # a = 1.474e-3 + 1.5e-5 * t - 3.927e-8 * t**2
+    # b = 1.0734e-5 - 8.5e-8 * t + 2.23e-10 * t**2
+    # mu_r = 1 + a * s + b * s**2
+    # mu_w = np.exp(-3.79418 + 604.129/(139.18+t))
+    #
+    # mu = mu_w * mu_r * 1e-3  # kg m^-1 s^-1 or Pa s
+
+    mu = nacl_dynamic_viscosity(s, t, override_s=True, override_t=True)
+    return mu
+
+
+def density_stdsw(t):
+    """
+    Returns the densti of standard mean ocean water
+
+    :param t: array-like, float
+        Temperature [degree C (IPTS-68)], t = 10-180
+
+    :source:
+        - Fofonoff, P. and Millard, R.C. Jr, Unesco 1983. Algorithms for computation of fundamental properties of
+         seawater, 1983. _Unesco Tech. Pap. in Mar. Sci._, No. 44, 53 pp.
+        - Millero, F.J., Chen, C.T., Bradshaw, A., and Schleicher, K. " A new high pressure equation of state for
+          seawater", Deap-Sea Research., 1980, Vol27A, pp255-264.
+    """
+
+    if isinstance(t, (int, float, list)):
+        t = np.atleast_1d(t).astype(float)
+
+    # if ((s <= 0).any() or (130 < s).any()) and not override_s:
+    #     s[(s <= 0) | (1000 < s)] = np.nan
+    #     module_logger.warning('salinity value must be 0 < s < 1000 [PSU]')
+    #
+    # if ((t <= 10).any() or (180 < t).any()) and not override_t:
+    #     t[(t <= 10) | (1000 < t)] = np.nan
+    #     module_logger.warning('salinity value must be 0 < s < 1000 [PSU]')
+
+    # Constant
+    t68 = t * 1.00024
+    a0 = 999.842594
+    a1 = 6.793952e-2
+    a2 = -9.095290e-3
+    a3 = 1.001685e-4
+    a4 = -1.120083e-6
+    a5 = 6.536332e-9
+
+    # Equation 14, p.17 in UNESCO (1983)
+    rho = a0 + (a1 + (a2 + (a3 + (a4 + a5 * t68) * t68) * t68) * t68) * t68
+
+    return rho
+
+
+def density_p0(s, t, override_s=True, override_t=True):
+    """
+    Returns the seawaer density as function of salinity and temperature at atmospheric pressure
+
+    :param s: array-like, float
+        Salinity [PSU] or [g / kg], s = 0-160
+    :param t: array-like, float
+        Temperature [degree C (IPTS-68)], t = 10-180
+    :param override_s: boolean
+        Override validity domain for salinity, default False
+    :param override_s: boolean
+        Override validity domain for temperature, default False
+    :param p: array-like, float
+        Pressure [dbar]
+    :return c: ndarray float
+        density at atmospheric pressure [kg m^-3]
+
+    :source:
+        - Fofonoff, P. and Millard, R.C. Jr, Unesco 1983. Algorithms for computation of fundamental properties of
+         seawater, 1983. _Unesco Tech. Pap. in Mar. Sci._, No. 44, 53 pp.
+        - Millero, F.J., Chen, C.T., Bradshaw, A., and Schleicher, K. " A new high pressure equation of state for
+          seawater", Deap-Sea Research., 1980, Vol27A, pp255-264.
+    """
+
+    if isinstance(s, (int, float, list)):
+        s = np.atleast_1d(s).astype(float)
+    if isinstance(t, (int, float, list)):
+        t = np.atleast_1d(t).astype(float)
+
+    if s.shape != t.shape:
+        module_logger.error('s, t must all have the same dimensions')
+        return 0
+
+    # if ((s <= 0).any() or (130 < s).any()) and not override_s:
+    #     s[(s <= 0) | (1000 < s)] = np.nan
+    #     module_logger.warning('salinity value must be 0 < s < 1000 [PSU]')
+    #
+    # if ((t <= 10).any() or (180 < t).any()) and not override_t:
+    #     t[(t <= 10) | (1000 < t)] = np.nan
+    #     module_logger.warning('salinity value must be 0 < s < 1000 [PSU]')
+
+    # Constant
+    t68 = t * 1.00024
+
+    # Equation 13, p.1 in UNESCO (1983)
+
+    b0 = 8.24493e-1
+    b1 = -4.0899e-3
+    b2 = 7.6438e-5
+    b3 = -8.2467e-7
+    b4 = 5.3875e-9
+
+    c0 = -5.72466e-3
+    c1 = +1.0227e-4
+    c2 = -1.6546e-6
+
+    d0 = 4.8314e-4
+
+    rho = density_stdsw(t) + (b0 + b1 * t68**1 + b2 * t68**2 + b3 * t68**3 + b4 * t68**4) * s
+    rho += (c0 + (c1 + c2 * t68) * t68) * s * np.sqrt(s) + d0 * s**2;
+    return rho
+
+#
+# def density(s, t, p, override_s=True, override_t=True):
+#     """
+#     Returns the seawaer density as function of salinity and temperature at p = 1 atm
+#
+#     :param s: array-like, float
+#         Salinity [PSU] or [g / kg], s = 0-160
+#     :param t: array-like, float
+#         Temperature [degree C (IPTS-68)], t = 10-180
+#     :param override_s: boolean
+#         Override validity domain for salinity, default False
+#     :param override_s: boolean
+#         Override validity domain for temperature, default False
+#     :param p: array-like, float
+#         Pressure [dbar]
+#     :return c: ndarray float
+#         dynamic viscosity [kg m^-1 s^-1] or [Pa s]
+#
+#     :source:
+#         - Fofonoff, P. and Millard, R.C. Jr, Unesco 1983. Algorithms for computation of fundamental properties of
+#          seawater, 1983. _Unesco Tech. Pap. in Mar. Sci._, No. 44, 53 pp.
+#         - Millero, F.J., Chen, C.T., Bradshaw, A., and Schleicher, K. " A new high pressure equation of state for
+#           seawater", Deap-Sea Research., 1980, Vol27A, pp255-264.
+#     """
+#
+#     if isinstance(s, (int, float, list)):
+#         s = np.atleast_1d(s).astype(float)
+#     if isinstance(t, (int, float, list)):
+#         t = np.atleast_1d(t).astype(float)
+#     if isinstance(p, (int, float, list)):
+#         p = np.atleast_1d(p).astype(float)
+#
+#     if s.shape != t.shape or s.shape != p.shape or t.shape != p.shape:
+#         module_logger.error('s, p, t must all have the same dimensions')
+#         return 0
+#
+#     # if ((s <= 0).any() or (130 < s).any()) and not override_s:
+#     #     s[(s <= 0) | (1000 < s)] = np.nan
+#     #     module_logger.warning('salinity value must be 0 < s < 1000 [PSU]')
+#     #
+#     # if ((t <= 10).any() or (180 < t).any()) and not override_t:
+#     #     t[(t <= 10) | (1000 < t)] = np.nan
+#     #     module_logger.warning('salinity value must be 0 < s < 1000 [PSU]')
+#
+#     # Constant
+#     rho_p0 = density_p0(s, t)
+#     k = seck(s, t, p)
+#     p = p/10  # convert from db to atm unit
+#     rho = rho_p0 / (1-p/k)
+#
+#     return rho
+
+
 # aliases:
 def conductivity2salinity(c, t, p=None, validity=True):
     """
@@ -415,3 +621,5 @@ def conductivity2salinity(c, t, p=None, validity=True):
     """
     s = salt_c(c, t, p=p, validity=validity)
     return s
+
+

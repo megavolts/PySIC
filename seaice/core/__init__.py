@@ -26,7 +26,7 @@ import openpyxl
 import pandas as pd
 
 import seaice
-import seaice.core.corestack as corestack
+import seaice.core.corestack as cs
 
 __all__ = ["import_ic_path", "import_ic_list", "import_ic_sourcefile", "list_ic", "list_ic_path", "make_ic_sourcefile"]
 
@@ -296,6 +296,7 @@ def import_ic_path_MOSAiC(ic_path, variables = variables, drop_empty=drop_empty)
         instrument_d[ws_metadata_core.cell(m_row, 1).value] = ws_metadata_core.cell(m_row, 3).value
         m_row += 1
     core.instrument = instrument_d
+
     # Core collection
     m_col = 3
     while ws_summary.cell(31, m_col).value:
@@ -848,6 +849,7 @@ def read_profile_MOSAiC(ws_variable, variables=None, version=__CoreVersion__, v_
         n_col += 1
     n_col_max = n_col-2
 
+
     # Check for step or continuous profiles:
     if 'depth center' in headers:
         loc1 = [ii for ii, h in enumerate(headers) if h == 'depth center'][0] + 1
@@ -927,9 +929,11 @@ def read_profile_MOSAiC(ws_variable, variables=None, version=__CoreVersion__, v_
 
     n_col_min = 1
     n_col_max = n_col_max - n_col_min
+
     # Drop column with depth:
-    _data = [[cell.value if isinstance(cell.value, (float, int)) else np.nan for cell in row]
-                      for row in ws_variable.iter_rows(n_row_min, n_row_max, n_col_min, n_col_max)]
+    # _data = [[cell.value if isinstance(cell.value, (float, int)) else np.nan for cell in row]
+    #                   for row in ws_variable.iter_rows(n_row_min, n_row_max, n_col_min, n_col_max)]
+    _data = [[cell.value for cell in row] for row in ws_variable.iter_rows(n_row_min, n_row_max, n_col_min, n_col_max)]
 
     # TODO:  fill missing section with np.nan
     # if fill_missing:
@@ -951,8 +955,11 @@ def read_profile_MOSAiC(ws_variable, variables=None, version=__CoreVersion__, v_
     if None in profile.columns:
         profile = profile.drop(labels=[None], axis=1)
 
+    # sample ID columns is string:
+    string_header = ['comment'] + [h for h in profile.columns if 'sample ID' in h or 'ID' in h]
+
     # convert string to float:
-    float_header = [h for h in profile.columns if h not in ['comment']]
+    float_header = [h for h in profile.columns if h not in string_header]
     profile[float_header] = profile[float_header].apply(pd.to_numeric, errors='coerce')
 
     # drop property with all nan value
@@ -1459,7 +1466,3 @@ def inverse_dict(map):
             revdict[v] = revdict.get(v, [])
             revdict[v].append(k)
     return revdict
-
-
-def corestack():
-    return None

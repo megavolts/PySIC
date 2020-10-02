@@ -113,7 +113,7 @@ def air_volume_fraction(s, t, rho_si='default'):
     return vf_a
 
 
-def brine_volume_fraction(s, t, rho_si='default', vf_a=0.005, method='cw'):
+def brine_volume_fraction(s, t, rho_si='default', vf_a=0.0005, method='cw'):
     """
     Calculate the volume fraction of brine [-, unitless]
 
@@ -146,7 +146,6 @@ def brine_volume_fraction(s, t, rho_si='default', vf_a=0.005, method='cw'):
     Frankenstein, G., Garner, R., 1967. Equations for determining the brine volume of sea ice from −0.5 to −22.9 C,
         Journal of Glaciology (Vol. 6, pp. 943–944).
     """
-    t = t.copy()
     # check parameters
     if isinstance(t, (int, float, list, np.ndarray)):
         t = np.atleast_1d(t).astype(float)
@@ -602,7 +601,7 @@ def heat_capacity(s, t, method='untersteiner'):
             Thermal conductivity can be calculate either from 'untersteiner' or 'ono' approach
 
         :return c_si: ndarray
-            sea ice heat capacity [J/kgK^2]
+            sea ice heat capacity [J/kgK]
 
         :references:
             Equation 2.18 and 2.19 in Eicken, H. (2003). From the microscopic, to the macroscopic, to the regional
@@ -645,7 +644,7 @@ def heat_capacity(s, t, method='untersteiner'):
 
         c_si = c_i + beta * t - m_m * lice * s / (t ** 2)
 
-    return c_si * 10 ** 3  # return [J/kgK]
+    return c_si * 10 ** 3  # return [J/gK]
 
 
 def specific_heat_capacity(s, t, method='untersteiner'):
