@@ -23,7 +23,7 @@ __all__ = ["density", "electric_conductivity", "salinity", "thermal_conductivity
 
 module_logger = logging.getLogger(__name__)
 
-def density(t):
+def density(t, extend_t_0=False):
     """
         Calculates the density of the brine in [kg/m3]
 
@@ -48,7 +48,7 @@ def density(t):
     # Physical constant
     a = [0.8, 1000]
 
-    s_b = salinity(t)
+    s_b = salinity(t, extend_t_0=extend_t_0)
     rho_b = (a[1] + a[0] * s_b)
 
     return rho_b
@@ -90,7 +90,7 @@ def thermal_conductivity(t):
     return lambda_b
 
 
-def salinity(t, method='cw'):
+def salinity(t, method='cw', extend_t_0=False):
     """
     Calculates the salinity of the brine at a given temperature according to either Assur's model or Cox & Weeks equation.
 
@@ -106,7 +106,7 @@ def salinity(t, method='cw'):
     :references:
         'as' : Equation 2.8 in thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
         'cw' : Equation 25 in Cox, G. F. N., & Weeks, W. F. (1986). Changes in the salinity and porosity of sea-ice
-            samples during shipping and storage. J. Glaciol, 32(112), 371–375
+            samples during shipping and storage. J. Glaciol, 32(112), 371–375 (Cox1983a, 10.1017/S0022143000008364)
     """
 
     if isinstance(t, (int, float, list)):
@@ -136,7 +136,11 @@ def salinity(t, method='cw'):
         b[1] = [-44, -22.9]
         # coefficient for -22.9 < t <= -2
         a[2, :] = [-3.9921, -22.700, -1.0015, -0.019956]
-        b[2] = [-22.9, -2]
+        if extend_t_0:
+            #TODO: add warning
+            b[2] = [-22.9, 0]
+        else:
+            b[2] = [-22.9, -2]
 
         s_b = np.nan*np.ones_like(t)
         for mm in range(0, 3):
@@ -176,5 +180,6 @@ def electric_conductivity(t):
     return sigma_b
 
 
-def viscosity(s, t):
-    impo
+def viscosity(s, t, override_s=False, override_t=False):
+    from seaice.property.brine_nacl import dynamic_viscosity
+    return dynamic_viscosity(s, t, override_s=override_s, override_t=override_t)

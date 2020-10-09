@@ -98,10 +98,9 @@ class CoreStack(pd.DataFrame):
 
             if isinstance(ic_data.freeboard, (int, float)):
                 profile['freeboard'] = ic_data.freeboard
-            elif len(ic_data.snow_depth) > 1:
+            elif len(ic_data.freeboard) > 1:
                 profile['freeboard'] = np.nanmean(ic_data.freeboard)
             else:
-
                 profile['freeboard'] = np.nan
 
             # TODO: add freeboard
@@ -118,15 +117,15 @@ class CoreStack(pd.DataFrame):
                 profile['snow_depth'] = np.nan
 
 
-            if isinstance(ic_data.length, (int, float)):
-                profile['length'] = ic_data.length
+            if isinstance(ic_data.length(), (int, float)):
+                profile['length'] = ic_data.length()
             else:
                 try:
-                    np.nanmean(ic_data.length)
+                    np.nanmean(ic_data.length())
                 except AttributeError:
-                    profile['length'] = np.nanmean(ic_data.length)
+                    profile['length'] = np.nanmean(ic_data.length())
                 else:
-                    profile['length'] = np.nanmean(ic_data.length)
+                    profile['length'] = np.nanmean(ic_data.length())
 
             profile['date'] = ic_data.date
             profile['collection'] = ', '.join(ic_data.collection)
@@ -220,7 +219,7 @@ class CoreStack(pd.DataFrame):
             temp = temp.append(profile)
         return CoreStack(temp)
 
-    def set_orientation(self, v_ref):
+    def set_orientation(self, v_ref, skipna=True):
         """
 
         :param v_ref:
@@ -232,11 +231,12 @@ class CoreStack(pd.DataFrame):
 
         if not unoriented_stack.empty:
             for hi in unoriented_stack.ice_thickness.unique().astype(float):
-                if np.isnan(hi):
+                if np.isnan(hi) and not skipna:
+                    print('nan')
                     subset = unoriented_stack[unoriented_stack.ice_thickness.isna()]
-                    for hi in subset.length.unique():
-                        _subset = subset[subset.length == hi]
-                        if not np.isnan(hi):
+                    for hi_ in subset.length.unique():
+                        _subset = subset[subset.length == hi_]
+                        if not np.isnan(hi_):
                             oriented_stack = oriented_stack.append(
                                 seaice.core.profile.set_profile_orientation(_subset, v_ref))
                             self.logger.info('NO ICE THICKNESS ' + ', '.join(_subset.names()))
