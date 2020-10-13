@@ -23,6 +23,7 @@ __all__ = ["density", "electric_conductivity", "salinity", "thermal_conductivity
 
 module_logger = logging.getLogger(__name__)
 
+
 def density(t, extend_t_0=False):
     """
         Calculates the density of the brine in [kg/m3]
