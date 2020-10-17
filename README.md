@@ -36,7 +36,7 @@ Retrieved from http://unesdoc.unesco.org/images/0018/001864/186462e.pdf
 ### temperature
 
 
-## Abreviation
+## Abbreviation
 - ms : milliSiemens
 - cm : centimeter
 - °C : degree Celsius
