@@ -7,7 +7,7 @@ salt made of pure NaCl
 """
 __author__ = "Mars Oggier, Soenke Maus"
 __lisense__ = "GPL"
-__version__ = "0.5"
+
 __maintainer__ = "Mars Oggier"
 __sontast__ = "Mars Oggier"
 __email__ = "moggier@alaska.edu"

@@ -14,7 +14,7 @@ import seaice.core.plot
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
-__version__ = "0.5"
+
 __maintainer__ = "Marc Oggier"
 __contact__ = "Marc Oggier"
 __email__ = "moggier@alaska.edu"

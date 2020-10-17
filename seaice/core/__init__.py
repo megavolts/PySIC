@@ -7,7 +7,7 @@ seaice.io.icxl.py : function to import import ice core data from xlsx spreadshee
 __name__ = "core"
 __author__ = "Marc Oggier"
 __license__ = "GPL"
-__version__ = "0.5"
+
 __maintainer__ = "Marc Oggier"
 __contact__ = "Marc Oggier"
 __email__ = "moggier@alaska.edu"
