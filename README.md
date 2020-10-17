@@ -31,5 +31,7 @@ $ python example.py
 
 **Cite as:**
 
-> *Oggier, M * **SicPy: A Python Toolkit for Quantitative Analysis of Sea Ice COre**, 
+> *Oggier, M * **SicPy: A Python Toolkit for Quantitative Analysis of Sea Ice Core**. Retrieved from https://github.com/megavolts/seaice 
 
+
+Oggier, M. (2020). SicPy
