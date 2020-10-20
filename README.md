@@ -17,17 +17,5 @@ The functions in PySIC will be organized into the following categories:
 * visualization: create basic views
 * metrics: extract quantitative information
 
-## Setup
-Read [INSTALLATION.md](INSTALLATION.md)
-
-## Quickstart
-Clone the repository
-
-```bash
-$ git clone https://github.com/..
-$ cd PySIC
-$ python example.py
-```
-
 **Cite as:**
 > *Oggier, M* **SicPy: A Python Toolkit for Quantitative Analysis of Sea Ice Core**. Version 0.5, Retrieved from https://github.com/megavolts/seaice
