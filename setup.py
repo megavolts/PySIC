@@ -51,7 +51,7 @@ setup(
                  'Topic :: Scientific/Engineering',
                  'Topic :: Scientific/Engineering :: Physics'],
     packages=packages,
-    install_requires=requirements
+    install_requires=requirements,
     author='Marc Oggier',
     author_email='moggier@alaska.edu',
     download_url='https://github.com/megavolts/seaice',
@@ -60,5 +60,5 @@ setup(
         'Documentation': 'https://github.com/megavolts/seaice/wiki',
         'Source': 'https://github.com/megavolts/seaice',
         'Tracker': 'https://github.com/megavolts/seaice/issues',
-    },
+    }
 )
