@@ -7,7 +7,7 @@ __name__ = "ElsonLagoonTesting"
 
 import os
 import numpy as np
-import seaice
+import pysic
 import json
 import logging.config
 import matplotlib.pyplot as plt
@@ -26,19 +26,19 @@ logger = logging.getLogger(__name__)
 
 
 if os.uname()[1] == 'adak':
-    dirpath = '/mnt/data/UAF-data/seaice/core/BRW-EL-winter/'
-    source_fp = '/mnt/data/UAF-data/seaice/core/BRW-EL-winter/ics_list.txt'
+    dirpath = '/mnt/data/UAF-data/pysic/core/BRW-EL-winter/'
+    source_fp = '/mnt/data/UAF-data/pysic/core/BRW-EL-winter/ics_list.txt'
 elif os.uname()[1] == 'arran':
-    dirpath = '/home/megavolts/data/seaice/core/BRW-EL-winter/'
+    dirpath = '/home/megavolts/data/pysic/core/BRW-EL-winter/'
 else:
     logger.error("directory path unknown")
 
 fileext = '.xlsx'
-source_fp = seaice.make_ic_sourcefile(dirpath, fileext)
+source_fp = pysic.make_ic_sourcefile(dirpath, fileext)
 
 
-ics_dict = seaice.import_ic_sourcefile(source_fp, v_ref='top')
-ics_stack = seaice.stack_cores(ics_dict)
+ics_dict = pysic.import_ic_sourcefile(source_fp, v_ref='top')
+ics_stack = pysic.stack_cores(ics_dict)
 
 
 
@@ -59,7 +59,7 @@ figure_number = 0
 vmin = {'temperature': -20, 'salinity': 0}
 vmax = {'temperature': 0, 'salinity': 10}
 
-for index in seaice.core.tool.indices(bins_max_value):
+for index in pysic.core.tool.indices(bins_max_value):
     func_arg = 'ics_stat['
     for i in range(index.__len__()):
         func_arg += '(ics_stat[bins['+str("%i" %i)+']]==bin_value['+str("%i" % index[i])+']) & '
@@ -72,7 +72,7 @@ for index in seaice.core.tool.indices(bins_max_value):
         ic_data = data[data.variable == variable]
         variable_dict = {'variable': variable}
         # TODO add number of core, need to check how number of core is calculated
-        ax[n_ax] = seaice.climatology.plot_envelop(ic_data, variable_dict, ax=ax[n_ax], param_dict={})
+        ax[n_ax] = pysic.climatology.plot_envelop(ic_data, variable_dict, ax=ax[n_ax], param_dict={})
 
         ax[n_ax].set_xlabel(variable)
         ax[n_ax].xaxis.set_label_position('top')

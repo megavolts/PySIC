@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-property.seaice.py contains function to compute physical property relative to the seaice
+property.pysic.py contains function to compute physical property relative to the pysic
 """
 import logging
 
@@ -22,8 +22,8 @@ __all__ = ["air_volume_fraction", 'brine_volume_fraction', "density", "electric_
 
 logger = logging.getLogger(__name__)
 
-from seaice.property import ice
-from seaice.property import brine
+from pysic.property import ice
+from pysic.property import brine
 
 
 def air_volume_fraction(s, t, rho_si='default'):
@@ -343,7 +343,7 @@ def electric_conductivity(s, t, rho_si='default', vf_a=0.005):
         If vf_a is an array, vf_a, s, t must have the same length.
 
     :return sigma_si: ndarray
-        conductivity of seaice in microsiemens/meter [S/m]
+        conductivity of pysic in microsiemens/meter [S/m]
 
     :source :
     Ingham, M., Pringle, D. J., & Eicken, H. (2008). Cross-borehole resistivity tomography of sea ice. Cold Regions
@@ -546,7 +546,7 @@ def resistivity(s, t, rho_si='default', vf_a=0.005):
         If vf_a is an array, vf_a, s, t must have the same length.
 
     :return rhoel_si: ndarray
-        resistiviy of seaice in microsiemens/meter [s/m]
+        resistiviy of pysic in microsiemens/meter [s/m]
 
 
     :source :
@@ -700,7 +700,7 @@ def thermal_conductivity(s, t, method='pringle', vf_a=0.005):
             If vf_a is an array, vf_a, s, t must have the same length.
 
         :return lambda_si ndarray
-            seaice thermal conductivity [W/mK]
+            pysic thermal conductivity [W/mK]
 
         :sources:
         Equation 2.14 and 2.16 in Eicken, H. (2003). From the microscopic, to the macroscopic, to the regional scale:

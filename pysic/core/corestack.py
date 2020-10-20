@@ -1,7 +1,7 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-seaice.core.coreset.py : CoreStack class
+pysic.core.coreset.py : CoreStack class
 
 """
 import datetime as dt
@@ -11,8 +11,8 @@ import warnings
 import numpy as np
 import pandas as pd
 
-import seaice
-from seaice.core.profile import *
+import pysic
+from pysic.core.profile import *
 
 __name__ = "corestack"
 __author__ = "Marc Oggier"
@@ -88,7 +88,7 @@ class CoreStack(pd.DataFrame):
         """
         if len(ic_data.variables()):
             self.logger.info("Adding %s profiles for core %s" % (", ".join(ic_data.variables()), ic_data.name))
-            profile = seaice.core.profile.Profile(ic_data.profile)
+            profile = pysic.core.profile.Profile(ic_data.profile)
             # TODO: should not need those 3 if case
             if isinstance(ic_data.ice_thickness, (int, float)):
                 profile['ice_thickness'] = ic_data.ice_thickness
@@ -189,7 +189,7 @@ class CoreStack(pd.DataFrame):
         ics_stack = self
 
         if variables is not None:
-            from seaice.core.profile import select_variables
+            from pysic.core.profile import select_variables
             ics_stack = select_variables(ics_stack, variables)
 
         data_binned = pd.DataFrame()
@@ -197,7 +197,7 @@ class CoreStack(pd.DataFrame):
             if verbose:
                 print(core)
             profile = ics_stack[ics_stack.name == core]
-            profile_d = seaice.core.profile.discretize_profile(profile, y_bins=y_bins, y_mid=y_mid,
+            profile_d = pysic.core.profile.discretize_profile(profile, y_bins=y_bins, y_mid=y_mid,
                                                                display_figure=display_figure, fill_gap=fill_gap,
                                                                fill_extremity=fill_extremity, dropemptyrow=dropemptyrow)
 
@@ -214,7 +214,7 @@ class CoreStack(pd.DataFrame):
         """
         temp = CoreStack()
         for core in self.get_name():
-            profile = seaice.core.profile.Profile(self[self.name == core].astype(seaice.core.profile.Profile()))
+            profile = pysic.core.profile.Profile(self[self.name == core].astype(pysic.core.profile.Profile()))
             profile.set_vertical_reference(new_v_ref=new_v_ref, h_ref=h_ref)
             temp = temp.append(profile)
         return CoreStack(temp)
@@ -238,14 +238,14 @@ class CoreStack(pd.DataFrame):
                         _subset = subset[subset.length == hi_]
                         if not np.isnan(hi_):
                             oriented_stack = oriented_stack.append(
-                                seaice.core.profile.set_profile_orientation(_subset, v_ref))
+                                pysic.core.profile.set_profile_orientation(_subset, v_ref))
                             self.logger.info('NO ICE THICKNESS ' + ', '.join(_subset.names()))
                         else:
                             _subset = subset[subset.length.isna()]
                             self.logger.info('NO LENGTH, NO ICE THICKNESS ' + ', '.join(_subset.names()))
                 else:
                     subset = unoriented_stack[unoriented_stack.ice_thickness == hi]
-                    oriented_stack = oriented_stack.append(seaice.core.profile.set_profile_orientation(subset, v_ref))
+                    oriented_stack = oriented_stack.append(pysic.core.profile.set_profile_orientation(subset, v_ref))
         return CoreStack(oriented_stack)
 
     def core_in_collection(self, core):
@@ -312,8 +312,8 @@ class CoreStack(pd.DataFrame):
                 self.drop(variable, axis=1, inplace=True)
 
                 # delete associated subvariable column
-                if variable in seaice.subvariable_dict:
-                    for subvariable in seaice.subvariable_dict[variable]:
+                if variable in pysic.subvariable_dict:
+                    for subvariable in pysic.subvariable_dict[variable]:
                         if subvariable in self.variables():
                             self.drop(subvariable, axis=1, inplace=True)
 
@@ -526,7 +526,7 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None, dropemp
             if isinstance(group, dict):
                 if 'y_mid' in group:
                     no_y_mid_flag = False
-            elif 'y_mid' is group:
+            elif 'y_mid' == group:
                 groups.remove('y_mid')
     if no_y_mid_flag:
         logger.info("y_mid not in grouping option; try to generate y_mid from section horizon")
@@ -549,7 +549,7 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None, dropemp
 
     if isinstance(groups, dict):
         for key in groups:
-            if key is 'y_mid':
+            if key == 'y_mid':
                 _cut_y_mid = pd.cut(ic_stack[key], groups[key], labels=False)
                 _dim_y_mid = groups[key].__len__() - 1
                 _dict_y_mid = {key: groups[key]}
@@ -562,7 +562,7 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None, dropemp
         for group in groups:
             if isinstance(group, dict):
                 for key in group:
-                    if key is 'y_mid':
+                    if key == 'y_mid':
                         _cut_y_mid = pd.cut(ic_stack[key], group[key], labels=False)
                         _dim_y_mid = group[key].__len__() - 1
                         _dict_y_mid = {key: group[key]}
@@ -572,7 +572,7 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None, dropemp
                         cuts_dict.update({key: group[key]})
                         groups_order.append(key)
             else:
-                if group is 'y_mid':
+                if group == 'y_mid':
                     y_mid = sorted(ic_stack[group].unique())
                     y_mid = np.concatenate(([0], [y_mid[0] + np.diff(y_mid)[0] / 2], y_mid[1:] + np.diff(y_mid) / 2))
                     _cut_y_mid = pd.cut(ic_stack[group], y_mid, labels=False)
@@ -845,7 +845,7 @@ def grouped_ic(ics_stack, groups):
     for group in groups:
         if isinstance(group, dict):
             for key in group:
-                if key is 'y_mid':
+                if key == 'y_mid':
                     _cut_y_mid = pd.cut(ics_stack[key], group[key], labels=False)
                     _dim_y_mid = group[key].__len__() - 1
                     _dict_y_mid = {key:group[key]}

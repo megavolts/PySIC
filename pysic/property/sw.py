@@ -12,7 +12,7 @@ CSIrO MatLAB Seawater Library, Phil Morgan, CMr (maintained by Lindsay Pender), 
 import numpy as np
 import logging
 from scipy import optimize
-from seaice.property.brine_nacl import dynamic_viscosity as nacl_dynamic_viscosity
+from pysic.property.brine_nacl import dynamic_viscosity as nacl_dynamic_viscosity
 __author__ = "Marc Oggier"
 __license__ = "GPL"
 

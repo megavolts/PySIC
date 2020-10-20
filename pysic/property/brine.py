@@ -182,5 +182,5 @@ def electric_conductivity(t):
 
 
 def viscosity(s, t, override_s=False, override_t=False):
-    from seaice.property.brine_nacl import dynamic_viscosity
+    from pysic.property.brine_nacl import dynamic_viscosity
     return dynamic_viscosity(s, t, override_s=override_s, override_t=override_t)

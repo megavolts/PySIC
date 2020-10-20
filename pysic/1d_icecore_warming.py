@@ -21,7 +21,7 @@ import pandas as pd
 import datetime as dt
 import sys
 
-import seaice
+import pysic
 
 
 # =====================================================================================================================#
@@ -57,7 +57,7 @@ config.read(config_path)
 # ice core from observation
 path = os.path.join(config['DEFAULT']['data_dir'], config['OUTPUT']['output_dir'], config['OUTPUT']['obs core'])
 with open(path, 'rb') as f:
-    ic_obs_stack = seaice.core.corestack.CoreStack(pickle.load(f))
+    ic_obs_stack = pysic.core.corestack.CoreStack(pickle.load(f))
 
 if mesh == 'fine':
     dx = 0.001  # m
@@ -81,8 +81,8 @@ for month in MONTH:
 
     ic = ic_obs_stack[ic_obs_stack.name == core]
 
-    # plot profile (using seaice toolbox)
-    fig = seaice.core.plot.plot_all_profile_variable(ic, display_figure=False)
+    # plot profile (using pysic toolbox)
+    fig = pysic.core.plot.plot_all_profile_variable(ic, display_figure=False)
     plt.show()
 
     core_length = ic.length.unique()[0]
@@ -95,7 +95,7 @@ for month in MONTH:
 
 
     # stretch T profile to match S profile
-    ic_d = seaice.core.profile.discretize_profile(ic, y, display_figure=False)
+    ic_d = pysic.core.profile.discretize_profile(ic, y, display_figure=False)
     S = ic_d.salinity
     x_mid = x[:-1] + np.diff(x)/2
     y_mid = ic_d.y_mid
@@ -121,7 +121,7 @@ for month in MONTH:
         # initial conditon of ice core after extraction
         T0_field = T_field.copy()
         T0_field[~np.isnan(t0_field)] = t0_field[~np.isnan(t0_field)]
-        D0_field = seaice.property.si.thermal_diffusivity(S_field.copy(), T_field)
+        D0_field = pysic.property.si.thermal_diffusivity(S_field.copy(), T_field)
         T_field = T0_field
         dx2, dy2 = dx*dx, dy*dy
         dt = dx2 * dy2 / (2 * np.nanmax(D0_field) * (dx2 + dy2))
@@ -166,7 +166,7 @@ for month in MONTH:
                 T_plot = np.concatenate([np.fliplr(T0_field.copy()), T0_field.copy()], axis=1)
 
                 # brine volume fraction along the center
-                Vbf_c = seaice.property.si.brine_volume_fraction(S_field[:, 0], T0_field[:, 0])
+                Vbf_c = pysic.property.si.brine_volume_fraction(S_field[:, 0], T0_field[:, 0])
 
                 t_time.append(t)
                 if mt == 1:
@@ -292,7 +292,7 @@ for month in MONTH:
 
             T0_field, T_field = do_timestep_only(u0=T0_field, u=T_field, k=D0_field, dt=dt)
 
-            D0_field = seaice.property.si.thermal_diffusivity(S_field.copy(), T0_field)
+            D0_field = pysic.property.si.thermal_diffusivity(S_field.copy(), T0_field)
             dt = dx2 * dy2 / (2 * np.nanmax(D0_field) * (dx2 + dy2))
 
             # fixed T at all interface:

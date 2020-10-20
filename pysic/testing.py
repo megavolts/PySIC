@@ -7,7 +7,7 @@
 import logging.handlers
 import os
 import numpy as np
-import seaice
+import pysic
 import matplotlib.pyplot as plt
 
 
@@ -20,7 +20,7 @@ debug = 'vv'
 # VARIABLES
 # -------------------------------------------------------------------------------------------------------------------- #
 if os.uname()[1] == 'adak' :
-    data_RSOIT = '/home/megavolts/git/seaice/data_sample'
+    data_RSOIT = '/home/megavolts/git/pysic/data_sample'
 else:
     logging.warning("Unknown computer. Cannot find data folder root.")
 
@@ -30,7 +30,7 @@ vertical_resolution = 5/100
 # CONFIG
 # -------------------------------------------------------------------------------------------------------------------- #
 
-ic_dir = '/home/megavolts/git/seaice/data_sample/ice_cores'
+ic_dir = '/home/megavolts/git/pysic/data_sample/ice_cores'
 
 # -------------------------------------------------------------------------------------------------------------------- #
 # LOGGING
@@ -57,7 +57,7 @@ levels = [logging.WARNING, logging.INFO, logging.DEBUG, logging.CRITICAL]
 level = levels[min(len(levels)-1, debug.__len__())]  # capped to number of levels
 logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(message)s")
 
-logger.info('seaice testing module is running on %s' % os.uname()[1])
+logger.info('pysic testing module is running on %s' % os.uname()[1])
 
 fill_gap = False
 fill_extremity = False
@@ -66,21 +66,21 @@ y_mid = None
 variables = None
 
 # import a single ice core from a specific path
-ic_path = '/home/megavolts/git/seaice/data_sample/ice_cores/testing-gap_extremity-TS.xlsx'
-#ic_path = '/home/megavolts/git/seaice/data_sample/ice_cores/testing-nogap_extremity-TS.xlsx'
+ic_path = '/home/megavolts/git/pysic/data_sample/ice_cores/testing-gap_extremity-TS.xlsx'
+#ic_path = '/home/megavolts/git/pysic/data_sample/ice_cores/testing-nogap_extremity-TS.xlsx'
 variables = None
 v_ref='top'
-ic_data = seaice.core.import_ic_path(ic_path, variables=variables, v_ref='top', drop_empty=True)
+ic_data = pysic.core.import_ic_path(ic_path, variables=variables, v_ref='top', drop_empty=True)
 y_bins = np.arange(0, max(ic_data.length())+vertical_resolution, vertical_resolution)
 profile = ic_data.profile
 profile = profile.set_vertical_reference(None, new_v_ref='bottom')
 
-ics_stack = seaice.core.corestack.discretize_profile(profile, y_bins, display_figure=True, fill_gap=fill_gap,
+ics_stack = pysic.core.corestack.discretize_profile(profile, y_bins, display_figure=True, fill_gap=fill_gap,
                                                     fill_extremity=fill_extremity)
 
 # import all ice cores from a directory
-ics_dict = seaice.core.import_ic_sourcefile(seaice.core.make_ic_sourcefile(ic_dir, '.xlsx'), drop_empty=True)
-ics_stack = seaice.core.corestack.stack_cores(ics_dict)
+ics_dict = pysic.core.import_ic_sourcefile(pysic.core.make_ic_sourcefile(ic_dir, '.xlsx'), drop_empty=True)
+ics_stack = pysic.core.corestack.stack_cores(ics_dict)
 ics_stack = ics_stack.set_vertical_reference('bottom')
 y_bins = np.arange(0, max(max(ics_stack.y_sup), max(ics_stack.length), max(ics_stack.ice_thickness))+vertical_resolution,
                    vertical_resolution)
@@ -106,7 +106,7 @@ ics_stat = ics_stack.section_stat(groups=groups, stats=stats, variables=variable
 # vmin = {'temperature': -20, 'salinity': 0}
 # vmax = {'temperature': 0, 'salinity': 20}
 #
-# for index in seaice.core.corestack.indices(bins_max_value):
+# for index in pysic.core.corestack.indices(bins_max_value):
 #     func_arg = 'ics_stat['
 #     for i in range(index.__len__()):
 #         func_arg += '(ics_stat[bins['+str("%i" %i)+']]==bin_value['+str("%i" % index[i])+']) & '
@@ -118,7 +118,7 @@ ics_stat = ics_stack.section_stat(groups=groups, stats=stats, variables=variable
 #     for variable in data.variable.unique():
 #         ic_data = data[data.variable == variable]
 #         variable_dict = {'variable': variable}
-#         ax[n_ax] = seaice.core.plot.plot_envelop(data, variable_dict, ax=ax[n_ax], flag_number=True)
+#         ax[n_ax] = pysic.core.plot.plot_envelop(data, variable_dict, ax=ax[n_ax], flag_number=True)
 #
 #         ax[n_ax].set_xlabel(variable)
 #         ax[n_ax].xaxis.set_label_position('top')
@@ -148,5 +148,5 @@ ics_stat = ics_stack.section_stat(groups=groups, stats=stats, variables=variable
 #     s_profile = ics_stack.loc[(ics_stack.name == name) & (ics_stack.variable == 'salinity')]
 #     t_profile = ics_stack.loc[(ics_stack.name == name) & (ics_stack.variable == 'temperature')]
 #
-#     temp = seaice.property.compute_phys_prop_from_core(s_profile, t_profile, si_prop, resize_core='S', display_figure=True)
+#     temp = pysic.property.compute_phys_prop_from_core(s_profile, t_profile, si_prop, resize_core='S', display_figure=True)
 #     ics_stack = ics_stack.add_profile(temp)

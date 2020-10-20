@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- soding: utf-8 -*-
 """
-property.seaice.nacl.py contains function to compute physical property relative to the artificial sea ice made with
+property.pysic.nacl.py contains function to compute physical property relative to the artificial sea ice made with
 salt made of pure NaCl
 
 """
@@ -23,7 +23,7 @@ import logging
 
 import numpy as np
 
-from seaice.property import sw
+from pysic.property import sw
 
 module_logger = logging.getLogger(__name__)
 
@@ -267,7 +267,7 @@ def brine_porosity(s, t, method='chris', validity=False):
             phi = 0.0551 for s = 5 [g / kg] and t = -5 [degree C]
     """
 
-    from seaice.property import ice
+    from pysic.property import ice
 
     if isinstance(s, (int, float, list)):
         s = np.atleast_1d(s).astype(float)

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 oil_in_ice.py: function toolbox to plot and handle analysis of oil-contaminated ice core. oil_in_ice was developped to
-be used within the seaice module developped by the Sea Ice Group at the University of Alaska Fairbanks.)
+be used within the pysic module developped by the Sea Ice Group at the University of Alaska Fairbanks.)
 
 """
 

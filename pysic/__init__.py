@@ -1,7 +1,7 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-    seaice is a module to handle sea ice core data
+    pysic is a module to handle sea ice core data
 """
 
 __author__ = "Marc Oggier"
@@ -12,22 +12,22 @@ __email__ = "moggier@alaska.edu"
 __status__ = "development"
 __date__ = "2017/09/13"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
-__name__ = "seaice"
+__name__ = "pysic"
 
 from .__version__ import __version__
 
 import logging
 import numpy as np
-import seaice.core.corestack
-import seaice.core.plot
-import seaice.core.profile
-import seaice.property
+import pysic.core.corestack
+import pysic.core.plot
+import pysic.core.profile
+import pysic.property
 
-import seaice.property.brine
-import seaice.property.ice
-import seaice.property.si
-import seaice.property.sw
-import seaice.property.nacl_ice
+import pysic.property.brine
+import pysic.property.ice
+import pysic.property.si
+import pysic.property.sw
+import pysic.property.nacl_ice
 
 TOL = 1e-6
 subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
@@ -85,7 +85,7 @@ class Core():
         self.ice_thickness = ice_thickness
         self.collection = [name]
         self.comment = None
-        self.profile = seaice.core.profile.Profile()
+        self.profile = pysic.core.profile.Profile()
         self.t_air = np.nan
         self.t_snow_surface = np.nan
         self.t_ice_surface = np.nan

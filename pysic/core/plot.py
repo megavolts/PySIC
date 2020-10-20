@@ -1,7 +1,7 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-seaice.core.plot.py : Core and CoreStack class
+pysic.core.plot.py : Core and CoreStack class
 
 """
 import logging
@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from seaice.core.profile import *
-from seaice.core.profile import Profile
+from pysic.core.profile import *
+from pysic.core.profile import Profile
 
 __name__ = "plot"
 __author__ = "Marc Oggier"

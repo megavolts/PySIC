@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import seaice.core.plot
+import pysic.core.plot
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -35,13 +35,13 @@ prop_list = {'brine volume fraction': 'brine volume fraction',
 prop_unit = {'salinity': '‰',
              'temperature': '°C',
              'vb': '-', 'brine volume fraction': '-',
-             'seaice permeability': 'm$^{-2}$'}
+             'pysic permeability': 'm$^{-2}$'}
 prop_latex = {'salinity': 'S',
               'temperature': 'T',
               'brine volume fraction': '\phi_{B}',
               'ice thickness': 'h_{i}',
               'snow thickness': 'h_{s}',
-              'seaice permeability': '\kappa'
+              'pysic permeability': '\kappa'
               }
 
 
@@ -128,7 +128,7 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, resize_core=False
 
             # change direction of t_profile to match s_profile
             direction = s_profile.v_ref.unique()[0]
-            t_profile = seaice.core.profile.set_profile_orientation(t_profile, direction)
+            t_profile = pysic.core.profile.set_profile_orientation(t_profile, direction)
 
         else:
             logger.error("%s has no ice thickness; impossible to correct direction", s_profile.name.unique())
@@ -188,10 +188,10 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, resize_core=False
 
         prop = prop_list[f_prop]
         if ice_type is 'nacl':
-            function = getattr(seaice.property.nacl_ice, prop.replace(" ", "_"))
+            function = getattr(pysic.property.nacl_ice, prop.replace(" ", "_"))
             #TODO: check if prop exist, if prop does not exist use si
         else:
-            function = getattr(seaice.property.si, prop.replace(" ", "_"))
+            function = getattr(pysic.property.si, prop.replace(" ", "_"))
 
         # TODO: WIKI always add to salinity, properties is always a step
         s_profile[f_prop] = function(np.array(s_profile['salinity']), np.array(s_profile['temperature']))
@@ -202,7 +202,7 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, resize_core=False
         s_profile['variable'] = ', '.join(new_var)
 
         if display_figure:
-            ax = seaice.core.plot.plot_profile_variable(s_profile.copy(), variable_dict={'variable': prop},
+            ax = pysic.core.plot.plot_profile_variable(s_profile.copy(), variable_dict={'variable': prop},
                                                         ax=None, param_dict=None)
             ax.set_xlabel(prop)
             ax.set_ylabel('ice thickness)')
@@ -318,7 +318,7 @@ def compute_phys_prop_from_core_STrho(s_profile, t_profile, d_profile, si_prop, 
 
     # Discretize density core according to salinity sections:
     y_bins = np.unique(s_profile.y_low.to_list() + s_profile.y_sup.to_list())
-    d_profile_d = seaice.core.profile.discretize_profile(d_profile, y_bins)
+    d_profile_d = pysic.core.profile.discretize_profile(d_profile, y_bins)
     # TODO check density sections correspond to salinity section
 
     if keep_index:
@@ -344,10 +344,10 @@ def compute_phys_prop_from_core_STrho(s_profile, t_profile, d_profile, si_prop, 
 
         prop = prop_list[f_prop]
         if ice_type is 'nacl':
-            function = getattr(seaice.property.nacl_ice, prop.replace(" ", "_"))
+            function = getattr(pysic.property.nacl_ice, prop.replace(" ", "_"))
             #TODO: check if prop exist, if prop does not exist use si
         else:
-            function = getattr(seaice.property.si, prop.replace(" ", "_"))
+            function = getattr(pysic.property.si, prop.replace(" ", "_"))
 
         # TODO: WIKI always add to salinity, properties is always a step
         s_profile[f_prop] = function(np.array(s_profile['salinity']),
@@ -360,7 +360,7 @@ def compute_phys_prop_from_core_STrho(s_profile, t_profile, d_profile, si_prop, 
         s_profile['variable'] = ', '.join(new_var)
 
         if display_figure:
-            ax = seaice.core.plot.plot_profile_variable(s_profile.copy(), variable_dict={'variable': prop},
+            ax = pysic.core.plot.plot_profile_variable(s_profile.copy(), variable_dict={'variable': prop},
                                                         ax=None, param_dict=None)
             ax.set_xlabel(prop)
             ax.set_ylabel('ice thickness)')
@@ -412,7 +412,7 @@ def compute_phys_prop_from_core_name(ics_stack, S_core_name, T_core_name, si_pro
             if not ics_stack[(ics_stack.name == S_core_name) & (ics_stack.variable == f_prop)].empty:
                 ics_stack = ics_stack[(ics_stack.name != S_core_name) | (ics_stack.variable != f_prop)]
             ics_stack = ics_stack.append(prop_profile, ignore_index=True)
-        return seaice.core.corestack.CoreStack(ics_stack)
+        return pysic.core.corestack.CoreStack(ics_stack)
     else:
         return prop_profile
 

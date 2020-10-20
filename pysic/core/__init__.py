@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-seaice.io.icxl.py : function to import import ice core data from xlsx spreadsheet
+pysic.io.icxl.py : function to import import ice core data from xlsx spreadsheet
 """
 
 __name__ = "core"
@@ -25,8 +25,8 @@ import numpy as np
 import openpyxl
 import pandas as pd
 
-import seaice
-import seaice.core.corestack as cs
+import pysic
+import pysic.core.corestack as cs
 
 __all__ = ["import_ic_path", "import_ic_list", "import_ic_sourcefile", "list_ic", "list_ic_path", "make_ic_sourcefile"]
 
@@ -266,7 +266,7 @@ def import_ic_path_MOSAiC(ic_path, variables = variables, drop_empty=drop_empty)
             comments.append('ice core length not available')
             l_c = np.nan
 
-    core = seaice.Core(name, date, origin, lat_start_deg, lon_start_deg, h_i, h_f, snow_depth_avg)
+    core = pysic.Core(name, date, origin, lat_start_deg, lon_start_deg, h_i, h_f, snow_depth_avg)
     core.length = l_c
 
     # Temperature
@@ -495,7 +495,7 @@ def import_ic_path(ic_path, variables=variables, v_ref=v_ref, drop_empty=drop_em
     else:
         ice_thickness = np.array([np.nan])
 
-    core = seaice.Core(name, date, origin, lat, lon, ice_thickness, freeboard, snow_depth)
+    core = pysic.Core(name, date, origin, lat, lon, ice_thickness, freeboard, snow_depth)
 
     # temperature
     if ws_summary['C15'].value:
@@ -684,7 +684,7 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
     headers_depth = ['y_low', 'y_mid', 'y_sup']
 
     if not ws_variable.title in sheet_2_data:  # if the sheet does not exist, return an empty profile
-        profile = seaice.core.profile.Profile()
+        profile = pysic.core.profile.Profile()
     else:
         name = ws_variable['C1'].value
         # Continuous profile
@@ -811,7 +811,7 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
         c_string = [h for h in col_string if h in profile.columns]
         profile[c_string] = profile[c_string].astype(str).replace({'nan': None})
 
-        profile = seaice.core.profile.Profile(profile)
+        profile = pysic.core.profile.Profile(profile)
         # remove variable not in variables
         if variables is not None:
             for property in profile.properties():
@@ -894,7 +894,7 @@ def read_profile_MOSAiC(ws_variable, variables=None, version=__CoreVersion__, v_
             # TODO: replace missing y_low and y_sup with y_mid if possible
 
         if len(y_low) == 0:
-            return seaice.core.profile.Profile()
+            return pysic.core.profile.Profile()
         elif 'y_mid' in headers:
             if np.isnan(y_mid).any() or len(y_mid) == 0:
                 y_mid = (y_low + y_sup) / 2
@@ -1006,7 +1006,7 @@ def read_profile_MOSAiC(ws_variable, variables=None, version=__CoreVersion__, v_
     c_string = [h for h in col_string if h in profile.columns]
     profile[c_string] = profile[c_string].astype(str).replace({'nan': None})
 
-    profile = seaice.core.profile.Profile(profile)
+    profile = pysic.core.profile.Profile(profile)
     # remove variable not in variables
     if variables is not None:
         for property in profile.properties():
@@ -1396,7 +1396,7 @@ def update_spreadsheet_MOSAiC(ic_path, backup = True):
             max_row = ws.max_row
             n_row = 1
             while n_row <= max_row:
-                if ws.cell(n_row, 1).value is not 'DATA VERSION':
+                if ws.cell(n_row, 1).value == 'DATA VERSION':
                     n_row += 1
                 else:
                     break

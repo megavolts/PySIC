@@ -1,7 +1,7 @@
 # ! /usr/bin/python3
 # -*- coding: utf-8 -*-
 """
-seaice.core.profile.py : toolbox to work on property profile
+pysic.core.profile.py : toolbox to work on property profile
 
 """
 import logging
@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import seaice
+import pysic
 
 __name__ = "profile"
 __author__ = "Marc Oggier"
@@ -126,7 +126,7 @@ class Profile(pd.DataFrame):
         """
         Add new profile to existing profile.
         Profile name should match.
-        :param profile: seaice.Profile()
+        :param profile: pysic.Profile()
         """
         if profile.get_name() is self.get_name() or profile.get_name() == self.get_name():
             var_merge = [var for var in profile.columns if var in self.columns]
@@ -311,8 +311,8 @@ class Profile(pd.DataFrame):
                     self.drop(variable, axis=1, inplace=True)
 
                 # delete associated subvariable column
-                if variable in seaice.subvariable_dict:
-                    for subvariable in seaice.subvariable_dict[variable]:
+                if variable in pysic.subvariable_dict:
+                    for subvariable in pysic.subvariable_dict[variable]:
                         self.drop(subvariable, axis=1, inplace=True)
 
                 # delete variable from variable
@@ -959,9 +959,9 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
             profile.sort_values(by='y_low', inplace=True, ascending=False)
             if 'y_low' in profile.columns and (profile.y_low - profile.y_sup < 0).all():
                 profile.sort_values(by='y_mid', inplace=True)
-        ax, ax_dict = seaice.core.plot.plot_all_profile_variable(profile, ax=None, display_figure=False,
+        ax, ax_dict = pysic.core.plot.plot_all_profile_variable(profile, ax=None, display_figure=False,
                                                                  param_dict={'linestyle': ':', 'color': 'k'})
-        seaice.core.plot.plot_all_profile_variable(discretized_profile, ax=ax, ax_dict=ax_dict,
+        pysic.core.plot.plot_all_profile_variable(discretized_profile, ax=ax, ax_dict=ax_dict,
                                                    display_figure=display_figure,
                                                    param_dict={'linestyle': ':', 'marker': 'x', 'color': 'r'})
     return Profile(discretized_profile)
@@ -1082,7 +1082,7 @@ def delete_variables(ics_stack, variables2del):
                         __temp = __temp.add_profile(_temp)
     if __temp.empty:
         headers = [c for c in ics_stack if c not in __removed_columns]
-        __temp = seaice.core.corestack.CoreStack(pd.DataFrame(columns=headers))
+        __temp = pysic.core.corestack.CoreStack(pd.DataFrame(columns=headers))
     return __temp
 
 
@@ -1095,8 +1095,8 @@ def select_variables(ics_stack, variables):
     :updated: 2009-04-18
     """
 
-    from seaice.core.corestack import CoreStack
-    from seaice.core.profile import Profile
+    from pysic.core.corestack import CoreStack
+    from pysic.core.profile import Profile
 
     logger = logging.getLogger(__name__)
 
@@ -1125,9 +1125,9 @@ def select_variables(ics_stack, variables):
     new_stack = delete_variables(new_stack, variables2del)
 
     if stack_type == 'Profile':
-        return seaice.core.profile.Profile(new_stack)
+        return pysic.core.profile.Profile(new_stack)
     elif stack_type == 'CoreStack':
-        return seaice.core.corestack.CoreStack(new_stack)
+        return pysic.core.corestack.CoreStack(new_stack)
     else:
         logger.warning('Stack class undefined, returning DataFrame')
         return new_stack
@@ -1238,11 +1238,11 @@ def is_continuous(profile):
 def uniformize_section(profile, profile_target):
     """
 
-    :param profile: seaice.core.profile
+    :param profile: pysic.core.profile
         Profile with section bin to be match to target profile
-    :param profile_target: seaice.core.profile
+    :param profile_target: pysic.core.profile
         Profile with section bin to match
-    :return: seaice.core.profile
+    :return: pysic.core.profile
         Profile with section bin matched to target profile
     """
 
