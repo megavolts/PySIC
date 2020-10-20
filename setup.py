@@ -33,9 +33,9 @@ requirements = [
 ]
 
 packages = ['pysic',
-			'pysic.core',
-			'pysic.property',
-			'pysic.tools']
+	    'pysic.core',
+	    'pysic.property',
+	    'pysic.tools']
 
 setup(
     name='PySIC',
@@ -45,7 +45,7 @@ setup(
     version=about['__version__'],
     zip_safe=False,
     classifiers=['Development Status :: 0.5 - alpha',
-	             'Natural Language :: English',
+	         'Natural Language :: English',
                  'License :: OSI Approved :: MIT License',
                  'Programming Language :: Python',
                  'Topic :: Scientific/Engineering',
