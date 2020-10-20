@@ -18,4 +18,4 @@ The functions in PySIC will be organized into the following categories:
 * metrics: extract quantitative information
 
 **Cite as:**
-> *Oggier, M* **SicPy: A Python Toolkit for Quantitative Analysis of Sea Ice Core**. Version 0.5, Retrieved from https://github.com/megavolts/seaice
+> *Oggier, M* **SicPy: A Python Toolkit for Quantitative Analysis of Sea Ice Core**. Version 0.5, Retrieved from https://github.com/megavolts/pysic
