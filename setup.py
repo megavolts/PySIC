@@ -10,9 +10,9 @@ except ImportError:
 
 sys.path.append(os.getcwd())
 
-# Load version from seaice/__version__.py
+# Load version from pysic/__version__.py
 about = {}
-ver_path = convert_path('seaice/__version__.py')
+ver_path = convert_path('pysic/__version__.py')
 with open(ver_path) as f:
     for line in f:
         if line.startswith('__version__'):
@@ -54,11 +54,11 @@ setup(
     install_requires=requirements,
     author='Marc Oggier',
     author_email='moggier@alaska.edu',
-    download_url='https://github.com/megavolts/seaice',
-    url='https://github.com/megavolts/seaice',
+    download_url='https://github.com/megavolts/pysic',
+    url='https://github.com/megavolts/pysic',
     project_urls={
-        'Documentation': 'https://github.com/megavolts/seaice/wiki',
-        'Source': 'https://github.com/megavolts/seaice',
-        'Tracker': 'https://github.com/megavolts/seaice/issues',
+        'Documentation': 'https://github.com/megavolts/pysic/wiki',
+        'Source': 'https://github.com/megavolts/pysic',
+        'Tracker': 'https://github.com/megavolts/pysic/issues',
     }
 )
