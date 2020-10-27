@@ -17,7 +17,7 @@ __status__ = "RC"
 __date__ = "2017/09/13"
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 __name__ = "si"
-__all__ = ["air_volume_fraction", 'brine_volume_fraction', "density", "electric_conductivity", "latentheat",
+__all__ = ["air_volume_fraction", 'brine_volume_fraction', "density", "electric_conductivity", "latent_heat",
            "permeability", "", "resistivity", "specific_heat_capacity", "thermal_conductivity", "thermal_diffusivity"]
 
 logger = logging.getLogger(__name__)
@@ -386,7 +386,7 @@ def electric_conductivity(s, t, rho_si='default', vf_a=0.005):
     return sigma_si
 
 
-def latentheat(s, t, transformation='solidification', s0=35.):
+def latent_heat(s, t, transformation='solidification', s0=35.):
     """
         Calculates latent heat of sea ice during solidification (freezing, f) or melting (m).
 
@@ -402,7 +402,7 @@ def latentheat(s, t, transformation='solidification', s0=35.):
             Initial salinity of the liquid [PSU].
             Only use to calculate the latent heat of solidification, if we assume T_f = m_m*s0. Default is 35 [PSU]
         :return l_si: ndarray
-            latent heat of sea ice [J/g]
+            latent heat of sea ice [J/kg]
 
         :source :
         Equation 2.27 and 2.29 in thomas, D. & G. s. Dieckmann, eds. (2010) sea ice. London: Wiley-Blackwell
@@ -429,10 +429,10 @@ def latentheat(s, t, transformation='solidification', s0=35.):
         return 0
 
     # Pysical Constant
-    lwater = 333.4  # [kJ/kg] latent heat of fusion of freshwater
+    lwater = 333.4 * 1e3  # [J/kg] latent heat of fusion of freshwater
     m_m = -0.05411  # [K]  slope of the liquid
-    c_i = 2.11  # [kJ/kgK] specific heat capacity of ice @ 0°C
-    c_w = 4.179  # [kJ/kgK] specific heat capacity of freshwater @ 0°C
+    c_i = 2.11 * 1e3 # [J/kgK] specific heat capacity of ice @ 0°C
+    c_w = 4.179  # [J/kgK] specific heat capacity of freshwater @ 0°C
 
     if transformation in ['freezing', 'solidificaiton']:
         l_si = lwater - c_i * t + c_i * m_m * s - m_m * lwater * (s / t) + c_w * m_m * (s0 - s)
@@ -601,7 +601,7 @@ def heat_capacity(s, t, method='untersteiner'):
             Thermal conductivity can be calculate either from 'untersteiner' or 'ono' approach
 
         :return c_si: ndarray
-            sea ice heat capacity [J/kgK]
+            Sea-ice heat capacity [J/kgK]
 
         :references:
             Equation 2.18 and 2.19 in Eicken, H. (2003). From the microscopic, to the macroscopic, to the regional
@@ -629,22 +629,22 @@ def heat_capacity(s, t, method='untersteiner'):
         return 0
 
     # Pysical Constant
-    c_i = 2.11  # [kJ/kgK] specific heat capacity of ice @ 0°C
+    c_i = 2.11 * 1e3  # [J/kgK] specific heat capacity of ice @ 0°C
 
     c_si = np.nan * np.ones_like(t)
 
     if method == 'untersteiner':
-        a = 17.2  # [kJ/kgK]
+        a = 17.2 * 1e3  # [J/kgK]
         c_si = c_i + a * s / (t ** 2)
 
     elif method == 'ono':
-        beta = 7.5 * 1e-3  # [kJ/kgK^2]
-        lice = 333.4  # [kJ/kg] latent heat of fusion of freshwater
+        beta = 7.5  # [J/kgK^2]
+        lice = 333.4 * 1e3  # [J/kg] latent heat of fusion of freshwater
         m_m = -0.05411  # [K]  slope of the liquid
 
-        c_si = c_i + beta * t - m_m * lice * s / (t ** 2)
+        c_si = c_i + beta * t - m_m * lice * s / (t ** 2)  # kJ  kg-1 K-1
 
-    return c_si * 10 ** 3  # return [J/gK]
+    return c_si # return [J/kgK]
 
 
 def specific_heat_capacity(s, t, method='untersteiner'):
