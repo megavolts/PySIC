@@ -28,6 +28,8 @@ import pandas as pd
 import pysic
 import pysic.core.corestack as cs
 
+from .Core import Core
+
 __all__ = ["import_ic_path", "import_ic_list", "import_ic_sourcefile", "list_ic", "list_ic_path", "make_ic_sourcefile"]
 
 TOL =1e-6
@@ -199,6 +201,9 @@ def import_ic_path_MOSAiC(ic_path, variables = variables, drop_empty=drop_empty)
     else:
         snow_depth_avg = np.nan
 
+    if len(snow_depth) == 0:
+        snow_depth = snow_depth_avg
+
     # Ice Thickness
     try:
         h_i = ws_metadata_core['C7'].value
@@ -266,8 +271,7 @@ def import_ic_path_MOSAiC(ic_path, variables = variables, drop_empty=drop_empty)
             comments.append('ice core length not available')
             l_c = np.nan
 
-    core = pysic.Core(name, date, origin, lat_start_deg, lon_start_deg, h_i, h_f, snow_depth_avg)
-    core.length = l_c
+    core = Core(name, date, origin, lat_start_deg, lon_start_deg, h_i, h_f, snow_depth)
 
     # Temperature
     if ws_summary['C25'].value:
@@ -495,7 +499,7 @@ def import_ic_path(ic_path, variables=variables, v_ref=v_ref, drop_empty=drop_em
     else:
         ice_thickness = np.array([np.nan])
 
-    core = pysic.Core(name, date, origin, lat, lon, ice_thickness, freeboard, snow_depth)
+    core = pysic.core.Core(name, date, origin, lat, lon, ice_thickness, freeboard, snow_depth)
 
     # temperature
     if ws_summary['C15'].value:
