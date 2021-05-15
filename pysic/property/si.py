@@ -152,7 +152,7 @@ def brine_volume_fraction(s, t, rho_si='default', vf_a=0.0005, method='cw'):
     if (t > 0).any():
         logger.warning('Some element of t > 0°C. Replacing them with nan-value')
         t = t.copy()
-        t.loc[t > 0] = 999
+        t[t > 0] = np.nan
 
     if isinstance(s, (int, float, list, np.ndarray)):
         s = np.atleast_1d(s).astype(float)

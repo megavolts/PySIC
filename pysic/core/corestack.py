@@ -117,15 +117,15 @@ class CoreStack(pd.DataFrame):
                 profile['snow_depth'] = np.nan
 
 
-            if isinstance(ic_data.length(), (int, float)):
-                profile['length'] = ic_data.length()
+            if isinstance(ic_data.length, (int, float)):
+                profile['length'] = ic_data.length
             else:
                 try:
-                    np.nanmean(ic_data.length())
+                    np.nanmean(ic_data.length)
                 except AttributeError:
-                    profile['length'] = np.nanmean(ic_data.length())
+                    profile['length'] = np.nanmean(ic_data.length)
                 else:
-                    profile['length'] = np.nanmean(ic_data.length())
+                    profile['length'] = np.nanmean(ic_data.length)
 
             profile['date'] = ic_data.date
             profile['collection'] = ', '.join(ic_data.collection)
@@ -345,7 +345,7 @@ class CoreStack(pd.DataFrame):
                 self[c] = None
 
         # check types:
-        col_string = ['name', 'collection', 'variable', 'comment', 'v_ref']
+        col_string = ['name', 'collection', 'variable', 'comment', 'v_ref', 'station', 'an', 'site']
         col_string += [var+'_core' for var in self.variables()]
         col_string += [var+'_collection' for var in self.variables()]
 
@@ -374,7 +374,7 @@ class CoreStack(pd.DataFrame):
 
         # remove all-nan variable
         for variable in self.variables():
-            if self[variable].isna().all():
+            if variable in self and self[variable].isna().all():
                 self.delete_variable(variable)
 
         # clean profile by removing all-nan column
@@ -612,7 +612,6 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None, dropemp
         prop_data.loc[prop_data['w_'+prop] == 0, 'wtd_'+prop] = np.nan
 
         # if property is nan, weighted property is np.nan
-
         data_grouped = prop_data.groupby(cuts)
 
         stat_var = {}
@@ -813,8 +812,16 @@ def grouped_stat(ic_stack, groups=['y_mid'], variables=None, stats=None, dropemp
 
             all_stat = all_stat.merge(core_stat, how='outer', on=key_merge2, sort=False)
             # update variable:
+            variable_to_update = []
+            # for var in props:
+            #     if
+            #     for val in all_stat[var + '_mean'].notnull():
+            #         if val is True:
+            #             variable_to_update.append(var)
+
+
             variable_to_update = [[var if val is True else None for val in all_stat[var + '_mean'].notnull()] for var in
-                                  props]
+                                  props if var+'_mean' in all_stat]
             all_stat['variable'] = [', '.join(filter(None, list)) for list in zip(*variable_to_update)]
             # all_stat[all_stat.variable_y.isna()] = all_stat[all_stat.variable_x.isna()]
             # all_stat = all_stat.rename(columns={'variable_y': 'variable'})

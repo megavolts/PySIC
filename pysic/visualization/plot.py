@@ -32,49 +32,11 @@ module_logger = logging.getLogger(__name__)
 
 # New version have 2019 in name
 
-variable_unit_dict = {'salinity': '(g kg$^{-1}$)', 'temperature': ' $^\circ$C'}
+variable_unit_dict = {'salinity': '(g kg$^{-1}$)', 'temperature': ' $^\circ$C', 'density': '$kg m^{-3}$', 'brine volume fraction': ''}
 continuous_property = ['temperature']
 
 
 ## Old plot
-
-def plot_profileV0(profile, ax=None, param_dict=None):
-    """
-    :param profile:
-    :param ax:
-    :param param_dict:
-    :return:
-    """
-
-    prop = [key for key in profile if key not in ['y_low', 'y_mid', 'y_sup']][0]
-
-    if ax is None:
-        plt.figure()
-        ax = plt.subplot(1, 1, 1)
-
-    # if profile not empty
-    if not profile.empty:
-        # step variable
-        if not profile.y_low.isnull().all() and profile.variables()[0] not in continuous_property:
-            x = []
-            y = []
-            for ii in profile.index.tolist():
-                y.append(profile['y_low'][ii])
-                y.append(profile['y_sup'][ii])
-                x.append(profile[prop][ii])
-                x.append(profile[prop][ii])
-        # continuous variable
-        else:
-            x = profile[prop].values
-            y = profile.y_mid.values
-        if param_dict is None:
-            ax.plot(x, y)
-        else:
-            ax.plot(x, y, **param_dict)
-
-    return ax
-
-
 def plot_profile(profile, ax=None, param_dict=None):
     """
     :param profile:
@@ -95,14 +57,14 @@ def plot_profile(profile, ax=None, param_dict=None):
     elif len(variable) < 1:
         module_logger.warning("no data in the profile")
     else:
-        variable = variable[0] + '_value'
+        variable = variable[0]
 
     profile = profile.select_property(variable)
     # if profile not empty
     if not profile.empty:
         # step variable
         continuous_variable = False
-        if variable in continuous_property:
+        if variable.split('_')[0] in continuous_property:
             continuous_variable = True
         elif 'y_low' not in profile:
             continuous_variable = True
@@ -110,14 +72,24 @@ def plot_profile(profile, ax=None, param_dict=None):
             continuous_variable = True
 
         if continuous_variable:
+            profile = profile.sort_values(by='y_mid')
             x = profile[variable].values
             y = profile.y_mid.values
         else:
+            profile = profile.sort_values(by='y_low')
             x = []
             y = []
             for ii in profile[profile.variable == variable].index.tolist():
-                y.append(profile['y_low'][ii])
-                y.append(profile['y_sup'][ii])
+                if profile.v_ref.unique()[0] == 'top':
+                    y.append(profile['y_low'][ii])
+                    y.append(profile['y_sup'][ii])
+                elif profile.v_ref.unique()[0] == 'bottom':
+                    if profile['y_sup'][ii] < profile['y_low'][ii]:
+                        y.append(profile['y_sup'][ii])
+                        y.append(profile['y_low'][ii])
+                    else:
+                        y.append(profile['y_low'][ii])
+                        y.append(profile['y_sup'][ii])
                 x.append(profile[variable][ii])
                 x.append(profile[variable][ii])
 
@@ -210,8 +182,17 @@ def plot_profile_variable(core_data, variable_dict=None, ax=None, param_dict=Non
     if 'variable' not in variable_dict.keys():
         module_logger.error("a variable should be specified for plotting")
 
-    profile = select_profile(core_data, variable_dict)
-    profile['variable'] = variable_dict['variable']
+    try:
+        col = ['y_low', 'y_sup', 'y_mid', variable_dict['variable']+'_value', 'v_ref']
+        profile = core_data[col]
+        profile = profile.dropna(how='all', axis=1)
+        profile['variable'] = variable_dict['variable']+'_value'
+    except KeyError:
+        col = ['y_low', 'y_sup', 'y_mid', variable_dict['variable'], 'v_ref']
+        profile = core_data[col]
+        profile = profile.dropna(how='all', axis=1)
+        profile['variable'] = variable_dict['variable']
+
     if not profile.empty:
         ax = plot_profile(profile, ax=ax, param_dict=param_dict)
     return ax
@@ -560,7 +541,7 @@ def plt_step(x, y):
     return xy
 
 
-def plot_envelop(core_data, variable_dict, ax=None, param_dict={}, flag_number=False, legend=False, z_delta=0.01,
+def plot_envelop(core_data, variable_dict, ax=None, param_dict={}, flag_number=False, legend=False, min=True, max=True, mean=True, z_delta=0.01,
                  every=1):
     """
     :param core_data:
@@ -576,17 +557,26 @@ def plot_envelop(core_data, variable_dict, ax=None, param_dict={}, flag_number=F
     core_data = Profile(core_data)
     _profiles = select_profile(core_data, variable_dict)
 
-    # minimum
-    param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
-    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_min', 'variable']], param_dict=param_dict, ax=ax)
+    if min:
+        # minimum
+        param_dict.update({'linewidth': 1, 'color': 'b', 'label': 'min'})
+        profile = _profiles[['y_low', 'y_mid', 'y_sup', prop+'_min', 'variable', 'v_ref']]
+        profile = profile.rename(columns={prop+'_min': prop})
+        ax = plot_profile(profile, param_dict=param_dict, ax=ax)
 
     # mean
-    param_dict.update({'linewidth': 1, 'color': 'k', 'label': 'mean'})
-    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_mean', 'variable']], param_dict=param_dict, ax=ax)
+    if mean:
+        param_dict.update({'linewidth': 1, 'color': 'k', 'label': 'mean'})
+        profile = _profiles[['y_low', 'y_mid', 'y_sup', prop+'_mean', 'variable', 'v_ref']]
+        profile = profile.rename(columns={prop+'_mean': prop})
+        ax = plot_profile(profile, param_dict=param_dict, ax=ax)
 
-    # maximum
-    param_dict.update({'linewidth': 1, 'color': 'r', 'label': 'max'})
-    ax = plot_profileV0(_profiles[['y_low', 'y_mid', 'y_sup', prop+'_max', 'variable']], param_dict=param_dict, ax=ax)
+    if max:
+        # maximum
+        param_dict.update({'linewidth': 1, 'color': 'r', 'label': 'max'})
+        profile = _profiles[['y_low', 'y_mid', 'y_sup', prop+'_max', 'variable', 'v_ref']]
+        profile = profile.rename(columns={prop+'_max': prop})
+        ax = plot_profile(profile, param_dict=param_dict, ax=ax)
 
     # std/mean envelop
     plot_mean_envelop(core_data, variable_dict, ax=ax)

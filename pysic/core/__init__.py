@@ -28,7 +28,7 @@ import pandas as pd
 import pysic
 import pysic.core.corestack as cs
 
-from .Core import Core
+from pysic.core.Core import Core
 
 __all__ = ["import_ic_path", "import_ic_list", "import_ic_sourcefile", "list_ic", "list_ic_path", "make_ic_sourcefile"]
 
@@ -59,7 +59,7 @@ verbose = False
 drop_empty = False
 
 
-def import_ic_path_MOSAiC(ic_path, variables = variables, drop_empty=drop_empty):
+def import_ic_path_MOSAiC(ic_path, variables=variables, drop_empty=drop_empty):
     """
     :param wb:
     :param variables:
@@ -85,13 +85,16 @@ def import_ic_path_MOSAiC(ic_path, variables = variables, drop_empty=drop_empty)
 
     logger.info("importing data for %s" % name)
 
-    # DateTime
-    if isinstance(ws_metadata_core['C2'].value, datetime.datetime):
-        if isinstance(ws_metadata_core['C3'].value, datetime.time):
-            date = datetime.datetime.combine(ws_metadata_core['C2'].value, ws_metadata_core['C3'].value)
+    if isinstance(pd.to_datetime(ws_metadata_core['C2'].value, format='%Y-%m-%d').date(), datetime.date):
+        _d = pd.to_datetime(ws_metadata_core['C2'].value)
+        if pd.to_datetime(ws_metadata_core['C3'].value, format='%H:%M:%S') is None:
+            date = _d
+        elif isinstance(pd.to_datetime(ws_metadata_core['C3'].value, format='%H:%M:%S').time(), datetime.time):
+            _t = pd.to_datetime(ws_metadata_core['C3'].value, format='%H:%M:%S').time()
+            _dt = datetime.datetime.combine(_d, _t)
             if ws_metadata_core['D2'].value is not None and dateutil.tz.gettz(ws_metadata_core['D2'].value):
                 tz = dateutil.tz.gettz(ws_metadata_core['D2'].value)
-                date = date.replace(tzinfo=tz)
+                date = _dt.replace(tzinfo=tz)
             else:
                 logger.info("\t(%s) timezone unavailable." % name)
         else:
@@ -187,11 +190,12 @@ def import_ic_path_MOSAiC(ic_path, variables = variables, drop_empty=drop_empty)
         n_snow += 1
     snow_depth = np.array(snow_depth)
 
-    if isinstance(snow_depth[-1], str):
-        comments.append(snow_depth[-1])
-        snow_depth = pd.to_numeric(snow_depth[:-1], errors='coerce')
-    else:
-        snow_depth = pd.to_numeric(snow_depth, errors='coerce')
+    if len(snow_depth) > 0:
+        if isinstance(snow_depth[-1], str):
+            comments.append(snow_depth[-1])
+            snow_depth = pd.to_numeric(snow_depth[:-1], errors='coerce')
+        else:
+            snow_depth = pd.to_numeric(snow_depth, errors='coerce')
 
     # Average
     if isinstance(ws_summary['C16'].value, (float, int)):
@@ -199,11 +203,11 @@ def import_ic_path_MOSAiC(ic_path, variables = variables, drop_empty=drop_empty)
     elif np.isnan(snow_depth).any():
         snow_depth_avg = np.nanmean(snow_depth)
     else:
-        snow_depth_avg = np.nan
+        snow_depth_avg = [np.nan]
 
     if len(snow_depth) == 0:
         snow_depth = snow_depth_avg
-
+    print(snow_depth)
     # Ice Thickness
     try:
         h_i = ws_metadata_core['C7'].value
@@ -271,7 +275,7 @@ def import_ic_path_MOSAiC(ic_path, variables = variables, drop_empty=drop_empty)
             comments.append('ice core length not available')
             l_c = np.nan
 
-    core = Core(name, date, origin, lat_start_deg, lon_start_deg, h_i, h_f, snow_depth)
+    core = Core(name, date, origin, lat_start_deg, lon_start_deg, l_c, h_i, h_f, snow_depth)
 
     # Temperature
     if ws_summary['C25'].value:
@@ -324,6 +328,27 @@ def import_ic_path_MOSAiC(ic_path, variables = variables, drop_empty=drop_empty)
         for sheet in sheets:
             ws_variable = wb[sheet]
             profile = read_profile_MOSAiC(ws_variable, variables=None, version=version, v_ref=v_ref)
+            if profile.get_property() is not None and 'temperature' in profile.get_property():
+                headers = ['y_mid', 'temperature_value', 'comment', 'variable', 'v_ref']
+                if v_ref == 'top':
+                    if not 0 in profile.y_mid.values:
+                        if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
+                            data_surface = [0, core.t_ice_surface, 'Ice surface temperature', 'temperature', 'top']
+                            profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                    if core.length - profile.y_mid.max() > TOL:
+                        if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
+                            data_bottom = [core.length, core.t_water, 'Ice bottom temperature', 'temperature', 'top']
+                            profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
+                elif v_ref == 'bottom':
+                    if not 0 in profile.y_mid.values:
+                        if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
+                            data_bottom = [core.length, core.t_water, 'Ice bottom temperature', 'temperature', 'bottom']
+                            profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
+                    if core.length - profile.y_mid.max() > TOL:
+                        if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
+                            data_surface = [0, core.t_ice_surface, 'Ice surface temperature', 'temperature', 'bottom']
+                            profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                profile = profile.sort_values(by='y_mid')
             profile['name'] = name
             if drop_empty:
                 profile.drop_empty_property()
@@ -415,6 +440,7 @@ def import_ic_path(ic_path, variables=variables, v_ref=v_ref, drop_empty=drop_em
     n_row_collection = 22
     logger.info("importing data for %s" % name)
 
+    print(ws_summary['C2'].value)
     if isinstance(ws_summary['C2'].value, datetime.datetime):
         if isinstance(ws_summary['D2'].value, datetime.time):
             date = datetime.datetime.combine(ws_summary['C2'].value, ws_summary['D2'].value)
@@ -430,6 +456,7 @@ def import_ic_path(ic_path, variables=variables, v_ref=v_ref, drop_empty=drop_em
                 date = date.replace(tzinfo=tz)
             else:
                 logger.info("\t(%s) timezone unavailable." % name)
+
     else:
         logger.warning("\t(%s) date unavailable" % name)
         date = None
@@ -853,7 +880,6 @@ def read_profile_MOSAiC(ws_variable, variables=None, version=__CoreVersion__, v_
         n_col += 1
     n_col_max = n_col-2
 
-
     # Check for step or continuous profiles:
     if 'depth center' in headers:
         loc1 = [ii for ii, h in enumerate(headers) if h == 'depth center'][0] + 1
@@ -865,7 +891,7 @@ def read_profile_MOSAiC(ws_variable, variables=None, version=__CoreVersion__, v_
         # find nan value in y_low and y_sup
         y_nan_loc = np.where(np.isnan(y_mid))[0]
         # discard trailing nan value starting at the end
-        if len(y_mid) > 1 and y_nan_loc[-1] == len(y_mid)-1:
+        if len(y_nan_loc) > 0 and len(y_mid) > 1 and y_nan_loc[-1] == len(y_mid)-1:
             y_nan_loc = [len(y_mid)-1] + [val for ii, val in enumerate(y_nan_loc[-2::-1]) if val == y_nan_loc[::-1][ii]-1]
             y_nan_loc = y_nan_loc[::-1]
 

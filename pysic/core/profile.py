@@ -185,7 +185,7 @@ class Profile(pd.DataFrame):
         # TODO hard code sea ice property
         # TODO merge with profile.select_variable
         if vg_property is None:
-            vg_property =self.get_property()
+            vg_property = self.get_property()
         elif not isinstance(vg_property, list):
             vg_property = [vg_property]
 
@@ -331,6 +331,7 @@ class Profile(pd.DataFrame):
         # clean profile by removing empty column
         self.clean()
 
+
     def clean(self):
         """
 
@@ -426,6 +427,7 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
             _variable.extend(subvariable_dict[_variable[0]])
 
         _del_variables = [var for var in _profile.variables() if var not in _variable]
+
         # drop all variables which are not _variable
         _profile.keep_variable(_variable)
 
@@ -465,9 +467,9 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                 y2x.loc[abs(y2x.index - index) < 1e-6, _variable] = yx.loc[yx.index == index, _variable].values
 
             # compute weight, if y_mid is in min(yx) < y_mid < max(yx)
-            w = [1 if yx.index[0] - TOL <= y <= yx.index[-1] + TOL else 0 for y in y_mid ]
+            w = [1 if yx.index[0] - TOL <= y <= yx.index[-1] + TOL else 0 for y in y_mid]
 
-            # add the temperature profile extremum value
+            # add the temperature profile extremum value from original progile
             if not any(abs(yx.index[0]-y2) < TOL):
                 y2x.loc[yx.index[0], _variable] = yx.loc[yx.index == yx.index[0], _variable[0]].values
                 w = w + [0]
@@ -488,7 +490,7 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
             if 'y_sup' in profile_prop:
                 profile_prop = profile_prop.drop('y_sup', 1)
 
-            temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
+            temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()]*len(temp.index), columns=profile_prop.columns.tolist(),
                                      index=temp.index.tolist()))
 
         # elif 'mass' in _variable: TODO: add step profile type mass
@@ -811,7 +813,7 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
             profile_prop = profile_prop.drop('y_mid', 1)
             profile_prop = profile_prop.drop('y_sup', 1)
             profile_prop = profile_prop.drop(_variable, axis=1)
-            temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()], columns=profile_prop.columns.tolist(),
+            temp.update(pd.DataFrame([profile_prop.iloc[0].tolist()]*len(temp.index), columns=profile_prop.columns.tolist(),
                                      index=temp.index.tolist()))
 
         if not temp.empty:
@@ -820,8 +822,8 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
 
             # keep only ice core length by entry
             # TODO: remove all np.nan entry for the variable, this implies better merging function for pandas
-            l_c = temp.length.unique()[0]
             if not np.isnan(temp.length.unique()[0]):
+                l_c = temp.length.unique()[0]
                 if l_c > 0 and temp.v_ref.unique()[0] == 'top':
                     try:
                         n_y_mid_max = np.where(l_c <= temp.y_mid)[0][0]
@@ -833,25 +835,29 @@ def discretize_profile(profile, y_bins=None, y_mid=y_mid, display_figure=False, 
                         temp.loc[n_y_mid_max < temp.y_mid, 'w_'+_variable[0]] = 0
                         temp.loc[n_y_mid_max < temp.y_mid, _variable[0]] = np.nan
                 elif l_c > 0 and temp.v_ref.unique()[0] == 'bottom':
+                    print('profile.discretize l_c > 0 and bottom')
                     h_i = temp.ice_thickness.mean()
                     if np.isnan(h_i):
                         h_i = l_c
-                        print(profile.get_name(), h_i)
-                    try:
-                        n_y_mid_min = np.where(temp.y_mid <= h_i-l_c)[0][-1]
-                    except IndexError:
-                        n_y_mid_min = 0
+                    # try:
+                    #     n_y_mid_min = np.where(temp.y_mid < h_i-l_c)[0][-1]
+                    #     y_mid_min = temp.y_mid.iloc[n_y_mid_min]
+                    # except IndexError:
+                    #     n_y_mid_min = 0
+                    #     y_mid_min = 0
                     try:
                         n_y_mid_max = np.where(temp.y_mid <= h_i)[0][-1]
+                        y_mid_max = temp.y_mid.iloc[n_y_mid_max]
                     except IndexError:
-                        n_y_mid_max = temp.y_mid.max()
+                        y_mid_max = temp.y_mid.max()
                     if dropemptyrow:
-                        temp = temp.loc[(n_y_mid_min <= temp.y_mid) & (temp.y_mid <= n_y_mid_max)]
+                        # temp = temp.loc[(n_y_mid_min <= temp.y_mid) & (temp.y_mid <= n_y_mid_max)]
+                        temp = temp.loc[(temp.y_mid <= n_y_mid_max)]
                     else:
-                        temp.loc[temp.y_mid < n_y_mid_min, 'w_'+_variable[0]] = 0
-                        temp.loc[temp.y_mid < n_y_mid_min, _variable[0]] = np.nan
-                        temp.loc[n_y_mid_max < temp.y_mid, 'w_'+_variable[0]] = 0
-                        temp.loc[n_y_mid_max < temp.y_mid, _variable[0]] = np.nan
+                        # temp.loc[temp.y_mid < y_mid_min, 'w_'+_variable[0]] = 0  # use to be <
+                        # temp.loc[temp.y_mid < y_mid_min, _variable[0]] = np.nan  # use to be <
+                        temp.loc[y_mid_max < temp.y_mid, 'w_'+_variable[0]] = 0
+                        temp.loc[y_mid_max < temp.y_mid, _variable[0]] = np.nan
                     # temp = temp[(h_i + l_c <= temp.y_mid) & (temp.y_mid <= h_i)]
                 elif l_c < 0 and temp.v_ref.unique()[0] == 'bottom':
                     h_i = temp.ice_thickness.mean()
@@ -1003,17 +1009,16 @@ def set_profile_orientation(profile, v_ref):
                     Deleting profile" % v_ref)
                 profile = delete_profile(profile, {'variable': vg})
             else:
-                print(profile.name.unique()[0])
                 if np.abs(lc - hi) < 0.1*hi:
                     href = lc
                     logger.info("Bottom reference set to ice core length:\
                     as ice core length is within 10% of the ice thickness")
-                elif not ( hi is None or np.isnan(hi)):
-                    href = hi
-                    logger.info("Bottom reference set to ice thickness")
-                elif not ( lc is None or np.isnan(lc)):
+                elif not (lc is None or np.isnan(lc)):
                     href = lc
-                    logger.info("Bottom reference set to ice core length in absence of ice thickness")
+                    logger.info("Bottom reference set to ice core length")
+                elif not (hi is None or np.isnan(hi)):
+                    href = hi
+                    logger.info("Bottom reference set to ice thickness in absence of ice core length")
 
                 new_df = profile.loc[profile.variable == vg, 'y_low'].apply(lambda x: href - x)
                 new_df = pd.concat([new_df, profile.loc[profile.variable == vg, 'y_mid'].apply(lambda x: href - x)],
@@ -1058,6 +1063,9 @@ def delete_variables(ics_stack, variables2del):
 
             # delete associated subvariable column
             if variable in subvariable_dict:
+                print(variable)
+                print(subvariable_dict)
+                print(col)
                 for subvariable in subvariable_dict[col]:
                     ics_stack.drop(subvariable, axis=1, inplace=True)
 
@@ -1170,7 +1178,7 @@ def select_profile(ics_stack, variable_dict):
         elif ii_key in ics_stack.keys():
             ics_stack = ics_stack[ics_stack[ii_key] == variable_dict[ii_key]]
 
-    if 'y_mid'  in ics_stack.columns:
+    if 'y_mid' in ics_stack.columns:
         ics_stack.sort_values(by=['y_mid'], inplace=True)
     elif 'y_low' in ics_stack.columns:
         ics_stack.sort_values(by=['y_low'], inplace=True)

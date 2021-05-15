@@ -23,6 +23,7 @@ import pysic.core.Core
 import pysic.core.plot
 import pysic.core.profile
 import pysic.property
+import pysic.visualization.plot
 
 import pysic.property.brine
 import pysic.property.ice

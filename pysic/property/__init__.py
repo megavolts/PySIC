@@ -81,7 +81,7 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, resize_core=False
     :param si_prop:
     :param si_prop_dict: dictionary containing additional data
     :param si_prop_format: 'linear' or 'step' (default)
-    :param resize_core: 'S', 'T', 'None' (default)
+    :param resize_core: 'salinity', 'temperature', 'None' (default)
     :param attribut_core: 'salinity' (default), 'temperature'
     :param display_figure:
     :param ice_type:
@@ -138,7 +138,7 @@ def compute_phys_prop_from_core(s_profile, t_profile, si_prop, resize_core=False
             profile_length = s_profile.length.unique()[0]
         elif s_profile.ice_thickness.notnull().all():
             profile_length = s_profile.ice_thickness.unique()[0]
-            print("ice core length unknown, using ice thickness instead")
+            print("%s: ice core length unknown, using ice thickness instead" % S_core_name)
         else:
             profile_length = max(s_profile.y_low.min(), s_profile.y_sup.max())
             print("todo: need warning text")
@@ -246,7 +246,8 @@ def compute_phys_prop_from_core_STrho(s_profile, t_profile, d_profile, si_prop, 
         t_profile.loc[:, 'temperature'] = pd.to_numeric(t_profile['temperature']).values
 
     if 'density' not in d_profile.keys() or not d_profile['density'].notnull().any():
-        logger.error("density profile does not have density data")
+        D_core_name = d_profile.name.values[0]
+        logger.error(str("%s: density profile does not have density data" % D_core_name))
     else:
         d_profile.loc[:, 'density'] = pd.to_numeric(d_profile['density']).values
 
@@ -269,7 +270,8 @@ def compute_phys_prop_from_core_STrho(s_profile, t_profile, d_profile, si_prop, 
             profile_length = s_profile.length.unique()[0]
         elif s_profile.ice_thickness.notnull().all():
             profile_length = s_profile.ice_thickness.unique()[0]
-            print("ice core length unknown, using ice thickness instead")
+            S_core_name = s_profile.name.unique()[0]
+            print(str("%s: ice core length unknown, using ice thickness instead" %S_core_name))
         else:
             profile_length = max(s_profile.y_low.min(), s_profile.y_sup.max())
             print("todo: need warning text")
@@ -355,7 +357,7 @@ def compute_phys_prop_from_core_STrho(s_profile, t_profile, d_profile, si_prop, 
                                      np.array(s_profile['density']))
 
         # update variable:
-        new_var = s_profile.get_variable() + ['temperature', f_prop]
+        new_var = s_profile.get_variable() + ['temperature', 'density', f_prop]
         new_var = list(set(new_var))
         s_profile['variable'] = ', '.join(new_var)
 

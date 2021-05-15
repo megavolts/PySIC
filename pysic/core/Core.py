@@ -8,7 +8,7 @@ import numpy as np
 import pysic
 import logging as logging
 logger = logging.getLogger(__name__)
-
+__version__ = 1.4
 # TODO: add test function
 # TODO: add function Core.check() to check the integrity of the ice core and profiles
 
@@ -27,7 +27,7 @@ class Core():
             d['logger'] = logging.getLogger(d['logger'])
         self.__dict__.update(d)
 
-    def __init__(self, name, date, origin=np.nan, lat=np.nan, lon=np.nan, ice_thickness=np.nan, freeboard=np.nan,
+    def __init__(self, name, date, origin=np.nan, lat=np.nan, lon=np.nan, length=np.nan, ice_thickness=np.nan, freeboard=np.nan,
                  snow_depth=np.nan, *args, **kwargs):
         super(Core, self).__init__(*args, **kwargs)
 
@@ -59,6 +59,7 @@ class Core():
         self.snow_depth = snow_depth
         self.freeboard = freeboard
         self.ice_thickness = ice_thickness
+        self.length = length
         self.collection = [name]
         self.comment = None
         self.profile = pysic.core.profile.Profile()
@@ -106,8 +107,6 @@ class Core():
                     self._ice_thickness.append(v_)
                 except AttributeError:
                     self._ice_thickness = [v_]
-
-
 
     def add_to_collection(self, core_list):
         """
@@ -158,11 +157,7 @@ class Core():
             elif comment not in self.comment.split('; '):
                 self.comment += '; ' + comment
 
-    def length(self):
-        if 'length' in self.profile:
-            return self.profile.length.unique()
-        else:
-            return np.array([np.nan])
+
 
     def variables(self):
         variables = []
@@ -253,10 +248,6 @@ class Core():
 
         print('comment: %s' % self.comment)
 
-    @property
-    def avg(self):
-        return np.nanmean(self)
-
     def add_profile(self, profile, unit=None):
         """
         Add new profile to core.
@@ -273,3 +264,4 @@ class Core():
 
     def get_property(self):
         return self.profile.get_property()
+
