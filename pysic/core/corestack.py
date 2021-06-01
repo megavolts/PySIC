@@ -207,15 +207,16 @@ class CoreStack(pd.DataFrame):
         data_binned = data_binned.clean_stack()
         return CoreStack(data_binned)
 
+
     def set_vertical_reference(self, new_v_ref, h_ref = None):
         """
         :param v_ref:
         :return:
         """
         temp = CoreStack()
-        for core in self.get_name():
+        for core in self.names():
             profile = pysic.core.profile.Profile(self[self.name == core].astype(pysic.core.profile.Profile()))
-            profile.set_vertical_reference(new_v_ref=new_v_ref, h_ref=h_ref)
+            profile.set_profile_vertical_reference(new_v_ref=new_v_ref, h_ref=h_ref)
             temp = temp.append(profile)
         return CoreStack(temp)
 

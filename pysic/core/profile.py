@@ -212,6 +212,7 @@ class Profile(pd.DataFrame):
         logger.error('Method not implemented yet')
         return 'nothing'
 
+
     def set_vertical_reference(profile, h_ref=None, new_v_ref=None, inplace=True):
         """
 
@@ -239,10 +240,40 @@ class Profile(pd.DataFrame):
             new_profile.update(new_df)
         return new_profile
 
+
+    def set_profile_vertical_reference(profile, h_ref=None, new_v_ref=None, inplace=True):
+        """
+
+        :param profile:
+        :param h_ref: depth of reference in the new reference system. If the new_reference system is not defined, return an error
+        :param new_v_ref: default, same as profile origin
+        :return:
+        """
+        logger = logging.getLogger(__name__)
+        if new_v_ref is None:
+            if profile.v_ref.unique().__len__() > 1:
+                logger.error("vertical reference for profile are not consistent")
+            else:
+                new_v_ref = profile.v_ref.unique()[0]
+
+        if inplace:
+            new_profile = set_profile_orientation(profile, new_v_ref)
+        else:
+            new_profile = set_profile_orientation(profile.copy(), new_v_ref)
+
+        if h_ref is not None:
+            new_df = new_profile['y_low'].apply(lambda x: x - h_ref)
+            new_df = pd.concat([new_df, new_profile['y_mid'].apply(lambda x: x - h_ref)], axis=1, sort=False)
+            new_df = pd.concat([new_df, new_profile['y_sup'].apply(lambda x: x - h_ref)], axis=1, sort=False)
+            new_profile.update(new_df)
+        return new_profile
+
+
     def drop_empty_property(self):
         empty = [prop for prop in self.get_property() if self[prop].isnull().all()]
         self.variable = ', '.join([prop for prop in self.get_property() if prop not in empty])
         self.drop(columns=empty, axis=1, inplace=True)
+
 
     def variables(self, notnan=False):
         """
@@ -274,6 +305,7 @@ class Profile(pd.DataFrame):
             variables = None
 
         return variables
+
 
     def keep_variable(self, variables2keep):
         """
@@ -984,19 +1016,21 @@ def set_profile_orientation(profile, v_ref):
 
     for vg in profile.variable.unique():
         # look for ice thickness:
-        if profile[profile.variable == vg].v_ref.unique().__len__() > 1:
+        #if profile[profile.variable == vg].v_ref.unique().__len__() > 1:
+        if profile[profile.variable.str.contains(vg)].v_ref.unique().__len__() > 1:
             logger.error("vertical reference for profile are not consistent")
-        if not profile[profile.variable == vg].v_ref.unique().tolist()[0] == v_ref:
+        #if not profile[profile.variable == vg].v_ref.unique().tolist()[0] == v_ref:
+        if not profile[profile.variable.str.contains(vg)].v_ref.unique().tolist()[0] == v_ref:
             # search ice core length, and ice thickness
             if 'ice_thickness' in profile.keys() and \
-                    not np.isnan(profile[profile.variable == vg].ice_thickness.astype(float)).all():
-                    hi = profile[profile.variable == vg].ice_thickness.astype(float).unique()[-1]
+                    not np.isnan(profile[profile.variable.str.contains(vg)].ice_thickness.astype(float)).all():
+                    hi = profile[profile.variable.str.contains(vg)].ice_thickness.astype(float).unique()[-1]
             else:
                 hi = np.nan
 
             if 'length' in profile.keys() and \
-                    not np.isnan(profile[profile.variable == vg].length.astype(float)).all():
-                    lc = profile[profile.variable == vg].length.astype(float).unique()[-1]
+                    not np.isnan(profile[profile.variable.str.contains(vg)].length.astype(float)).all():
+                    lc = profile[profile.variable.str.contains(vg)].length.astype(float).unique()[-1]
             else:
                 lc = np.nan
 
@@ -1020,12 +1054,17 @@ def set_profile_orientation(profile, v_ref):
                     href = hi
                     logger.info("Bottom reference set to ice thickness in absence of ice core length")
 
-                new_df = profile.loc[profile.variable == vg, 'y_low'].apply(lambda x: href - x)
-                new_df = pd.concat([new_df, profile.loc[profile.variable == vg, 'y_mid'].apply(lambda x: href - x)],
+                new_df = profile.loc[profile.variable.str.contains(vg), 'y_low'].apply(lambda x: href - x)
+                new_df = pd.concat([new_df, profile.loc[profile.variable.str.contains(vg), 'y_mid'].apply(lambda x: href - x)],
                                    axis=1, sort=False)
-                new_df = pd.concat([new_df, profile.loc[profile.variable == vg, 'y_sup'].apply(lambda x: href - x)],
+                new_df = pd.concat([new_df, profile.loc[profile.variable.str.contains(vg), 'y_sup'].apply(lambda x: href - x)],
                                    axis=1, sort=False)
-                new_df['v_ref'] = 'bottom'
+                new_df['v_ref'] = v_ref
+                if all(new_df.y_sup < new_df.y_low):
+                    temp = new_df.y_sup.copy()
+                    new_df.y_sup = new_df.y_low
+                    new_df.y_low = temp
+                    del temp
                 profile.update(new_df)
         else:
             logger.info('profile orientiation already set')

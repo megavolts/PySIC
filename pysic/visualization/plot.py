@@ -175,6 +175,10 @@ def plot_profile_variable(core_data, variable_dict=None, ax=None, param_dict=Non
     :return:
     """
 
+    if ax is None:
+        plt.figure()
+        ax = plt.subplot(1, 1, 1)
+
     if variable_dict == None:
         print('FAILING: need at least one variable')
         variable_dict = {'variable': core_data.variables()}
@@ -183,17 +187,19 @@ def plot_profile_variable(core_data, variable_dict=None, ax=None, param_dict=Non
         module_logger.error("a variable should be specified for plotting")
 
     try:
-        col = ['y_low', 'y_sup', 'y_mid', variable_dict['variable']+'_value', 'v_ref']
+        var = variable_dict['variable']+'_value'
+        col = ['y_low', 'y_sup', 'y_mid', var, 'v_ref']
         profile = core_data[col]
         profile = profile.dropna(how='all', axis=1)
-        profile['variable'] = variable_dict['variable']+'_value'
+        profile['variable'] = var
     except KeyError:
-        col = ['y_low', 'y_sup', 'y_mid', variable_dict['variable'], 'v_ref']
+        var = variable_dict['variable']
+        col = ['y_low', 'y_sup', 'y_mid', var, 'v_ref']
         profile = core_data[col]
         profile = profile.dropna(how='all', axis=1)
-        profile['variable'] = variable_dict['variable']
+        profile['variable'] = var
 
-    if not profile.empty:
+    if not profile.empty and var in profile.keys():
         ax = plot_profile(profile, ax=ax, param_dict=param_dict)
     return ax
 

@@ -67,6 +67,9 @@ class Core():
         self.t_snow_surface = np.nan
         self.t_ice_surface = np.nan
         self.t_water = np.nan
+        self.s_water = np.nan
+        self.instrument = {}
+        self.reference = {}
         self.protocol = None
         self.unit = {}
 

@@ -32,7 +32,8 @@ from pysic.core.Core import Core
 
 __all__ = ["import_ic_path", "import_ic_list", "import_ic_sourcefile", "list_ic", "list_ic_path", "make_ic_sourcefile"]
 
-TOL =1e-6
+TOL = 1e-6
+MAX_ROW = 1000
 subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
 
 variable_2_sheet = {'temperature': 'T_ice',
@@ -73,7 +74,12 @@ def import_ic_path_MOSAiC(ic_path, variables=variables, drop_empty=drop_empty):
     wb = openpyxl.load_workbook(filename=ic_path, keep_vba=False)  # load the xlsx spreadsheet
     ws_name = wb.sheetnames
 
-    ws_summary = wb['metadata-coring']
+    try:
+        ws_summary = wb['metadata-coring']
+    except KeyError:
+        core = import_ic_path_MOSAiC_UTQ(ic_path, variables=variables, drop_empty=drop_empty)
+        return core
+
     ws_metadata_core = wb['metadata-core']
 
     name = ws_metadata_core['C1'].value
@@ -111,9 +117,7 @@ def import_ic_path_MOSAiC(ic_path, variables=variables, drop_empty=drop_empty):
     # project
     origin = ws_summary['C3'].value
 
-    # start coordinate
-    lat_origin = ws_summary['B8'].value
-    lon_origin = ws_summary['B9'].value
+    # coordinate
     # start latitude:
     if isinstance(ws_summary['C8'].value, (float, int)):
         lat_start_deg = ws_summary['C8'].value
@@ -392,6 +396,379 @@ def import_ic_path_MOSAiC(ic_path, variables=variables, drop_empty=drop_empty):
     return core
 
 
+def import_ic_path_MOSAiC_UTQ(ic_path, variables=variables, drop_empty=drop_empty):
+    """
+    :param wb:
+    :param variables:
+    :param v_ref:
+    :param drop_empty:
+    :return:
+    """
+
+    logger = logging.getLogger(__name__)
+
+    wb = openpyxl.load_workbook(filename=ic_path, keep_vba=False)  # load the xlsx spreadsheet
+    ws_name = wb.sheetnames
+
+    ws_summary = wb['metadata-station']
+    ws_metadata_core = wb['metadata-core']
+
+    name = ws_metadata_core['C1'].value
+    if ws_summary['C1'].value:
+        version = ws_summary['C1'].value
+    else:
+        logger.error("(%s) ice core spreadsheet version not unavailable" % name)
+        wb.close()
+
+    logger.info("importing data for %s" % name)
+
+    if isinstance(pd.to_datetime(ws_metadata_core['C2'].value, format='%Y-%m-%d').date(), datetime.date):
+        _d = pd.to_datetime(ws_metadata_core['C2'].value)
+        if pd.to_datetime(ws_metadata_core['C3'].value, format='%H:%M:%S') is None:
+            date = _d
+        elif isinstance(pd.to_datetime(ws_metadata_core['C3'].value, format='%H:%M:%S').time(), datetime.time):
+            _t = pd.to_datetime(ws_metadata_core['C3'].value, format='%H:%M:%S').time()
+            _dt = datetime.datetime.combine(_d, _t)
+            if ws_metadata_core['D3'].value is not None and dateutil.tz.gettz(ws_metadata_core['D3'].value):
+                tz = dateutil.tz.gettz(ws_metadata_core['D2'].value)
+                date = _dt.replace(tzinfo=tz)
+            elif ws_metadata_core['D3'].value.split(' ')[0] is not None and \
+                dateutil.tz.gettz(ws_metadata_core['D3'].value.split(' ')[0]):
+                tz = dateutil.tz.gettz(ws_metadata_core['D3'].value.split(' ')[0])
+                date = _dt.replace(tzinfo=tz)
+            else:
+                logger.info("\t(%s) timezone unavailable." % name)
+        else:
+            date = ws_metadata_core['C2'].value
+            if ws_metadata_core['D3'].value is not None and dateutil.tz.gettz(ws_metadata_core['D3'].value):
+                tz = dateutil.tz.gettz(ws_metadata_core['D2'].value)
+                date = date.replace(tzinfo=tz)
+            elif ws_metadata_core['D3'].value.split(' ')[0] is not None and dateutil.tz.gettz(ws_metadata_core['D3'].value.split(' ')[0]):
+                tz = dateutil.tz.gettz(ws_metadata_core['D3'].value.split(' ')[0])
+                date = date.replace(tzinfo=tz)
+            else:
+                logger.info("\t(%s) timezone unavailable." % name)
+    else:
+        logger.warning("\t(%s) date unavailable" % name)
+        date = None
+
+    # project
+    origin = ws_summary['C3'].value
+    site = ws_summary['C4'].value
+
+    # start coordinate
+    lat_origin = ws_summary['B9'].value
+
+    # start latitude:
+    if isinstance(ws_summary['C9'].value, (float, int)):
+        lat_start_deg = ws_summary['C9'].value
+        if isinstance(ws_summary['D9'].value, (float, int)):
+            lat_start_min = ws_summary['D9'].value
+            if isinstance(ws_summary['E9'].value, (float, int)):
+                lat_start_sec = ws_summary['E9'].value
+            else:
+                lat_start_sec = 0
+        else:
+            lat_start_min = 0
+            lat_start_sec = 0
+        lat_start_deg = lat_start_deg + lat_start_min/60 + lat_start_sec/3600
+    else:
+        lat_start_deg = np.nan
+
+    # start longitude
+    lon_origin = ws_summary['B10'].value
+    if isinstance(ws_summary['C10'].value, (float, int)):
+        lon_start_deg = ws_summary['C10'].value
+        if isinstance(ws_summary['D10'].value, (float, int)):
+            lon_start_min = ws_summary['D10'].value
+            if isinstance(ws_summary['E10'].value, (float, int)):
+                lon_start_sec = ws_summary['E10'].value
+            else:
+                lon_start_sec = 0
+        else:
+            lon_start_min = 0
+            lon_start_sec = 0
+        lon_start_deg = lon_start_deg + lon_start_min/60 + lon_start_sec/3600
+    else:
+        lon_start_deg = np.nan
+
+    # end latitude:
+    if isinstance(ws_summary['F9'].value, (float, int)):
+        lat_end_deg = ws_summary['F9'].value
+        if isinstance(ws_summary['G9'].value, (float, int)):
+            lat_end_min = ws_summary['G9'].value
+            if isinstance(ws_summary['H9'].value, (float, int)):
+                lat_end_sec = ws_summary['H9'].value
+            else:
+                lat_end_sec = 0
+        else:
+            lat_end_min = 0
+            lat_end_sec = 0
+        lat_end_deg = lat_end_deg + lat_end_min/60 + lat_end_sec/3600
+    else:
+        lat_end_deg = np.nan
+
+    # end longitude
+    if isinstance(ws_summary['F10'].value, (float, int)):
+        lon_end_deg = ws_summary['F10'].value
+        if isinstance(ws_summary['G10'].value, (float, int)):
+            lon_end_min = ws_summary['G10'].value
+            if isinstance(ws_summary['H10'].value, (float, int)):
+                lon_end_sec = ws_summary['H10'].value
+            else:
+                lon_end_sec = 0
+        else:
+            lon_end_min = 0
+            lon_end_sec = 0
+        lon_end_deg = lon_end_deg + lon_end_min/60 + lon_end_sec/3600
+    else:
+        lon_end_deg = np.nan
+
+    # Station time
+    # TODO
+    comments = []
+
+    ## Snow Depth
+    n_snow = 1
+    row_snow = 19
+    snow_depth = []
+    while ws_summary.cell(row=row_snow, column=3+n_snow).value is not None:
+        snow_depth.append(ws_summary.cell(row=row_snow, column=3+n_snow).value)
+        n_snow += 1
+    snow_depth = np.array(snow_depth)
+
+    # snow measurement
+    if len(snow_depth) > 0:
+        if isinstance(snow_depth[-1], str):
+            comments.append(snow_depth[-1])
+            snow_depth = pd.to_numeric(snow_depth[:-1], errors='coerce')
+        else:
+            snow_depth = pd.to_numeric(snow_depth, errors='coerce')
+
+    # snow average
+    if isinstance(ws_summary.cell(row=row_snow, column=3).value, (float, int)):
+        snow_depth_avg = ws_summary.cell(row=row_snow, column=3).value
+    elif not np.isnan(snow_depth).all():
+        snow_depth_avg = np.nanmean(snow_depth)
+    else:
+        snow_depth_avg = [np.nan]
+
+    if len(snow_depth) == 0:
+        snow_depth = snow_depth_avg
+
+    # Ice Thickness
+    try:
+        h_i = ws_metadata_core['D7'].value
+    except:
+        logger.info('(%s) no ice thickness information ' % name)
+        h_i = np.nan
+    else:
+        if h_i == 'n/a':
+            comments.append('ice thickness not available')
+            logger.info('(%s) ice thickness is not available (n/a)' % name)
+            h_i = np.nan
+        elif not isinstance(h_i, (int, float)):
+            logger.info('%s ice thickness is not a number' % name)
+            comments.append('ice thickness not available')
+            h_i = np.nan
+
+    # Ice Draft
+    try:
+        h_d = ws_metadata_core['D8'].value
+    except:
+        logger.info('(%s) no ice draft information ' % name)
+        h_d = np.nan
+    else:
+        if h_d == 'n/a':
+            comments.append('ice draft not available')
+            logger.info('(%s) ice draft is not available (n/a)' % name)
+            h_d = np.nan
+        elif not isinstance(h_d, (int, float)):
+            logger.info('%s ice draft is not a number' % name)
+            comments.append('ice draft not available')
+            h_d = np.nan
+
+    # Ice freeboard
+    if not (np.isnan(h_d) and np.isnan(h_i)):
+        h_f = h_i - h_d
+    else:
+        try:
+            h_f = ws_metadata_core['D9'].value
+        except:
+            logger.info('(%s) no ice draft information ' % name)
+            h_f = np.nan
+        else:
+            if h_f == 'n/a':
+                comments.append('ice draft not available')
+                logger.info('(%s) ice draft is not available (n/a)' % name)
+                h_f = np.nan
+            elif not isinstance(h_f, (int, float)):
+                logger.info('%s ice draft is not a number' % name)
+                comments.append('ice draft not available')
+                h_f = np.nan
+
+    # Core Length l_c (measured in with ruler)
+    try:
+        l_c = ws_metadata_core['D10'].value
+    except:
+        logger.info('(%s) no ice core length' % name)
+        l_c = np.nan
+    else:
+        if l_c == 'n/a':
+            comments.append('ice core length not available')
+            logger.info('(%s) ice core length is not available (n/a)' % name)
+            l_c = np.nan
+        elif not isinstance(l_c, (int, float)):
+            logger.info('%s ice core length is not a number' % name)
+            comments.append('ice core length not available')
+            l_c = np.nan
+
+    core = Core(name, date, origin, lat_start_deg, lon_start_deg, l_c, h_i, h_f, snow_depth)
+
+
+    if ws_summary['C25'].value:
+        core.t_air = ws_summary['C25'].value
+    if ws_summary['C26'].value:
+        core.t_snow_surface = ws_summary['C26'].value
+    if ws_summary['C27'].value:
+        core.t_ice_surface = ws_summary['C27'].value
+    if ws_summary['C28'].value:
+        core.t_water = ws_summary['C28'].value
+    if ws_summary['C28'].value:
+        core.s_water = ws_summary['C29'].value
+
+    # Sampling event
+    if ws_summary['C36'].value:
+        core.station = ws_summary['C36'].value
+
+    # Sampling protocol
+    if ws_summary.cell(3, 39).value:
+        core.protocol = ws_summary.cell(3, 39).value
+    else:
+        core.protocol = 'N/A'
+
+    # Sampling instrument
+    instrument_d = {}
+    row_instrument = 21
+    while ws_metadata_core.cell(row_instrument, 1).value is not None:
+        instrument_d[ws_metadata_core.cell(row_instrument, 1).value] = ws_metadata_core.cell(row_instrument, 3).value
+        row_instrument += 1
+    core.instrument = instrument_d
+
+    # Core collection
+    m_col = 3
+    row_collection = 37
+    while ws_summary.cell(row_collection, m_col).value:
+        core.add_to_collection(ws_summary.cell(row_collection, m_col).value)
+        m_col += 1
+
+    # comment
+    if ws_summary['A49'].value is not None:
+        comments.append(ws_summary['A42'].value)
+    core.add_comment('; '.join(comments))
+
+    # weather
+    # TODO: read weather information
+
+    # References
+    reference_d = {}
+    if ws_metadata_core['D13'].value is not None:
+        if ws_metadata_core['D14'].value is not None:
+            reference_d['ice'] = [ws_metadata_core['D13'].value, ws_metadata_core['D14'].value]
+        else:
+            reference_d['ice'] = [ws_metadata_core['D13'].value, 'up']
+    if ws_metadata_core['D15'].value is not None:
+        if ws_metadata_core['D16'].value is not None:
+            reference_d['snow'] = [ws_metadata_core['D15'].value, ws_metadata_core['D16'].value]
+        else:
+            reference_d['snow'] = [ws_metadata_core['D15'].value, 'up']
+    if ws_metadata_core['D17'].value is not None:
+        if ws_metadata_core['D18'].value is not None:
+            reference_d['seawater'] = [ws_metadata_core['D17'].value, ws_metadata_core['D18'].value]
+        else:
+            reference_d['seawater'] = [ws_metadata_core['D18'].value, 'up']
+    core.reference.update(reference_d)
+
+    instrument_d = {}
+    row_instrument = 21
+    while ws_metadata_core.cell(row_instrument, 1).value is not None:
+        instrument_d[ws_metadata_core.cell(row_instrument, 1).value] = ws_metadata_core.cell(row_instrument, 3).value
+        row_instrument += 1
+    core.instrument.update(instrument_d)
+
+    # import all variables
+    if variables is None:
+        # TODO: special import for TEX, snow
+        sheets = [sheet for sheet in ws_name if (sheet not in ['tex', 'sackhole', 'TM',  'snow', 'summary', 'abreviation', 'locations', 'lists',
+                                                               'Vf_oil_calculation', 'metadata-core', 'metadata-station', 'density-volume', 'sediment', 'ct', 'eco']) and
+                     (sheet.lower().find('fig') == -1)]
+        for sheet in sheets:
+            ws_variable = wb[sheet]
+            profile = read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=version, v_ref=v_ref, reference_d=reference_d)
+            if profile.get_property() is not None and 'temperature' in profile.get_property():
+                headers = ['y_mid', 'temperature_value', 'comment', 'variable', 'v_ref']
+                if v_ref == 'top':
+                    if not 0 in profile.y_mid.values:
+                        if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
+                            data_surface = [0, core.t_ice_surface, 'Ice surface temperature', 'temperature', 'top']
+                            profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                    if core.length - profile.y_mid.max() > TOL:
+                        if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
+                            data_bottom = [core.length, core.t_water, 'Ice bottom temperature', 'temperature', 'top']
+                            profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
+                elif v_ref == 'bottom':
+                    if not 0 in profile.y_mid.values:
+                        if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
+                            data_bottom = [core.length, core.t_water, 'Ice bottom temperature', 'temperature', 'bottom']
+                            profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
+                    if core.length - profile.y_mid.max() > TOL:
+                        if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
+                            data_surface = [0, core.t_ice_surface, 'Ice surface temperature', 'temperature', 'bottom']
+                            profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                profile = profile.sort_values(by='y_mid')
+            profile['name'] = name
+            if drop_empty:
+                profile.drop_empty_property()
+
+            if not profile.empty:
+                core.add_profile(profile)
+                logger.info('(%s) data imported with success: %s' % (core.name, ", ".join(profile.get_property())))
+            else:
+                logger.info('(%s) no data to import from %s ' % (core.name, sheet))
+    else:
+        if not isinstance(variables, list):
+            if variables.lower().find('state variable')+1:
+                variables = ['temperature', 'salinity']
+            else:
+                variables = [variables]
+
+        _imported_variables = []
+        for variable in variables:
+            if variable_2_sheet[variable] in ws_name and variable not in _imported_variables:
+                sheet = variable_2_sheet[variable]
+                ws_variable = wb[sheet]
+
+                variable2import = [var for var in variables if var in inverse_dict(variable_2_sheet)[sheet]]
+
+                profile = read_profile(ws_variable, variables=variable2import, version=version, v_ref=v_ref)
+
+                if profile.get_name() is not core.name:
+                    logger.error('\t(%s) core name %s and profile name %s does not match'
+                                 % (ic_path, core.name, profile.name()))
+                elif not profile.empty:
+                    core.add_profile(profile)
+                    logger.info(' (%s) data imported with success: %s' % (profile.get_name(), profile.get_property()))
+                else:
+                    _temp = [variable for variable in profile.get_variable() if profile[variable].isnull().all()]
+                    if _temp.__len__() > 1:
+                        logger.info(' (%s) no data to import: %s ' % (profile.get_name(), ", ".join(_temp)))
+                    else:
+                        logger.info('(%s) no variable to import' % name)
+
+                _imported_variables +=variable2import
+    return core
+
+
 def import_ic_path(ic_path, variables=variables, v_ref=v_ref, drop_empty=drop_empty):
     """
     :param ic_path:
@@ -414,8 +791,9 @@ def import_ic_path(ic_path, variables=variables, v_ref=v_ref, drop_empty=drop_em
         print(ic_path)
         ws_summary = wb['summary']  # load the data from the summary sheet
     except KeyError:
-        core = import_ic_path_MOSAiC(ic_path, variables = variables, drop_empty=drop_empty)
+        core = import_ic_path_MOSAiC(ic_path, variables=variables, drop_empty=drop_empty)
         return core
+
     else:
         print('Not in MOSAiC format')
         name = ws_summary['C21'].value
@@ -852,7 +1230,7 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
     return profile
 
 
-def read_profile_MOSAiC(ws_variable, variables=None, version=__CoreVersion__, v_ref='top'):
+def read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=__CoreVersion__, v_ref='top', reference_d={'ice': ['ice surface', 'down']}):
     """
     :param ws_variable:
         openpyxl.worksheet
@@ -864,7 +1242,7 @@ def read_profile_MOSAiC(ws_variable, variables=None, version=__CoreVersion__, v_
     logger = logging.getLogger(__name__)
 
     # read headers:
-    n_row = 2
+    n_row = 1
     n_col = 1
     cell_flag = 2
     headers = []
@@ -873,19 +1251,30 @@ def read_profile_MOSAiC(ws_variable, variables=None, version=__CoreVersion__, v_
     while cell_flag:
         if isinstance(ws_variable.cell(n_row, n_col).value, str):
             headers.append(ws_variable.cell(n_row, n_col).value)
-            subheaders.append(ws_variable.cell(n_row+1, n_col).value)
-            units.append(ws_variable.cell(n_row+2, n_col).value)
+            subheaders.append(ws_variable.cell(n_row + 1, n_col).value)
+            units.append(ws_variable.cell(n_row + 2, n_col).value)
         else:
-            cell_flag -= 1
+            if isinstance(ws_variable.cell(n_row+1, n_col).value, str):
+                headers.append(headers[-1])
+                subheaders.append(ws_variable.cell(n_row+1, n_col).value)
+                units.append(ws_variable.cell(n_row+2, n_col).value)
+            else:
+                cell_flag -= 1
         n_col += 1
-    n_col_max = n_col-2
+    n_col_max = len(headers)
+
+
+    if ws_variable.max_row < MAX_ROW:
+        max_row = ws_variable.max_row
+    else:
+        max_row = MAX_ROW
 
     # Check for step or continuous profiles:
     if 'depth center' in headers:
         loc1 = [ii for ii, h in enumerate(headers) if h == 'depth center'][0] + 1
         headers[loc1-1] = 'y_mid'
         y_mid = np.array(
-            [ws_variable.cell(row, loc1).value for row in range(5, ws_variable.max_row + 1)]).astype(float)
+            [ws_variable.cell(row, loc1).value for row in range(5, max_row + 1)]).astype(float)
 
         # discard trailing nan value from the end up
         # find nan value in y_low and y_sup
@@ -894,7 +1283,6 @@ def read_profile_MOSAiC(ws_variable, variables=None, version=__CoreVersion__, v_
         if len(y_nan_loc) > 0 and len(y_mid) > 1 and y_nan_loc[-1] == len(y_mid)-1:
             y_nan_loc = [len(y_mid)-1] + [val for ii, val in enumerate(y_nan_loc[-2::-1]) if val == y_nan_loc[::-1][ii]-1]
             y_nan_loc = y_nan_loc[::-1]
-
             y_mid = [y for ii, y in enumerate(y_mid) if ii not in y_nan_loc]
 
     if 'depth 1' in headers and 'depth 2' in headers:
@@ -907,8 +1295,8 @@ def read_profile_MOSAiC(ws_variable, variables=None, version=__CoreVersion__, v_
         loc2 = [ii for ii, h in enumerate(headers) if h == 'depth 2'][0]+1
         headers[loc2 - 1] = 'y_sup'
         # TODO: remove 'depth center'
-        y_low = np.array([ws_variable.cell(row, loc1).value for row in range(5, ws_variable.max_row + 1)]).astype(float)
-        y_sup = np.array([ws_variable.cell(row, loc2).value for row in range(5, ws_variable.max_row + 1)]).astype(float)
+        y_low = np.array([ws_variable.cell(row, loc1).value for row in range(5, max_row + 1)]).astype(float)
+        y_sup = np.array([ws_variable.cell(row, loc2).value for row in range(5, max_row + 1)]).astype(float)
 
         # discard trailing nan value from the end up
         # find nan value in y_low and y_sup
@@ -954,11 +1342,15 @@ def read_profile_MOSAiC(ws_variable, variables=None, version=__CoreVersion__, v_
         y_sup = np.nan * np.ones(y_mid.__len__())
 
     # Read data:
-    n_row_min = 5
-    n_row_max = n_row_min + len(y_mid)-1
-
+    # look up for first numeric or standard entry value
+    # n_row_min = 4
+    n_row_min = 1
     n_col_min = 1
-    n_col_max = n_col_max - n_col_min
+    while not isinstance(ws_variable.cell(n_row_min, n_col_min).value, (float, int)):
+        n_row_min += 1
+        if n_row_min > 1000:
+            break
+    n_row_max = n_row_min + len(y_mid)
 
     # Drop column with depth:
     # _data = [[cell.value if isinstance(cell.value, (float, int)) else np.nan for cell in row]
@@ -979,7 +1371,7 @@ def read_profile_MOSAiC(ws_variable, variables=None, version=__CoreVersion__, v_
                        for ii, h in enumerate(headers)]
     # TODO: double header for dataframe with header and subheader
 
-    profile = pd.DataFrame(_data, columns = profile_headers)
+    profile = pd.DataFrame(_data, columns=profile_headers)
 
     # drop empty variable header
     if None in profile.columns:
@@ -1019,13 +1411,13 @@ def read_profile_MOSAiC(ws_variable, variables=None, version=__CoreVersion__, v_
     profile['variable'] = [', '.join(property)] * len(profile.index)
 
     # set vertical references
-    v_ref_read = ws_variable['C1'].value
-    if v_ref_read == 'ice surface':
+    # TODO: improve vertical reference
+    if reference_d['ice'][0] == 'ice surface':
         v_ref = 'top'
-    elif v_ref_read == 'ice/water interface':
+    elif reference_d['ice'][0] == 'ice/water interface':
         v_ref = 'bottom'
     else:
-        logger.error(ws_variable.title + ' - Vertical references not set')
+        logger.error(ws_variable.title + ' - Vertical references not set or not yet handled')
     profile['v_ref'] = [v_ref] * len(profile.index)
 
     # set columns type
