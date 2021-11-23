@@ -190,13 +190,14 @@ def plot_profile_variable(core_data, variable_dict=None, ax=None, param_dict=Non
         var = variable_dict['variable']+'_value'
         col = ['y_low', 'y_sup', 'y_mid', var, 'v_ref']
         profile = core_data[col]
-        profile = profile.dropna(how='all', axis=1)
+        profile = profile[profile[var].notnull()]
         profile['variable'] = var
     except KeyError:
         var = variable_dict['variable']
         col = ['y_low', 'y_sup', 'y_mid', var, 'v_ref']
         profile = core_data[col]
-        profile = profile.dropna(how='all', axis=1)
+#        profile = profile.dropna(how='all', axis=1)
+        profile = profile[profile[var].notnull()]
         profile['variable'] = var
 
     if not profile.empty and var in profile.keys():

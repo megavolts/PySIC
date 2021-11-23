@@ -216,7 +216,7 @@ class CoreStack(pd.DataFrame):
         temp = CoreStack()
         for core in self.names():
             profile = pysic.core.profile.Profile(self[self.name == core].astype(pysic.core.profile.Profile()))
-            profile.set_profile_vertical_reference(new_v_ref=new_v_ref, h_ref=h_ref)
+            profile = profile.set_profile_vertical_reference(new_v_ref=new_v_ref, h_ref=h_ref)
             temp = temp.append(profile)
         return CoreStack(temp)
 

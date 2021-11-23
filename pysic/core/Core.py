@@ -160,8 +160,6 @@ class Core():
             elif comment not in self.comment.split('; '):
                 self.comment += '; ' + comment
 
-
-
     def variables(self):
         variables = []
         if 'variable' in self.profile:

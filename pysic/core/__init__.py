@@ -45,12 +45,16 @@ variable_2_sheet = {'temperature': 'T_ice',
                     'Vf_oil': 'Vf_oil', 'oil volume fraction': 'Vf_oil',  # MOSIDEO project
                     'Wf_oil': 'Wf_oil', 'oil weight fraction': 'Vf_oil',  # MOSIDEO project
                     'oil content': 'oil_content',  # CMI project
-                    'oil mass': 'Vf_oil', 'm_oil': 'Vf_oil'
-                    # 'seawater': 'seawater',
+                    'oil mass': 'Vf_oil', 'm_oil': 'Vf_oil',
+                    'brine': 'sackhole',
+                    'sackhole': 'sackhole',
+                    'seawater': 'seawater',
+                    'snow': 'snow'
+                    # 'eco':
                     # 'sediment': 'sediment',
-                    # 'Chla': 'algal_pigment',
-                    # 'chlorophyl a': 'algal_pigment',
-                    # 'Phae': 'algal_pigment'
+                    # 'Chla': 'eco',
+                    # 'chlorophyl a': 'eco',
+                    # 'Phae': 'eco'
                     }
 
 ## Default values:
@@ -699,12 +703,21 @@ def import_ic_path_MOSAiC_UTQ(ic_path, variables=variables, drop_empty=drop_empt
     # import all variables
     if variables is None:
         # TODO: special import for TEX, snow
-        sheets = [sheet for sheet in ws_name if (sheet not in ['tex', 'sackhole', 'TM',  'snow', 'summary', 'abreviation', 'locations', 'lists',
-                                                               'Vf_oil_calculation', 'metadata-core', 'metadata-station', 'density-volume', 'sediment', 'ct', 'eco']) and
+        sheets = [sheet for sheet in ws_name if (sheet not in ['tex', 'TM',  'summary', 'abreviation', 'locations', 'lists',
+                                                               'Vf_oil_calculation', 'metadata-core', 'metadata-station', 'density-volume', 'sediment', 'ct']) and
                      (sheet.lower().find('fig') == -1)]
         for sheet in sheets:
             ws_variable = wb[sheet]
             profile = read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=version, v_ref=v_ref, reference_d=reference_d)
+            if sheet == 'snow':
+                profile['matter'] = 'snow'
+            elif sheet == 'seawater':
+                profile['matter'] = 'seawater'
+            elif sheet == 'sackhole' or sheet == 'brine':
+                profile['matter'] = 'brine'
+            else:
+                profile['matter'] = 'ice'
+
             if profile.get_property() is not None and 'temperature' in profile.get_property():
                 headers = ['y_mid', 'temperature_value', 'comment', 'variable', 'v_ref']
                 if v_ref == 'top':
@@ -747,24 +760,52 @@ def import_ic_path_MOSAiC_UTQ(ic_path, variables=variables, drop_empty=drop_empt
             if variable_2_sheet[variable] in ws_name and variable not in _imported_variables:
                 sheet = variable_2_sheet[variable]
                 ws_variable = wb[sheet]
+                if sheet == 'snow':
+                    profile['matter'] = 'snow'
+                elif sheet == 'seawater':
+                    profile['matter'] = 'seawater'
+                elif sheet == 'sackhole' or sheet == 'brine':
+                    profile['matter'] = 'brine'
+                else:
+                    profile['matter'] = 'ice'
 
                 variable2import = [var for var in variables if var in inverse_dict(variable_2_sheet)[sheet]]
 
-                profile = read_profile(ws_variable, variables=variable2import, version=version, v_ref=v_ref)
+                profile = read_profile_MOSAiC_UTQ(ws_variable, variables=variable2import, version=version, v_ref=v_ref)
+                # Add temperature at ice surface for temperautre profile
+                if profile.get_property() is not None and 'temperature' in profile.get_property():
+                    headers = ['y_mid', 'temperature_value', 'comment', 'variable', 'v_ref']
+                    if v_ref == 'top':
+                        if not 0 in profile.y_mid.values:
+                            if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
+                                data_surface = [0, core.t_ice_surface, 'Ice surface temperature', 'temperature', 'top']
+                                profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                        if core.length - profile.y_mid.max() > TOL:
+                            if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
+                                data_bottom = [core.length, core.t_water, 'Ice bottom temperature', 'temperature',
+                                               'top']
+                                profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
+                    elif v_ref == 'bottom':
+                        if not 0 in profile.y_mid.values:
+                            if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
+                                data_bottom = [core.length, core.t_water, 'Ice bottom temperature', 'temperature',
+                                               'bottom']
+                                profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
+                        if core.length - profile.y_mid.max() > TOL:
+                            if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
+                                data_surface = [0, core.t_ice_surface, 'Ice surface temperature', 'temperature',
+                                                'bottom']
+                                profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                    profile = profile.sort_values(by='y_mid')
+                profile['name'] = name
+                if drop_empty:
+                    profile.drop_empty_property()
 
-                if profile.get_name() is not core.name:
-                    logger.error('\t(%s) core name %s and profile name %s does not match'
-                                 % (ic_path, core.name, profile.name()))
-                elif not profile.empty:
+                if not profile.empty:
                     core.add_profile(profile)
-                    logger.info(' (%s) data imported with success: %s' % (profile.get_name(), profile.get_property()))
+                    logger.info('(%s) data imported with success: %s' % (core.name, ", ".join(profile.get_property())))
                 else:
-                    _temp = [variable for variable in profile.get_variable() if profile[variable].isnull().all()]
-                    if _temp.__len__() > 1:
-                        logger.info(' (%s) no data to import: %s ' % (profile.get_name(), ", ".join(_temp)))
-                    else:
-                        logger.info('(%s) no variable to import' % name)
-
+                    logger.info('(%s) no data to import from %s ' % (core.name, sheet))
                 _imported_variables +=variable2import
     return core
 
@@ -1263,18 +1304,18 @@ def read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=__CoreVersion__
         n_col += 1
     n_col_max = len(headers)
 
-
     if ws_variable.max_row < MAX_ROW:
         max_row = ws_variable.max_row
     else:
         max_row = MAX_ROW
+    min_row = 4
 
     # Check for step or continuous profiles:
     if 'depth center' in headers:
         loc1 = [ii for ii, h in enumerate(headers) if h == 'depth center'][0] + 1
         headers[loc1-1] = 'y_mid'
         y_mid = np.array(
-            [ws_variable.cell(row, loc1).value for row in range(5, max_row + 1)]).astype(float)
+            [ws_variable.cell(row, loc1).value for row in range(min_row, max_row)]).astype(float)
 
         # discard trailing nan value from the end up
         # find nan value in y_low and y_sup
@@ -1295,8 +1336,8 @@ def read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=__CoreVersion__
         loc2 = [ii for ii, h in enumerate(headers) if h == 'depth 2'][0]+1
         headers[loc2 - 1] = 'y_sup'
         # TODO: remove 'depth center'
-        y_low = np.array([ws_variable.cell(row, loc1).value for row in range(5, max_row + 1)]).astype(float)
-        y_sup = np.array([ws_variable.cell(row, loc2).value for row in range(5, max_row + 1)]).astype(float)
+        y_low = np.array([ws_variable.cell(row, loc1).value for row in range(min_row, max_row + 1)]).astype(float)
+        y_sup = np.array([ws_variable.cell(row, loc2).value for row in range(min_row, max_row + 1)]).astype(float)
 
         # discard trailing nan value from the end up
         # find nan value in y_low and y_sup
@@ -1350,7 +1391,7 @@ def read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=__CoreVersion__
         n_row_min += 1
         if n_row_min > 1000:
             break
-    n_row_max = n_row_min + len(y_mid)
+    n_row_max = n_row_min + len(y_mid) - 1
 
     # Drop column with depth:
     # _data = [[cell.value if isinstance(cell.value, (float, int)) else np.nan for cell in row]
@@ -1366,12 +1407,29 @@ def read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=__CoreVersion__
     #     data = np.vstack([data, empty])
 
     # concatenate header and subheader
+    if variables is None:
+        variable_prefix = ''
+        phase = 'N/A'
+    elif any(map(variables.__contains__, ['brine', 'sackhole'])):
+        variable_prefix = 'brine_'
+        phase = 'brine'
+    elif any(map(variables.__contains__, ['seawater'])):
+        variable_prefix = 'seawater_'
+        phase = 'seawater'
+    elif any(map(variables.__contains__, ['snow'])):
+        variable_prefix = 'snow_'
+        phase = 'snow'
+    else:
+        variable_prefix = ''
+        phase = 'seaice'
     subheaders = [sh if sh is not None else '' for sh in subheaders]
-    profile_headers = [h + '_' + subheaders[ii] if (len(subheaders[ii]) > 1 and h not in ['y_low', 'y_sup', 'y_mid']) else h
+    profile_headers = [variable_prefix + h + '_' + subheaders[ii] if (len(subheaders[ii]) > 1 and h not in ['y_low', 'y_sup', 'y_mid']) else h
                        for ii, h in enumerate(headers)]
     # TODO: double header for dataframe with header and subheader
 
     profile = pd.DataFrame(_data, columns=profile_headers)
+    if 'y_mid' not in profile.keys():
+        profile['y_mid'] = y_mid
 
     # drop empty variable header
     if None in profile.columns:
@@ -1403,6 +1461,7 @@ def read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=__CoreVersion__
     # get all property variable (e.g. salinity, temperature, ...)
     property = [var for var in profile.columns if var not in ['comment', 'y_low', 'y_sup', 'y_mid']]
     property = [prop.split('_')[0] for prop in property]
+    property = list(set(property))
 
     # remove subvariable (e.g. conductivity temperature measurement for conductivity
     property = [prop for prop in property if prop not in inverse_dict(subvariable_dict)]
@@ -1423,7 +1482,8 @@ def read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=__CoreVersion__
     # set columns type
     col_string = ['comment', 'v_ref', 'name', 'profile', 'variable']
     col_date = ['date']
-    col_float = [h for h in profile.columns if h not in col_string and h not in col_date]
+    col_float = [h for h in profile.columns if h not in col_string and h not in col_date and 'ID' not in h]
+    col_string = col_string + [h for h in profile.columns if 'ID' in h]
     profile[col_float] = profile[col_float].apply(pd.to_numeric, errors='coerce')
     c_string = [h for h in col_string if h in profile.columns]
     profile[c_string] = profile[c_string].astype(str).replace({'nan': None})

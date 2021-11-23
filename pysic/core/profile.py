@@ -266,6 +266,10 @@ class Profile(pd.DataFrame):
             new_df = pd.concat([new_df, new_profile['y_mid'].apply(lambda x: x - h_ref)], axis=1, sort=False)
             new_df = pd.concat([new_df, new_profile['y_sup'].apply(lambda x: x - h_ref)], axis=1, sort=False)
             new_profile.update(new_df)
+        if all(new_profile.y_mid.isna()):
+            new_profile = new_profile.sort_values('y_mid')
+        else:
+            new_profile = new_profile.sort_values('y_low')
         return new_profile
 
 
@@ -1014,32 +1018,33 @@ def set_profile_orientation(profile, v_ref):
     """
     logger = logging.getLogger(__name__)
 
+    new_profile = profile.copy()
     for vg in profile.variable.unique():
+        subprofile = profile[profile.variable == vg]
         # look for ice thickness:
-        #if profile[profile.variable == vg].v_ref.unique().__len__() > 1:
-        if profile[profile.variable.str.contains(vg)].v_ref.unique().__len__() > 1:
-            logger.error("vertical reference for profile are not consistent")
+        if subprofile.v_ref.unique().__len__() > 1:
+            logger.error("vertical reference for subprofile are not consistent")
         #if not profile[profile.variable == vg].v_ref.unique().tolist()[0] == v_ref:
-        if not profile[profile.variable.str.contains(vg)].v_ref.unique().tolist()[0] == v_ref:
+        if not subprofile.v_ref.unique().tolist()[0] == v_ref:
             # search ice core length, and ice thickness
             if 'ice_thickness' in profile.keys() and \
-                    not np.isnan(profile[profile.variable.str.contains(vg)].ice_thickness.astype(float)).all():
-                    hi = profile[profile.variable.str.contains(vg)].ice_thickness.astype(float).unique()[-1]
+                    not np.isnan(subprofile.ice_thickness.astype(float)).all():
+                    hi = subprofile.ice_thickness.astype(float).unique()[-1]
             else:
                 hi = np.nan
 
             if 'length' in profile.keys() and \
-                    not np.isnan(profile[profile.variable.str.contains(vg)].length.astype(float)).all():
-                    lc = profile[profile.variable.str.contains(vg)].length.astype(float).unique()[-1]
+                    not np.isnan(subprofile.length.astype(float)).all():
+                    lc = subprofile.length.astype(float).unique()[-1]
             else:
                 lc = np.nan
 
             if lc is np.nan and hi is np.nan:
                 if 'name' in profile.keys():
-                    logger.warning("Mising core length or ice thickness, impossible to set profile orientation to %s.\
-                    Deleting profile (%s)" %(v_ref, profile.name.unique()[0]))
+                    logger.warning("Missing core length or ice thickness, impossible to set profile orientation to %s.\
+                    Deleting profile (%s)" % (v_ref, profile.name.unique()[0]))
                 else:
-                    logger.warning("Mising core length or ice thickness, impossible to set profile orientation to %s.\
+                    logger.warning("Missing core length or ice thickness, impossible to set profile orientation to %s.\
                     Deleting profile" % v_ref)
                 profile = delete_profile(profile, {'variable': vg})
             else:
@@ -1054,27 +1059,27 @@ def set_profile_orientation(profile, v_ref):
                     href = hi
                     logger.info("Bottom reference set to ice thickness in absence of ice core length")
 
-                new_df = profile.loc[profile.variable.str.contains(vg), 'y_low'].apply(lambda x: href - x)
-                new_df = pd.concat([new_df, profile.loc[profile.variable.str.contains(vg), 'y_mid'].apply(lambda x: href - x)],
+                new_subprofile = subprofile['y_low'].apply(lambda x: href - x)
+                new_subprofile = pd.concat([new_subprofile, subprofile['y_mid'].apply(lambda x: href - x)],
                                    axis=1, sort=False)
-                new_df = pd.concat([new_df, profile.loc[profile.variable.str.contains(vg), 'y_sup'].apply(lambda x: href - x)],
+                new_subprofile = pd.concat([new_subprofile, subprofile['y_sup'].apply(lambda x: href - x)],
                                    axis=1, sort=False)
-                new_df['v_ref'] = v_ref
-                if all(new_df.y_sup < new_df.y_low):
-                    temp = new_df.y_sup.copy()
-                    new_df.y_sup = new_df.y_low
-                    new_df.y_low = temp
+                new_subprofile['v_ref'] = v_ref
+                if all(new_subprofile.y_sup < new_subprofile.y_low):
+                    temp = new_subprofile.y_sup.copy()
+                    new_subprofile.y_sup = new_subprofile.y_low
+                    new_subprofile.y_low = temp
                     del temp
-                profile.update(new_df)
+                new_profile.update(new_subprofile)
         else:
             logger.info('profile orientiation already set')
 
     if v_ref == ' bottom':
-        profile.length = np.abs(profile.length)
+        new_profile.length = np.abs(new_profile.length)
     else:
-        profile.length = np.abs(profile.length)
+        new_profile.length = np.abs(new_profile.length)
 
-    return profile
+    return new_profile
 
 
 def delete_variables(ics_stack, variables2del):
