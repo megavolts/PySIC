@@ -1059,6 +1059,7 @@ def set_profile_orientation(profile, v_ref):
                     href = hi
                     logger.info("Bottom reference set to ice thickness in absence of ice core length")
 
+
                 new_subprofile = subprofile['y_low'].apply(lambda x: href - x)
                 new_subprofile = pd.concat([new_subprofile, subprofile['y_mid'].apply(lambda x: href - x)],
                                    axis=1, sort=False)

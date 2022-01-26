@@ -630,16 +630,16 @@ def import_ic_path_MOSAiC_UTQ(ic_path, variables=variables, drop_empty=drop_empt
     core = Core(name, date, origin, lat_start_deg, lon_start_deg, l_c, h_i, h_f, snow_depth)
 
 
-    if ws_summary['C25'].value:
-        core.t_air = ws_summary['C25'].value
-    if ws_summary['C26'].value:
-        core.t_snow_surface = ws_summary['C26'].value
-    if ws_summary['C27'].value:
-        core.t_ice_surface = ws_summary['C27'].value
-    if ws_summary['C28'].value:
-        core.t_water = ws_summary['C28'].value
-    if ws_summary['C28'].value:
-        core.s_water = ws_summary['C29'].value
+    if ws_summary['C29'].value:
+        core.t_air = ws_summary['C29'].value
+    if ws_summary['C30'].value:
+        core.t_snow_surface = ws_summary['C30'].value
+    if ws_summary['C31'].value:
+        core.t_ice_surface = ws_summary['C31'].value
+    if ws_summary['C32'].value:
+        core.t_water = ws_summary['C32'].value
+    if ws_summary['C33'].value:
+        core.s_water = ws_summary['C33'].value
 
     # Sampling event
     if ws_summary['C36'].value:
@@ -708,36 +708,60 @@ def import_ic_path_MOSAiC_UTQ(ic_path, variables=variables, drop_empty=drop_empt
                      (sheet.lower().find('fig') == -1)]
         for sheet in sheets:
             ws_variable = wb[sheet]
-            profile = read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=version, v_ref=v_ref, reference_d=reference_d)
             if sheet == 'snow':
-                profile['matter'] = 'snow'
+                profile = read_profile_MOSAiC_UTQ_snow(ws_variable, variables=None, version=version, reference_d=reference_d)
+                matter = 'snow'
             elif sheet == 'seawater':
-                profile['matter'] = 'seawater'
+                profile = read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=version, reference_d=reference_d)
+                matter = 'seawater'
             elif sheet == 'sackhole' or sheet == 'brine':
-                profile['matter'] = 'brine'
+                profile = read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=version, reference_d=reference_d)
+                matter = 'brine'
             else:
-                profile['matter'] = 'ice'
+                profile = read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=version, reference_d=reference_d)
+                matter = 'ice'
 
-            if profile.get_property() is not None and 'temperature' in profile.get_property():
-                headers = ['y_mid', 'temperature_value', 'comment', 'variable', 'v_ref']
-                if v_ref == 'top':
-                    if not 0 in profile.y_mid.values:
-                        if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
-                            data_surface = [0, core.t_ice_surface, 'Ice surface temperature', 'temperature', 'top']
+            profile['matter'] = matter
+            if matter == 'ice' and profile.get_property() is not None and 'temperature' in profile.get_property():
+                headers = ['y_mid', 'temperature_value', 'comment', 'variable', 'v_ref', 'matter']
+                v_ref = profile.v_ref.unique()
+                if len(v_ref) == 1:
+                    v_ref = v_ref[0]
+                    if v_ref == 'top':
+                        if not -1 in profile.y_mid.values:
+                            # air temperature 1 m above snow surface
+                            if isinstance(core.t_air, (float, int)) and not np.isnan(core.t_air):
+                                data_surface = [-1, core.t_air, 'Air temperature', 'temperature', 'top', 'air']
+                                profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                        if not 0 in profile.y_mid.values:
+                            # ice surface
+                            if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
+                                data_surface = [0, core.t_ice_surface, 'Ice surface temperature', 'temperature', 'top', 'ice']
+                                profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                        if core.length - profile.y_mid.max() > TOL:
+                            # ice bottom / seawtaer
+                            if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
+                                data_bottom = [core.length, core.t_water, 'Ice bottom temperature', 'temperature', 'top', 'ice']
+                                profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
+                                data_bottom = [core.length, core.t_water, 'Seawater temperature', 'temperature', 'top', 'seawater']
+                                profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
+                    elif v_ref == 'bottom':
+                        # air temperature
+                        if isinstance(core.t_air, (float, int)) and not np.isnan(core.t_air):
+                            data_surface = [1, core.t_air, 'Air temperature', 'temperature', 'bottom', 'air']
                             profile = profile.append(pd.DataFrame([data_surface], columns=headers))
-                    if core.length - profile.y_mid.max() > TOL:
-                        if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
-                            data_bottom = [core.length, core.t_water, 'Ice bottom temperature', 'temperature', 'top']
-                            profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
-                elif v_ref == 'bottom':
-                    if not 0 in profile.y_mid.values:
-                        if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
-                            data_bottom = [core.length, core.t_water, 'Ice bottom temperature', 'temperature', 'bottom']
-                            profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
-                    if core.length - profile.y_mid.max() > TOL:
-                        if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
-                            data_surface = [0, core.t_ice_surface, 'Ice surface temperature', 'temperature', 'bottom']
-                            profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                        if not 0 in profile.y_mid.values:
+                            # ice bottom
+                            if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
+                                data_bottom = [0, core.t_water, 'Seawater temperature', 'temperature', 'bottom', 'ice']
+                                profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
+                        if np.abs(core.length - profile.y_mid.max()) < TOL:
+                            # ice surface
+                            if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
+                                data_surface = [core.length, core.t_ice_surface, 'Ice surface temperature', 'temperature', 'bottom', 'ice']
+                                profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                else:
+                    logger.error('%s - %s: vertical references mixed up ' %(core.name, sheet))
                 profile = profile.sort_values(by='y_mid')
             profile['name'] = name
             if drop_empty:
@@ -760,42 +784,67 @@ def import_ic_path_MOSAiC_UTQ(ic_path, variables=variables, drop_empty=drop_empt
             if variable_2_sheet[variable] in ws_name and variable not in _imported_variables:
                 sheet = variable_2_sheet[variable]
                 ws_variable = wb[sheet]
-                if sheet == 'snow':
-                    profile['matter'] = 'snow'
-                elif sheet == 'seawater':
-                    profile['matter'] = 'seawater'
-                elif sheet == 'sackhole' or sheet == 'brine':
-                    profile['matter'] = 'brine'
-                else:
-                    profile['matter'] = 'ice'
-
                 variable2import = [var for var in variables if var in inverse_dict(variable_2_sheet)[sheet]]
+                if sheet == 'snow':
+                    profile = read_profile_MOSAiC_UTQ_snow(ws_variable, variables=None, version=version, reference_d=reference_d)
+                    matter = 'snow'
+                elif sheet == 'seawater':
+                    matter = 'seawater'
+                    profile = read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=version, reference_d=reference_d)
+                elif sheet == 'sackhole' or sheet == 'brine':
+                    matter = 'brine'
+                    profile = read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=version, reference_d=reference_d)
+                else:
+                    matter = 'ice'
+                    profile = read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=version, reference_d=reference_d)
+                profile['matter'] = matter
 
-                profile = read_profile_MOSAiC_UTQ(ws_variable, variables=variable2import, version=version, v_ref=v_ref)
                 # Add temperature at ice surface for temperautre profile
-                if profile.get_property() is not None and 'temperature' in profile.get_property():
-                    headers = ['y_mid', 'temperature_value', 'comment', 'variable', 'v_ref']
-                    if v_ref == 'top':
-                        if not 0 in profile.y_mid.values:
-                            if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
-                                data_surface = [0, core.t_ice_surface, 'Ice surface temperature', 'temperature', 'top']
+                if matter == 'ice' and profile.get_property() is not None and 'temperature' in profile.get_property():
+                    headers = ['y_mid', 'temperature_value', 'comment', 'variable', 'v_ref', 'matter']
+                    v_ref = profile.v_ref.unique()
+                    if len(v_ref) == 1:
+                        v_ref = v_ref[0]
+                        if v_ref == 'top':
+                            if not -1 in profile.y_mid.values:
+                                # air temperature 1 m above snow surface
+                                if isinstance(core.t_air, (float, int)) and not np.isnan(core.t_air):
+                                    data_surface = [-1, core.t_air, 'Air temperature', 'temperature', 'top', 'air']
+                                    profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                            if not 0 in profile.y_mid.values:
+                                # ice surface
+                                if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
+                                    data_surface = [0, core.t_ice_surface, 'Ice surface temperature', 'temperature',
+                                                    'top', 'ice']
+                                    profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                            if core.length - profile.y_mid.max() > TOL:
+                                # ice bottom / seawtaer
+                                if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
+                                    data_bottom = [core.length, core.t_water, 'Ice bottom temperature', 'temperature',
+                                                   'top', 'ice']
+                                    profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
+                                    data_bottom = [core.length, core.t_water, 'Seawater temperature', 'temperature',
+                                                   'top', 'seawater']
+                                    profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
+                        elif v_ref == 'bottom':
+                            # air temperature
+                            if isinstance(core.t_air, (float, int)) and not np.isnan(core.t_air):
+                                data_surface = [1, core.t_air, 'Air temperature', 'temperature', 'bottom', 'air']
                                 profile = profile.append(pd.DataFrame([data_surface], columns=headers))
-                        if core.length - profile.y_mid.max() > TOL:
-                            if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
-                                data_bottom = [core.length, core.t_water, 'Ice bottom temperature', 'temperature',
-                                               'top']
-                                profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
-                    elif v_ref == 'bottom':
-                        if not 0 in profile.y_mid.values:
-                            if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
-                                data_bottom = [core.length, core.t_water, 'Ice bottom temperature', 'temperature',
-                                               'bottom']
-                                profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
-                        if core.length - profile.y_mid.max() > TOL:
-                            if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
-                                data_surface = [0, core.t_ice_surface, 'Ice surface temperature', 'temperature',
-                                                'bottom']
-                                profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                            if not 0 in profile.y_mid.values:
+                                # ice bottom
+                                if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
+                                    data_bottom = [0, core.t_water, 'Seawater temperature', 'temperature', 'bottom',
+                                                   'ice']
+                                    profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
+                            if np.abs(core.length - profile.y_mid.max()) < TOL:
+                                # ice surface
+                                if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
+                                    data_surface = [core.length, core.t_ice_surface, 'Ice surface temperature',
+                                                    'temperature', 'bottom', 'ice']
+                                    profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                    else:
+                        logger.error('%s - %s: vertical references mixed up ' % (core.name, sheet))
                     profile = profile.sort_values(by='y_mid')
                 profile['name'] = name
                 if drop_empty:
@@ -806,7 +855,7 @@ def import_ic_path_MOSAiC_UTQ(ic_path, variables=variables, drop_empty=drop_empt
                     logger.info('(%s) data imported with success: %s' % (core.name, ", ".join(profile.get_property())))
                 else:
                     logger.info('(%s) no data to import from %s ' % (core.name, sheet))
-                _imported_variables +=variable2import
+                _imported_variables += variable2import
     return core
 
 
@@ -1271,7 +1320,7 @@ def read_profile(ws_variable, variables=None, version=__CoreVersion__, v_ref='to
     return profile
 
 
-def read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=__CoreVersion__, v_ref='top', reference_d={'ice': ['ice surface', 'down']}):
+def read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=__CoreVersion__, reference_d={'ice': ['ice surface', 'down']}):
     """
     :param ws_variable:
         openpyxl.worksheet
@@ -1285,24 +1334,28 @@ def read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=__CoreVersion__
     # read headers:
     n_row = 1
     n_col = 1
+    n_col_min = n_col
     cell_flag = 2
     headers = []
     subheaders = []
     units = []
     while cell_flag:
         if isinstance(ws_variable.cell(n_row, n_col).value, str):
-            headers.append(ws_variable.cell(n_row, n_col).value)
-            subheaders.append(ws_variable.cell(n_row + 1, n_col).value)
+            h_ = ws_variable.cell(n_row, n_col).value
+            hs_ = ws_variable.cell(n_row + 1, n_col).value
+            headers.append(h_)
+            subheaders.append(hs_)
             units.append(ws_variable.cell(n_row + 2, n_col).value)
+            n_col += 1
+        elif isinstance(ws_variable.cell(n_row+1, n_col).value, str):
+            hs_ = ws_variable.cell(n_row + 1, n_col).value
+            headers.append(h_)
+            subheaders.append(hs_)
+            units.append(ws_variable.cell(n_row+2, n_col).value)
+            n_col += 1
         else:
-            if isinstance(ws_variable.cell(n_row+1, n_col).value, str):
-                headers.append(headers[-1])
-                subheaders.append(ws_variable.cell(n_row+1, n_col).value)
-                units.append(ws_variable.cell(n_row+2, n_col).value)
-            else:
-                cell_flag -= 1
-        n_col += 1
-    n_col_max = len(headers)
+            cell_flag = 0
+    n_col_max = n_col - 1
 
     if ws_variable.max_row < MAX_ROW:
         max_row = ws_variable.max_row
@@ -1353,7 +1406,8 @@ def read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=__CoreVersion__
             # TODO: replace missing y_low and y_sup with y_mid if possible
 
         if len(y_low) == 0:
-            return pysic.core.profile.Profile()
+            profile = pysic.core.profile.Profile()
+            y_mid = []
         elif 'y_mid' in headers:
             if np.isnan(y_mid).any() or len(y_mid) == 0:
                 y_mid = (y_low + y_sup) / 2
@@ -1497,6 +1551,431 @@ def read_profile_MOSAiC_UTQ(ws_variable, variables=None, version=__CoreVersion__
 
     return profile
 
+
+def read_profile_MOSAiC_UTQ_snow(ws_variable, variables=None, version=__CoreVersion__, reference_d={'ice': ['ice surface', 'down']}):
+    """
+    :param ws_variable:
+        openpyxl.worksheet
+    :param variables:
+    :param version:
+    :param v_ref:
+        top, or bottom
+    """
+    logger = logging.getLogger(__name__)
+
+
+    # Read Salinity block
+    # read headers:
+    n_row = 1
+    n_col = 1
+    n_col_min = n_col
+    cell_flag = 2
+    headers = []
+    subheaders = []
+    units = []
+    while cell_flag >= 1:
+        if isinstance(ws_variable.cell(n_row, n_col).value, str):
+            h_ = ws_variable.cell(n_row, n_col).value
+            headers.append(ws_variable.cell(n_row, n_col).value)
+            hs_ = ws_variable.cell(n_row + 1, n_col).value
+            subheaders.append(ws_variable.cell(n_row + 1, n_col).value)
+            units.append(ws_variable.cell(n_row + 2, n_col).value)
+            cell_flag = 2
+            n_col += 1
+        elif isinstance(ws_variable.cell(n_row+1, n_col).value, str):
+            headers.append(h_)
+            subheaders.append(ws_variable.cell(n_row+1, n_col).value)
+            hs_ = ws_variable.cell(n_row + 1, n_col).value
+            units.append(ws_variable.cell(n_row+2, n_col).value)
+            n_col += 1
+        else:
+            cell_flag = 0
+            cell_mark = n_col + 1
+    n_col_max = n_col - n_col_min
+
+    if ws_variable.max_row < MAX_ROW:
+        max_row = ws_variable.max_row
+    else:
+        max_row = MAX_ROW
+    min_row = 4
+
+    # Check for step or continuous profiles:
+    if 'depth center' in headers:
+        loc1 = [ii for ii, h in enumerate(headers) if h == 'depth center'][0] + 1
+        headers[loc1-1] = 'y_mid'
+        y_mid = np.array(
+            [ws_variable.cell(row, loc1).value for row in range(min_row, max_row)]).astype(float)
+
+        # discard trailing nan value from the end up
+        # find nan value in y_low and y_sup
+        y_nan_loc = np.where(np.isnan(y_mid))[0]
+        # discard trailing nan value starting at the end
+        if len(y_nan_loc) > 0 and len(y_mid) > 1 and y_nan_loc[-1] == len(y_mid)-1:
+            y_nan_loc = [len(y_mid)-1] + [val for ii, val in enumerate(y_nan_loc[-2::-1]) if val == y_nan_loc[::-1][ii]-1]
+            y_nan_loc = y_nan_loc[::-1]
+            y_mid = [y for ii, y in enumerate(y_mid) if ii not in y_nan_loc]
+
+    if 'depth 1' in headers and 'depth 2' in headers:
+        step_flag = 1
+
+        # find column with depth 1
+        # TODO find a better way to find the location
+        loc1 = [ii for ii, h in enumerate(headers) if h == 'depth 1'][0]+1
+        headers[loc1 - 1] = 'y_low'
+        loc2 = [ii for ii, h in enumerate(headers) if h == 'depth 2'][0]+1
+        headers[loc2 - 1] = 'y_sup'
+        # TODO: remove 'depth center'
+        y_low = np.array([ws_variable.cell(row, loc1).value for row in range(min_row, max_row + 1)]).astype(float)
+        y_sup = np.array([ws_variable.cell(row, loc2).value for row in range(min_row, max_row + 1)]).astype(float)
+
+        # discard trailing nan value from the end up
+        # find nan value in y_low and y_sup
+        y_nan_loc = [ii for ii in np.where(np.isnan(y_sup))[0] if ii in np.where(np.isnan(y_low))[0]]
+
+        # discard trailing nan value starting at the end
+        if len(y_sup) > 0 and len(y_nan_loc) > 0 and y_nan_loc[-1] == len(y_sup)-1:
+            y_nan_loc = [len(y_sup)-1] + [val for ii, val in enumerate(y_nan_loc[-2::-1]) if val == y_nan_loc[::-1][ii]-1]
+            y_nan_loc = y_nan_loc[::-1]
+            y_low = np.array([y for ii, y in enumerate(y_low) if ii not in y_nan_loc])
+            y_sup = np.array([y for ii, y in enumerate(y_sup) if ii not in y_nan_loc])
+
+            # TODO: replace missing y_low and y_sup with y_mid if possible
+
+        if len(y_low) == 0:
+            profile = pysic.core.profile.Profile()
+            y_mid = []
+        elif 'y_mid' in headers:
+            if np.isnan(y_mid).any() or len(y_mid) == 0:
+                y_mid = (y_low + y_sup) / 2
+                logger.info('(%s ) not all y_mid exits, calculating y_mid = (y_low+y_sup)/2'
+                            % (ws_variable.title))
+            elif np.any(np.abs(((y_low + y_sup) / 2) - y_mid > 1e-12)):
+                logger.error('(%s ) y_mid are not mid point between y_low and y_sup. \\'
+                             'Replacing with y_mid = (y_low+y_sup)/2'
+                             % (ws_variable.title))
+                y_mid = (y_low + y_sup) / 2
+            else:
+                logger.info('(%s ) y_low, y_mid and y_sup read with success'
+                            % (ws_variable.title))
+        else:
+            y_mid = (y_low + y_sup) / 2
+    elif 'depth 1' in headers:
+        loc1 = [ii for ii, h in enumerate(headers) if h == 'depth 1'][0]+1
+        headers[loc1 - 1] = 'y_low'
+        # TODO : fill y_sup
+    elif 'depth 2' in headers:
+        loc1 = [ii for ii, h in enumerate(headers) if h == 'depth 2'][0]+1
+        headers[loc1 - 1] = 'y_sup'
+        # TODO : fill y_low
+    # Continuous profile
+    else:
+        y_low = np.nan * np.ones(y_mid.__len__())
+        y_sup = np.nan * np.ones(y_mid.__len__())
+
+    # Read data:
+    # look up for first numeric or standard entry value
+    # n_row_min = 4
+
+    if len(y_mid) > 0:
+        n_row_min = 1
+        n_col_min = 1
+        while not isinstance(ws_variable.cell(n_row_min, n_col_min).value, (float, int)):
+            n_row_min += 1
+            if n_row_min > 1000:
+                break
+        n_row_max = n_row_min + len(y_mid) - 1
+
+        # Drop column with depth:
+        # _data = [[cell.value if isinstance(cell.value, (float, int)) else np.nan for cell in row]
+        #                   for row in ws_variable.iter_rows(n_row_min, n_row_max, n_col_min, n_col_max)]
+        _data = [[cell.value for cell in row] for row in ws_variable.iter_rows(n_row_min, n_row_max, n_col_min, n_col_max)]
+
+        # TODO:  fill missing section with np.nan
+        # if fill_missing:
+        #     idx = np.where(np.abs(y_low[1:-1]-y_sup[0:-2]) > TOL)[0]
+        #     for ii_idx in idx:
+        #         empty = [y_sup[ii_idx], (y_sup[ii_idx]+y_low[ii_idx+1])/2, y_low[ii_idx+1]]
+        #         empty += [np.nan] * (variable_headers.__len__()+1)
+        #     data = np.vstack([data, empty])
+
+        # concatenate header and subheader
+        if variables is None:
+            variable_prefix = ''
+            phase = 'N/A'
+        elif any(map(variables.__contains__, ['brine', 'sackhole'])):
+            variable_prefix = 'brine_'
+            phase = 'brine'
+        elif any(map(variables.__contains__, ['seawater'])):
+            variable_prefix = 'seawater_'
+            phase = 'seawater'
+        elif any(map(variables.__contains__, ['snow'])):
+            variable_prefix = 'snow_'
+            phase = 'snow'
+        else:
+            variable_prefix = ''
+            phase = 'seaice'
+        subheaders = [sh if sh is not None else '' for sh in subheaders]
+        profile_headers = [variable_prefix + h + '_' + subheaders[ii] if (len(subheaders[ii]) > 1 and h not in ['y_low', 'y_sup', 'y_mid']) else h
+                           for ii, h in enumerate(headers)]
+        # TODO: double header for dataframe with header and subheader
+
+        profile = pd.DataFrame(_data, columns=profile_headers)
+        if 'y_mid' not in profile.keys():
+            profile['y_mid'] = y_mid
+
+        # drop empty variable header
+        if None in profile.columns:
+            profile = profile.drop(labels=[None], axis=1)
+
+        # sample ID columns is string:
+        string_header = ['comment'] + [h for h in profile.columns if 'sample ID' in h or 'ID' in h]
+
+        # convert string to float:
+        float_header = [h for h in profile.columns if h not in string_header]
+        profile[float_header] = profile[float_header].apply(pd.to_numeric, errors='coerce')
+
+        # drop property with all nan value
+        profile = profile.dropna(axis=1, how='all')
+
+        # remove empty line if all element of depth are nan:
+        subset = [col for col in ['y_low', 'y_sup', 'y_mid'] if col in profile.columns]
+        profile = profile.dropna(axis=0, subset=subset, how='all')
+
+        # singularize comments
+        if 'comments' in profile.columns:
+            profile.rename(columns={'comments': "comment"}, inplace=True)
+        # add comment column if it does not exist
+        if 'comment' not in profile.columns:
+            profile['comment'] = None
+        else:
+            profile['comment'] = profile['comment'].astype(str).replace({'nan': None})
+
+        # get all property variable (e.g. salinity, temperature, ...)
+        property = [var for var in profile.columns if var not in ['comment', 'y_low', 'y_sup', 'y_mid']]
+        property = [prop.split('_')[0] for prop in property]
+        property = list(set(property))
+
+        # remove subvariable (e.g. conductivity temperature measurement for conductivity
+        property = [prop for prop in property if prop not in inverse_dict(subvariable_dict)]
+
+        # set variable to string of property
+        profile['variable'] = [', '.join(property)] * len(profile.index)
+
+        # set vertical references
+        # TODO: improve vertical reference
+        if reference_d['snow'][0] == 'ice surface':
+            v_ref = 'bottom'
+        elif reference_d['snow'][0] == 'snow interface':
+            v_ref = 'bottom'
+        else:
+            logger.error(ws_variable.title + ' - Vertical references not set or not yet handled')
+        profile['v_ref'] = [v_ref] * len(profile.index)
+
+        # set columns type
+        col_string = ['comment', 'v_ref', 'name', 'profile', 'variable']
+        col_date = ['date']
+        col_float = [h for h in profile.columns if h not in col_string and h not in col_date and 'ID' not in h]
+        col_string = col_string + [h for h in profile.columns if 'ID' in h]
+        profile[col_float] = profile[col_float].apply(pd.to_numeric, errors='coerce')
+        c_string = [h for h in col_string if h in profile.columns]
+        profile[c_string] = profile[c_string].astype(str).replace({'nan': None})
+
+        profile = pysic.core.profile.Profile(profile)
+        # remove variable not in variables
+        if variables is not None:
+            for property in profile.properties():
+                if property not in variables:
+                    profile.delete_property(property)
+
+    if variables is not None and 'salinity' not in variables:
+        profile_S = pysic.core.profile.Profile()
+    else:
+        profile_S = profile
+
+    cell_mark = 26
+
+    del profile
+    # Read Temperature block
+    # read headers:
+    n_row = 1
+    n_col = cell_mark
+    n_col_min = n_col
+    cell_flag = 2
+    headers = []
+    subheaders = []
+    units = []
+    while cell_flag >= 1:
+        if isinstance(ws_variable.cell(n_row, n_col).value, str):
+            h_ = ws_variable.cell(n_row, n_col).value
+            headers.append(ws_variable.cell(n_row, n_col).value)
+            hs_ = ws_variable.cell(n_row + 1, n_col).value
+            subheaders.append(ws_variable.cell(n_row + 1, n_col).value)
+            units.append(ws_variable.cell(n_row + 2, n_col).value)
+            cell_flag = 2
+            n_col += 1
+        elif isinstance(ws_variable.cell(n_row + 1, n_col).value, str):
+            headers.append(h_)
+            hs_ = ws_variable.cell(n_row + 1, n_col).value
+            subheaders.append(hs_)
+            units.append(ws_variable.cell(n_row + 2, n_col).value)
+            n_col += 1
+        else:
+            cell_flag = 0
+            cell_mark = n_col + 1
+    n_col_max = n_col
+
+    if ws_variable.max_row < MAX_ROW:
+        max_row = ws_variable.max_row
+    else:
+        max_row = MAX_ROW
+    min_row = 4
+
+    # Check for step or continuous profiles:
+    #loc1 = [ii for ii, h in enumerate(headers) if h == 'depth'][0] + 1
+    headers[loc1 - 1] = 'depth'
+    subheaders[loc1 - 1] = 'y_mid'
+    headers = ['y_mid', 'temperature', 'temperature']
+    subheaders = ['', 'value', 'quality']
+    y_mid = np.array(
+        [ws_variable.cell(row, n_col_min).value for row in range(min_row, max_row)]).astype(float)
+
+    # discard trailing nan value from the end up
+    # find nan value in y_low and y_sup
+    y_nan_loc = np.where(np.isnan(y_mid))[0]
+    # discard trailing nan value starting at the end
+    if len(y_nan_loc) > 0 and len(y_mid) > 1 and y_nan_loc[-1] == len(y_mid) - 1:
+        y_nan_loc = [len(y_mid) - 1] + [val for ii, val in enumerate(y_nan_loc[-2::-1]) if
+                                        val == y_nan_loc[::-1][ii] - 1]
+        y_nan_loc = y_nan_loc[::-1]
+        y_mid = [y for ii, y in enumerate(y_mid) if ii not in y_nan_loc]
+
+    y_low = np.nan * np.ones(y_mid.__len__())
+    y_sup = np.nan * np.ones(y_mid.__len__())
+
+    # Read data:
+    # look up for first numeric or standard entry value
+    # n_row_min = 4
+
+    if len(y_mid) > 0:
+        n_row_min = 1
+        while not isinstance(ws_variable.cell(n_row_min, n_col_min).value, (float, int)):
+            n_row_min += 1
+            if n_row_min > 1000:
+                break
+        n_row_max = n_row_min + len(y_mid) - 1
+
+        # Drop column with depth:
+        # _data = [[cell.value if isinstance(cell.value, (float, int)) else np.nan for cell in row]
+        #                   for row in ws_variable.iter_rows(n_row_min, n_row_max, n_col_min, n_col_max)]
+        _data = [[cell.value for cell in row] for row in
+                 ws_variable.iter_rows(n_row_min, n_row_max, n_col_min, n_col_max-1)]
+
+        # TODO:  fill missing section with np.nan
+        # if fill_missing:
+        #     idx = np.where(np.abs(y_low[1:-1]-y_sup[0:-2]) > TOL)[0]
+        #     for ii_idx in idx:
+        #         empty = [y_sup[ii_idx], (y_sup[ii_idx]+y_low[ii_idx+1])/2, y_low[ii_idx+1]]
+        #         empty += [np.nan] * (variable_headers.__len__()+1)
+        #     data = np.vstack([data, empty])
+
+        # concatenate header and subheader
+        if variables is None:
+            variable_prefix = ''
+            phase = 'N/A'
+        elif any(map(variables.__contains__, ['brine', 'sackhole'])):
+            variable_prefix = 'brine_'
+            phase = 'brine'
+        elif any(map(variables.__contains__, ['seawater'])):
+            variable_prefix = 'seawater_'
+            phase = 'seawater'
+        elif any(map(variables.__contains__, ['snow'])):
+            variable_prefix = 'snow_'
+            phase = 'snow'
+        else:
+            variable_prefix = ''
+            phase = 'seaice'
+        subheaders = [sh if sh is not None else '' for sh in subheaders]
+        profile_headers = [variable_prefix + h + '_' + subheaders[ii] if (
+                    len(subheaders[ii]) > 1 and h not in ['y_low', 'y_sup', 'y_mid']) else h
+                           for ii, h in enumerate(headers)]
+        # TODO: double header for dataframe with header and subheader
+
+        profile = pd.DataFrame(_data, columns=profile_headers)
+        if 'y_mid' not in profile.keys():
+            profile['y_mid'] = y_mid
+
+        # drop empty variable header
+        if None in profile.columns:
+            profile = profile.drop(labels=[None], axis=1)
+
+        # sample ID columns is string:
+        string_header = ['comment'] + [h for h in profile.columns if 'sample ID' in h or 'ID' in h]
+
+        # convert string to float:
+        float_header = [h for h in profile.columns if h not in string_header]
+        profile[float_header] = profile[float_header].apply(pd.to_numeric, errors='coerce')
+
+        # drop property with all nan value
+        profile = profile.dropna(axis=1, how='all')
+
+        # remove empty line if all element of depth are nan:
+        subset = [col for col in ['y_low', 'y_sup', 'y_mid'] if col in profile.columns]
+        profile = profile.dropna(axis=0, subset=subset, how='all')
+
+        # singularize comments
+        if 'comments' in profile.columns:
+            profile.rename(columns={'comments': "comment"}, inplace=True)
+        # add comment column if it does not exist
+        if 'comment' not in profile.columns:
+            profile['comment'] = None
+        else:
+            profile['comment'] = profile['comment'].astype(str).replace({'nan': None})
+
+        # get all property variable (e.g. salinity, temperature, ...)
+        property = [var for var in profile.columns if var not in ['comment', 'y_low', 'y_sup', 'y_mid']]
+        property = [prop.split('_')[0] for prop in property]
+        property = list(set(property))
+
+        # remove subvariable (e.g. conductivity temperature measurement for conductivity
+        property = [prop for prop in property if prop not in inverse_dict(subvariable_dict)]
+
+        # set variable to string of property
+        profile['variable'] = [', '.join(property)] * len(profile.index)
+
+        # set vertical references
+        # TODO: improve vertical reference
+        if reference_d['snow'][0] == 'ice surface':
+            v_ref = 'bottom'
+        elif reference_d['snow'][0] == 'snow interface':
+            v_ref = 'bottom'
+        else:
+            logger.error(ws_variable.title + ' - Vertical references not set or not yet handled')
+        profile['v_ref'] = [v_ref] * len(profile.index)
+
+        # set columns type
+        col_string = ['comment', 'v_ref', 'name', 'profile', 'variable']
+        col_date = ['date']
+        col_float = [h for h in profile.columns if h not in col_string and h not in col_date and 'ID' not in h]
+        col_string = col_string + [h for h in profile.columns if 'ID' in h]
+        profile[col_float] = profile[col_float].apply(pd.to_numeric, errors='coerce')
+        c_string = [h for h in col_string if h in profile.columns]
+        profile[c_string] = profile[c_string].astype(str).replace({'nan': None})
+
+        profile = pysic.core.profile.Profile(profile)
+        # remove variable not in variables
+        if variables is not None:
+            for property in profile.properties():
+                if property not in variables:
+                    profile.delete_property(property)
+
+        if variables is not None and 'temperature' not in variables:
+            profile = profile_S
+        else:
+            profile = profile.append(profile_S)
+        profile.reset_index(drop=True, inplace=True)
+    else:
+        profile = pysic.core.profile.Profile()
+    return profile
 
 # create list or source
 def list_folder(dirpath, fileext='.xlsx', level=0):

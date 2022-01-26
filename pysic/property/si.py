@@ -119,12 +119,12 @@ def brine_volume_fraction(s, t, rho_si='default', vf_a=0.0005, method='cw'):
 
     Parameters
     ----------
-    :param t : array_like, float
-        Temperature [degree C]
-        If t is an array, s float be an array of the same length.
     :param s : array_like, number
         Salinity [PsU]
         If s is an array, t should be an array of the same length.
+    :param t : array_like, float
+        Temperature [degree C]
+        If t is an array, s float be an array of the same length.
     :param rho_si : float, array_like, 'default', optional
         Density of the ice [kg/m3]. The default is calculated from s, t.
         If rho_si is an array, rho_si, s, t must have the same length.
