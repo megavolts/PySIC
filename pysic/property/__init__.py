@@ -43,6 +43,7 @@ prop_latex = {'salinity': 'S',
               'snow thickness': 'h_{s}',
               'pysic permeability': '\kappa'
               }
+prop_parameter_dict = {'conductivity': ['conductivity measurement temperature']}
 
 
 def scale_profile(profile, h_ice_f):

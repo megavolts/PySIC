@@ -1,2 +1,1 @@
-__version__ = '0.5'
-from pysic.visualization import plot
+__version__ = '0.3'

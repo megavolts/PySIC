@@ -62,7 +62,7 @@ class Core():
         self.length = length
         self.collection = [name]
         self.comment = None
-        self.profile = pysic.core.Profile.Profile()
+        self.profile = pysic.core.profile.Profile()
         self.t_air = np.nan
         self.t_snow_surface = np.nan
         self.t_ice_surface = np.nan

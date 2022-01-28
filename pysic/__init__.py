@@ -18,18 +18,18 @@ from .__version__ import __version__
 
 import logging
 import numpy as np
-import pysic.core.corestack
+#import pysic.core.corestack
 import pysic.core.Core
-import pysic.core.plot
-import pysic.core.profile
+#import pysic.core.plot
+import pysic.core.Profile
 import pysic.property
-import pysic.visualization.plot
+#import pysic.visualization.plot
 
-import pysic.property.brine
-import pysic.property.ice
-import pysic.property.si
-import pysic.property.sw
-import pysic.property.nacl_ice
+#import pysic.property.brine
+#import pysic.property.ice
+#import pysic.property.si
+#import pysic.property.sw
+#import pysic.property.nacl_ice
 
 TOL = 1e-6
 subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
