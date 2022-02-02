@@ -11,8 +11,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-import pysic
-from pysic.core.profile import *
+#from pysic.core.profile import *
 
 __name__ = "corestack"
 __author__ = "Marc Oggier"
@@ -189,7 +188,7 @@ class CoreStack(pd.DataFrame):
         ics_stack = self
 
         if variables is not None:
-            from pysic.core.profile import select_variables
+            from pysic.core.profileV0 import select_variables
             ics_stack = select_variables(ics_stack, variables)
 
         data_binned = pd.DataFrame()

@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from pysic.core.profile import *
-from pysic.core.profile import Profile
+from pysic.core.profileV0 import *
+from pysic.core.profileV0 import Profile
 
 __name__ = "plot"
 __author__ = "Marc Oggier"

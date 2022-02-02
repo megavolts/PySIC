@@ -28,7 +28,7 @@ import pandas as pd
 import pysic
 import pysic.core.corestack as cs
 
-from pysic.core.Core import Core
+from pysic.core.core import Core
 
 __all__ = ["import_ic_path", "import_ic_list", "import_ic_sourcefile", "list_ic", "list_ic_path", "make_ic_sourcefile"]
 

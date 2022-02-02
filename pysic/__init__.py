@@ -3,26 +3,35 @@
 """
     pysic is a module to handle sea ice core data
 """
+from . import __version__
+__CoreVersion__ = "1.4.6"
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
+
 __maintainer__ = "Marc Oggier"
 __contact__ = "Marc Oggier"
 __email__ = "moggier@alaska.edu"
-__status__ = "development"
-__date__ = "2017/09/13"
+__status__ = "dev"
+__date__ = "2021/02/01"
+
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
-__name__ = "pysic"
 
 from .__version__ import __version__
 
-import logging
-import numpy as np
+import pysic.core
+from pysic.core.event import Event
+from pysic.core.core import Core
+from pysic.core.profile import Profile
+
 #import pysic.core.corestack
-import pysic.core.Core
+# import pysic.core.corestack
+# import pysic.core
+# import pysic.core.Core
 #import pysic.core.plot
-import pysic.core.Profile
-import pysic.property
+#import pysic.core.Profile
+#from pysic.core import Profile
+#import pysic.property
 #import pysic.visualization.plot
 
 #import pysic.property.brine
@@ -31,8 +40,8 @@ import pysic.property
 #import pysic.property.sw
 #import pysic.property.nacl_ice
 
-TOL = 1e-6
-subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
+# TOL = 1e-6
+# subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
 
 # TODO: add test function
 # TODO: add function Core.check() to check the integrity of the ice core and profiles
@@ -85,23 +94,3 @@ subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
 #                     data.clean()
 #                     variables.remove(variable)
 #                     select_data = select_data.append(data)
-
-
-def inverse_dict(map):
-    """
-    return the inverse of a dictionnary with non-unique values
-    :param map: dictionnary
-    :return inv_map: dictionnary
-    """
-    revdict = {}
-    for k, v in map.items():
-        if isinstance(v, list):
-            for _v in v:
-                revdict.setdefault(_v, k)
-        elif isinstance(v, dict):
-            for _v in v:
-                revdict[_v] = k
-        else:
-            revdict.setdefault(v, k)
-
-    return revdict

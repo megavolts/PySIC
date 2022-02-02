@@ -3,6 +3,7 @@
 import os
 import sys
 from distutils.util import convert_path
+
 try:
     from setuptools import setup
 except ImportError:
@@ -23,12 +24,16 @@ this_directory = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(this_directory, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
+# OR...
+# with open('README.rst') as f:
+#     readme = f.read()
+
+# Alread in requirements.txt
 requirements = [
     "numpy>=1.10.0",
     "scipy>=0.18.0",
     "pandas>=0.18.1",
     "matplotlib>=2.2.2",
-    "xarray",
     "openpyxl",
 ]
 
@@ -44,7 +49,7 @@ setup(
     long_description_content_type='text/markdown',
     version=about['__version__'],
     zip_safe=False,
-    classifiers=['Development Status :: 0.5 - alpha',
+    classifiers=['Development Status :: 0.6 - alpha',
                  'Natural Language :: English',
                  'License :: OSI Approved :: MIT License',
                  'Programming Language :: Python',
@@ -62,3 +67,7 @@ setup(
         'Tracker': 'https://github.com/megavolts/pysic/issues',
     }
 )
+
+
+with open('LICENSE') as f:
+    license = f.read()

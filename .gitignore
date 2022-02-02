@@ -2,3 +2,5 @@
 .idea/
 .pysic/deprecated
 logs
+.pysic_old
+/pysic_old/
