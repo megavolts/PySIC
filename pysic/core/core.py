@@ -8,8 +8,8 @@ import numpy as np
 import logging as logging
 
 from pysic.core.profile import Profile
-from pysic import __CoreVersion__, __date__, __status__, __email__, __contact__, __maintainer__, __author__, __license__
 
+__CoreVersion__ = "1.4.6"
 __comment__ = "core.py contains class Core() to store an sea ice core, and a collection of functions to handle ice core" \
               "data"
 
@@ -66,7 +66,6 @@ class Core:
         self.unit = {}
         self.par_incoming = np.nan
         self.par_transmitted = np.nan
-
     # @property
     # def ice_thickness(self):
     #     return self._ice_thickness
@@ -105,19 +104,19 @@ class Core:
     #             except AttributeError:
     #                 self._ice_thickness = [v_]
     #
-    # def add_to_collection(self, core_list):
-    #     """
-    #     :param core_list:
-    #     :return:
-    #     """
-    #     if isinstance(core_list, list):
-    #         for core in core_list:
-    #             if core not in self.collection:
-    #                 self.collection.append(core)
-    #     else:
-    #         if core_list not in self.collection:
-    #             self.collection.append(core_list)
-    #     self.collection = sorted(self.collection)
+    def add_to_collection(self, core_list):
+        """
+        :param core_list:
+        :return:
+        """
+        if isinstance(core_list, list):
+            for core in core_list:
+                if core not in self.collection:
+                    self.collection.append(core)
+        else:
+            if core_list not in self.collection:
+                self.collection.append(core_list)
+        self.collection = sorted(self.collection)
     #
     # def remove_core(self, core):
     #     """
@@ -141,19 +140,19 @@ class Core:
     #         if core_list in self.collection:
     #             self.collection.remove(core_list)
     #     self.collection = sorted(self.collection)
-    #
-    # def add_comment(self, comment):
-    #     """
-    #     :param comment:
-    #     :return:
-    #     """
-    #     if comment is not None:
-    #         if self.comment is None:
-    #             self.comment = comment
-    #         # add comment only if the comment is different to any other comment
-    #         elif comment not in self.comment.split('; '):
-    #             self.comment += '; ' + comment
-    #
+
+    def add_comment(self, comment):
+        """
+        :param comment:
+        :return:
+        """
+        if comment is not None:
+            if self.comment is None:
+                self.comment = comment
+            # add comment only if the comment is different to any other comment
+            elif comment not in self.comment.split('; '):
+                self.comment += '; ' + comment
+
     # def variables(self):
     #     variables = []
     #     if 'variable' in self.profile:
@@ -243,20 +242,34 @@ class Core:
     #
     #     print('comment: %s' % self.comment)
     #
-    # def add_profile(self, profile, unit=None):
-    #     """
-    #     Add new profile to core.
-    #     Profile name should match core name
-    #     :param profile:
-    #         pd.DataFrame, profile to add
-    #     :param unit:
-    #         dict, profile units
-    #     """
-    #     if self.profile.empty:
-    #         self.profile = profile
-    #     else:
-    #         self.profile = self.profile.add_profile(profile)
-    #
+    def add_profile(self, profile, unit=None):
+        """
+        Add new profile to core.
+        Profile name should match core name
+        :param profile:
+            pd.DataFrame, profile to add
+        :param unit:
+            dict, profile units
+        """
+        if self.profile.empty:
+            self.profile = profile
+        else:
+            self.profile = self.profile.add(profile)
+
     # def get_property(self):
     #     return self.profile.get_property()
 
+
+# class Station:
+#     import datetime as dt
+#
+#     def __init__(self, name, date, lat, long, date_end=dt.date(), lat_end=np.nan, lon_end=np.nan, *args, **kwargs):
+#         self.name = name
+#         self.date = date
+#         self.lat = lat
+#         self.lon = long
+#         self.date_end = date_end
+#         self.lat_end = lat_end
+#         self.lon_end = lon_end
+#
+#     pass

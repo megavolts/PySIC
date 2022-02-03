@@ -6,7 +6,6 @@
 import logging
 import pandas as pd
 
-from pysic import __CoreVersion__, __date__, __status__, __email__, __contact__, __maintainer__, __author__, __license__
 __comment__ = "profile.py contains class Profile() to store measurement profile of sea ice core, and collection " \
               "of function to handle profile"
 
@@ -39,41 +38,23 @@ class Profile(pd.DataFrame):
         else:
             return list(set(property))
 
-    # def properties(self):
-    #     """
-    #
-    #     :return:
-    #     """
-    #     if 'variable' not in self.key    #     """
-    #     #     if 'variable' not in self.keys():
-    #     #         return None
-    #     #     else:
-    #     #         property = []
-    #     #         for var_group in self.variable.unique():
-    #     #             property += list(filter(None, var_group.split(', ')))s():
-    #         return None
-    #     else:
-    #         property = []
-    #         for var_group in self.variable.unique():
-    #             property += list(filter(None, var_group.split(', ')))
-    #         return list(set(property))
+    def get_name(self):
+        """
+        Return the name of the profile, or an array of string if there is several
+        :return name: string
+        """
+        self.logger = logging.getLogger(__name__)
+        try:
+            name = self.name.unique()
+        except AttributeError:
+            return None
+        else:
+            if name.__len__() > 1:
+                self.logger.warning(' %s more than one name in the profile: %s ' % (name[0], ', '.join(name)))
+                self.name.unique()
+            else:
+                return self.name.unique()[0]
 
-    #
-    # def get_name(self):
-    #     """
-    #     Return the core name of the profile
-    #
-    #     :return name: string
-    #     """
-    #     self.logger = logging.getLogger(__name__)
-    #     try:
-    #         name = self.name.unique()
-    #     except AttributeError:
-    #         return None
-    #     else:
-    #         if name.__len__() > 1:
-    #             self.logger.warning(' %s more than one name in the profile: %s ' % (name[0], ', '.join(name)))
-    #         return self.name.unique()[0]
     #
     #
     # def clean(self, inplace=True):
@@ -98,41 +79,29 @@ class Profile(pd.DataFrame):
     #         self.dropna(axis=1, how='all', inplace=True)
     #     else:
     #         return self.dropna(axis=1, how='all')
-    #
-    # def add_profile(self, profile):
-    #     """
-    #     Add new profile to existing profile.
-    #     Profile name should match.
-    #     :param profile: pysic.Profile()
-    #     """
-    #     if profile.get_name() is self.get_name() or profile.get_name() == self.get_name():
-    #         var_merge = [var for var in profile.columns if var in self.columns]
-    #         if 'comment' in var_merge:
-    #             var_merge.remove('comment')
-    #             f_comment = True
-    #         else:
-    #             f_comment = False
-    #         if 'variable' in var_merge:
-    #             var_merge.remove('variable')
-    #             f_variable = True
-    #         else:
-    #             f_variable = False
-    #
-    #         self = self.merge(profile, how='outer', sort=False, on=var_merge).reset_index(drop=True)
-    #
-    #         if f_variable:
-    #             self['variable'] = self[['variable_x', 'variable_y']].apply(lambda x: '{}, {}'.format(x[0], x[1]), axis=1)
-    #             self['variable'] = self['variable'].apply(lambda x: ', '.join(filter(lambda y: y not in [None, 'nan'], x.split(', '))))
-    #             self.drop(['variable_x', 'variable_y'], axis=1, inplace=True)
-    #         if f_comment:
-    #             self['comment'] = self[['comment_x', 'comment_y']].apply(lambda x: '{}, {}'.format(x[0], x[1]), axis=1)
-    #             self['comment'] = self['comment'].apply(lambda x: ', '.join(filter(lambda y: y not in [None, 'nan'], x.split(', '))))
-    #             self.drop(['comment_x', 'comment_y'], axis=1, inplace=True)
-    #
-    #         return self
-    #     else:
-    #         self.logger = logging.getLogger(__name__)
-    #         self.logger.warning('Profile name does not match %s, %s' % ( profile.get_name(), self.get_name()))
+
+    def add(self, profile):
+        """
+        Add new profile to existing profile.
+        For consistency, profile name should match
+        :param profile: pysic.Profile()
+        """
+        if profile.get_name() is self.get_name():
+            column_merge = [c for c in profile.columns if c in self.columns]
+            new_profile = self.merge(profile, how='outer', sort=False, on=column_merge).reset_index(drop=True)
+
+            if 'property_x' in new_profile.columns:
+                new_profile['property'] = new_profile[['property_x', 'property_x']].apply(lambda x: '{}, {}'.format(x[0], x[1]), axis=1)
+                new_profile['property'] = new_profile['property'].apply(lambda x: ', '.join(list(set(x.split(', ')))))
+                new_profile.drop(['property_x', 'property_x'], axis=1, inplace=True)
+            if 'comment_x' in new_profile.columns:
+                new_profile['comment'] = new_profile[['comment_x', 'comment_y']].apply(lambda x: '{}, {}'.format(x[0], x[1]), axis=1)
+                new_profile['comment'] = new_profile['comment'].apply(lambda x: ', '.join(list(set(x.split(', ')))))
+                new_profile.drop(['comment_x', 'comment_y'], axis=1, inplace=True)
+            return new_profile
+        else:
+            self.logger = logging.getLogger(__name__)
+            self.logger.warning('Try to add profile from %s to %s profile: profile name does not match' % (profile.get_name(), self.get_name()))
     #
     # def delete_property(self, property):
     #     """

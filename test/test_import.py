@@ -1,21 +1,19 @@
-import os
-
 import pysic
 
-try:
-    import pysic as si
-except ImportError:
-    import sys
-    if '/home/megavolts/git/pysic' in sys.path:
-        raise
-    sys.path.append('/')
-    import pysic as si
-
-# Core list directory
-ic_collection = '/home/megavolts/git/pysic/test/ice core'
-ic_event = '/home/megavolts/git/pysic/test/ice core/BRW_CS-20210519/'
+# try:
+#     import pysic as si
+# except ImportError:
+#     import sys
+#     if '/home/megavolts/git/pysic' in sys.path:
+#         raise
+#     sys.path.append('/')
+#     import pysic as si
+#
+# # Core list directory
+# ic_collection = '/home/megavolts/git/pysic/test/ice core'
+# ic_event = '/home/megavolts/git/pysic/test/ice core/BRW_CS-20210519/'
 ic_core = '/home/megavolts/git/pysic/test/ice core/BRW_CS-20210519/BRW_CS-20210519-85_SALO18.xlsx'
-ic_ext = '.xlsx'
+# ic_ext = '.xlsx'
 
 # List all ice core data
 # ic_dir = ic_event
@@ -24,15 +22,18 @@ ic_ext = '.xlsx'
 #
 # # Import 1 core
 ic_path = ic_core
-
-test = pysic.core.import_ic_path(ic_path, ic_property='salo18')
-
-import pickle
-with open('/home/megavolts/Desktop/test.pkl', 'w') as f:
-    pickle.dump(test, f)
-# import pysic
-# test = pysic.core.import_ic_path(ic_path)
 #
+ic = pysic.io.load.ic_from_path(ic_path)
+
+
+import math
+
+#pysic
+import pickle
+with open('/home/megavolts/Desktop/test.pkl', 'wb') as f:
+    pickle.dump(ic, f)
+
+
 # ic_dir = '/mnt/data/UAF-data/raw/MOSAiC-UTQ/ice core/'
 # ics_list = pysic.core.list_folder(ic_dir, ic_ext, 2)
 # ics_import = []

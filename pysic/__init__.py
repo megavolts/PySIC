@@ -3,8 +3,6 @@
 """
     pysic is a module to handle sea ice core data
 """
-from . import __version__
-__CoreVersion__ = "1.4.6"
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -17,12 +15,16 @@ __date__ = "2021/02/01"
 
 __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 
-from .__version__ import __version__
 
 import pysic.core
+import pysic.io
+import pysic.io.load
+from .__version__ import __version__
 from pysic.core.event import Event
 from pysic.core.core import Core
 from pysic.core.profile import Profile
+
+TOL = 1e-12
 
 #import pysic.core.corestack
 # import pysic.core.corestack
@@ -40,57 +42,5 @@ from pysic.core.profile import Profile
 #import pysic.property.sw
 #import pysic.property.nacl_ice
 
-# TOL = 1e-6
-# subvariable_dict = {'conductivity': ['conductivity measurement temperature']}
-
 # TODO: add test function
 # TODO: add function Core.check() to check the integrity of the ice core and profiles
-
-
-# class ProfileV0(pd.DataFrame):
-
-#
-#     def delete_variable(self, variable):
-#         new_variables = self.get_variable()
-#         if variable in self.get_variable():
-#             print(variable)
-#             self.drop(variable, axis=1, inplace=True)
-#             new_variables.remove(variable)
-#             if variable in subvariable_dict.keys():
-#                 for _subvar in subvariable_dict[variable]:
-#                     self.drop(_subvar, axis=1, inplace=True)
-#
-#                 # write variable
-#         self['variable'] = ', '.join(new_variables)
-# #
-#     def delete_variables(self, variables):
-#         if not isinstance(variables, list):
-#             variables = [variables]
-#
-#         new_variables = self.get_variable()
-#         for variable in variables:
-#             if variable in self.get_variable():
-#                 print(variable)
-#                 self.drop(variable, axis=1, inplace=True)
-#                 new_variables.remove(variable)
-#                 if variable in subvariable_dict.keys():
-#                     for _subvar in subvariable_dict[variable]:
-#                         self.drop(_subvar, axis=1, inplace=True)
-#
-#                 # write variable
-#         self['variable'] = ', '.join(new_variables)
-#
-#     def select_variable(self, variables):
-#         select_data = pd.DataFrame()
-#         if not isinstance(variables, list):
-#             variables = [variables]
-#         for variable in variables:
-#             for group in self.variable.unique():
-#                 if variable in group.split(', '):
-#                     data = self[self.variable == group]
-#                     # check if other variable should be conserved:
-#                     del_var = [_var for _var in data.get_variable() if _var not in variables]
-#                     data.delete_variable(del_var)
-#                     data.clean()
-#                     variables.remove(variable)
-#                     select_data = select_data.append(data)
