@@ -23,15 +23,19 @@ ic_core = '/home/megavolts/git/pysic/test/ice core/BRW_CS-20210519/BRW_CS-202105
 # # Import 1 core
 ic_path = ic_core
 #
-ic = pysic.io.load.ic_from_path(ic_path)
 
+fill_missing = True
+ic_property = None
+from pysic.io import update
+update.ice_core_data(ic_path)
+#ic = pysic.io.load.ic_from_path(ic_path, ic_property=ic_property, fill_missing=fill_missing)
 
 import math
 
 #pysic
-import pickle
-with open('/home/megavolts/Desktop/test.pkl', 'wb') as f:
-    pickle.dump(ic, f)
+# import pickle
+# with open('/home/megavolts/Desktop/test.pkl', 'wb') as f:
+#     pickle.dump(ic, f)
 
 
 # ic_dir = '/mnt/data/UAF-data/raw/MOSAiC-UTQ/ice core/'

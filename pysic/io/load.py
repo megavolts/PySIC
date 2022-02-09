@@ -482,15 +482,32 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
     headers = []
     subheaders = []
     units = []
-
-    # stop when header is empty or max column number is reached
+    header_dict = {}
+    property_dict = {}
     while not empty_header and n_col < ws_property.max_column:
+        # Read depth
         if isinstance(ws_property.cell(n_row, n_col).value, str):
             h_ = ws_property.cell(n_row, n_col).value  # header
             hs_ = ws_property.cell(n_row + 1, n_col).value  # subheader
+            hu_ = ws_property.cell(n_row + 2, n_col).value
+
             headers.append(h_)
             subheaders.append(hs_)
-            units.append(ws_property.cell(n_row + 2, n_col).value)
+            units.append(hu_)
+            n_col += 1
+        elif ws_property.cell(n_row + 1, n_col).value == 'ID':
+            # Look for next property column number
+            property_col = n_col
+            while ws_property.cell(n_row + 1, property_col).value != 'value':
+                property_col += 1
+
+
+
+
+            hs_ = ws_property.cell(n_row + 1, n_col).value  # subheader
+            headers.append(h_)
+            subheaders.append(hs_)
+            units.append(ws_property.cell(n_row+2, n_col).value)
             n_col += 1
         elif isinstance(ws_property.cell(n_row+1, n_col).value, str):
             hs_ = ws_property.cell(n_row + 1, n_col).value   # subheader
@@ -500,7 +517,30 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
             n_col += 1
         else:
             empty_header = 1
-    n_col_max = n_col - 1
+
+#            subheaders.append(hs_)
+#            n_col += 1
+
+    #
+    # # Old method
+    # # stop when header is empty or max column number is reached
+    # while not empty_header and n_col < ws_property.max_column:
+    #     if isinstance(ws_property.cell(n_row, n_col).value, str):
+    #         h_ = ws_property.cell(n_row, n_col).value  # header
+    #         hs_ = ws_property.cell(n_row + 1, n_col).value  # subheader
+    #         headers.append(h_)
+    #         subheaders.append(hs_)
+    #         units.append(ws_property.cell(n_row + 2, n_col).value)
+    #         n_col += 1
+    #     elif isinstance(ws_property.cell(n_row+1, n_col).value, str):
+    #         hs_ = ws_property.cell(n_row + 1, n_col).value   # subheader
+    #         headers.append(h_)
+    #         subheaders.append(hs_)
+    #         units.append(ws_property.cell(n_row+2, n_col).value)
+    #         n_col += 1
+    #     else:
+    #         empty_header = 1
+    # n_col_max = n_col - 1
 
     if ws_property.max_row < MAX_ROW:
         max_row = ws_property.max_row

@@ -59,8 +59,10 @@ m_unit_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFE0E0E0", fi
 m_bottom_style = NamedStyle(name="m_bottom_style")
 m_bottom_style.fill = PatternFill(start_color="FFB2B2B2", end_color="FFBFBFBF", fill_type="solid")
 
+#TODO: find surname and given name form os
+user = 'Marc Oggier'
 
-def ice_core_data(ic_path, backup=True):
+def ice_core_data(ic_path, backup=True, user=user):
     """
     :param ic_path:
         path; Filepath to the data spreadsheet to update
@@ -132,13 +134,33 @@ def ice_core_data(ic_path, backup=True):
         if version_int[2] < 6:
             version_int[2] = 6
             # 'salo18'
+
+            # Salinity
+            # S1. unmerge cell
+            wb['salo18'].unmerge_cells('C1:E1')  # salinity
+            wb['salo18']['D1'].value = wb['salo18']['C1'].value
+            wb['salo18']['C1'].value = None
+
+            # S2. formatting
+            for cell_rows in openpyxl.utils.cols_from_range('C1:E3'):
+                    wb['salo18'][cell_rows[0]].style = m_header_style
+                    wb['salo18'][cell_rows[0]].border = no_border
+                    wb['salo18'][cell_rows[1]].style = m_subheader_style
+                    wb['salo18'][cell_rows[1]].border = no_border
+                    wb['salo18'][cell_rows[2]].style = m_unit_style
+                    wb['salo18'][cell_rows[2]].border = no_border
+            for row in openpyxl.utils.cols_from_range('C1:C3'):
+                for c in row:
+                    wb['salo18'][c].border = l_border
+
+            # I. Isotopes d18O and dD
             max_row = wb['salo18'].max_row
             col_num = openpyxl.utils.column_index_from_string('I')
-            d18O_ID = [wb['salo18'].cell(row=ii, column=col_num).value for ii in range(4,max_row)]
+            d18O_ID = [wb['salo18'].cell(row=ii, column=col_num).value for ii in range(4, max_row)]
             col_num = openpyxl.utils.column_index_from_string('L')
-            dD_ID = [wb['salo18'].cell(row=ii, column=col_num).value for ii in range(4,max_row)]
+            dD_ID = [wb['salo18'].cell(row=ii, column=col_num).value for ii in range(4, max_row)]
             if dD_ID == d18O_ID:
-                # unmerge cell
+                # I.1.a unmerge cell
                 wb['salo18'].unmerge_cells('I1:K1')  # d18O
                 wb['salo18'].unmerge_cells('L1:N1')  # dD
                 wb['salo18']['J1'].value = wb['salo18']['I1'].value
@@ -146,16 +168,16 @@ def ice_core_data(ic_path, backup=True):
                 wb['salo18']['M1'].value = wb['salo18']['L1'].value
                 wb['salo18']['L1'].value = None
 
-                # delete column K (d18O quality) and L (dD ID)
+                # I.1.b delete column K (d18O quality) and L (dD ID)
                 wb['salo18'].delete_cols(openpyxl.utils.column_index_from_string('K'), 2)  # remove column K and L
 
-                # insert column after dD
+                # I.1.c insert column after dD
                 wb['salo18'].insert_cols(openpyxl.utils.column_index_from_string('L'), 1)
                 wb['salo18']['L1'].value = 'd_excess'
                 wb['salo18']['L2'].value = 'value'
                 wb['salo18']['L3'].value = '‰'
 
-                # formatting
+                # I.2 formatting
                 for cell_rows in openpyxl.utils.cols_from_range('I1:M3'):
                     wb['salo18'][cell_rows[0]].style = m_header_style
                     wb['salo18'][cell_rows[0]].border = no_border
@@ -166,60 +188,141 @@ def ice_core_data(ic_path, backup=True):
                 for row in openpyxl.utils.cols_from_range('I1:I3'):
                     for c in row:
                         wb['salo18'][c].border = l_border
-                for row in openpyxl.utils.cols_from_range('N1:N3'):
+                for row in openpyxl.utils.cols_from_range('M1:M3'):
                     for c in row:
-                        wb['salo18'][c].border = l_border
+                        wb['salo18'][c].border = r_border
                 for row in openpyxl.utils.cols_from_range('I'+str(max_row)+':M'+str(max_row)):
                     wb['salo18'][row[0]].style = m_bottom_style
             else:
                 logger.info('%s\t\td18O ID different from dD ID: merging not possible' % wb['metadata-core']['C1'].value)
 
-            # 'eco'
-            max_row = wb['eco'].max_row
-            col_num = openpyxl.utils.column_index_from_string('I')
-            dchla = [wb['eco'].cell(row=ii, column=col_num).value for ii in range(4, max_row)]
-            col_num = openpyxl.utils.column_index_from_string('M')
-            dphaeo = [wb['eco'].cell(row=ii, column=col_num).value for ii in range(4, max_row)]
-            if dchla == dphaeo:
-                # unmerge cell
-                wb['eco'].unmerge_cells('I1:L1')  # chl-a
-                wb['eco'].unmerge_cells('M1:P1')  # phaeo
-                wb['eco']['K1'].value = wb['eco']['I1'].value
-                wb['eco']['I1'].value = None
-                wb['eco']['O1'].value = wb['eco']['M1'].value
-                wb['eco']['M1'].value = None
+            # # 'eco'
+            for merged_range in wb['eco'].merged_cells.ranges:
+                # check if value is in merged range
+                col_value = None
+                # Perform different action for chl-a and phaeo columns (cf. below)
+                if wb['eco'].cell(1, merged_range.min_col).value in ['chl-a', 'phaeo']:
+                    continue
 
-                # rename volume to "filtered volume"
-                wb['eco']['J2'].value = 'filtered volume'
+                # Check if value is present in merge, this indicate properties different of depth, field sample or comment
+                for _col in range(merged_range.min_col, merged_range.max_col+1):
+                    if wb['eco'].cell(2, _col).value == 'value':
+                        col_value = _col
+                        break
+                if col_value is not None:
+                    # 1. unmerge
+                    merged_range_str = str(merged_range)
+                    wb['eco'].unmerge_cells(str(merged_range))  # salinity
+                    wb['eco'].cell(merged_range.min_row, col_value).value = wb['eco'].cell(merged_range.min_row, merged_range.min_col).value
+                    wb['eco'].cell(merged_range.min_row, merged_range.min_col).value = None
 
-                # delete column K (d18O quality) and L (dD ID)
-                wb['eco'].delete_cols(openpyxl.utils.column_index_from_string('L'), 3)  # remove column K and L
+                    # 2. formatting
+                    for _col in range(merged_range.min_col, merged_range.max_col+1):
+                        wb['eco'].cell(1, _col).style = m_header_style
+                        wb['eco'].cell(1, _col).border = no_border
+                        wb['eco'].cell(2, _col).style = m_subheader_style
+                        wb['eco'].cell(2, _col).border = no_border
+                        wb['eco'].cell(3, _col).style = m_unit_style
+                        wb['eco'].cell(3, _col).border = no_border
+                    for _col in [merged_range.min_col, merged_range.max_col+1]:
+                        for _row in range(1, 4):
+                            wb['eco'].cell(_row, _col).border = l_border
 
-                # formatting
-                for cell_rows in openpyxl.utils.cols_from_range('I1:M3'):
-                    wb['eco'][cell_rows[0]].style = m_header_style
-                    wb['eco'][cell_rows[0]].border = no_border
-                    wb['eco'][cell_rows[1]].style = m_subheader_style
-                    wb['eco'][cell_rows[1]].border = no_border
-                    wb['eco'][cell_rows[2]].style = m_unit_style
-                    wb['eco'][cell_rows[2]].border = no_border
-                for row in openpyxl.utils.cols_from_range('I1:I3'):
-                    for c in row:
-                        wb['eco'][c].border = l_border
-                for row in openpyxl.utils.cols_from_range('N1:N3'):
-                    for c in row:
-                        wb['eco'][c].border = l_border
-                # for row in openpyxl.utils.cols_from_range('H1:H3'):
-                #     wb['eco'][row[0]].border = r_border
-                # for row in openpyxl.utils.cols_from_range('M1:M3'):
-                #     wb['eco'][row[0]].border = r_border
-                for row in openpyxl.utils.cols_from_range('I'+str(max_row)+':M'+str(max_row)):
-                    wb['eco'][row[0]].style = m_bottom_style
+            # chl-a and phaeo
+            # Look for chl-a and phaeo merged columns
+            for merged_range in wb['eco'].merged_cells.ranges:
+                # look for chl-a and phaeo range
+                if wb['eco'].cell(1, merged_range.min_col).value == 'chl-a':
+                    range_chla = merged_range
+                    # find the chl-a ID column
+                    for _col in range(merged_range.min_col, merged_range.max_col + 1):
+                        name = wb['eco'].cell(2, _col).value
+                        if name == 'ID':
+                            col_chla_ID = _col
+                        elif name == 'value':
+                            col_chla_value = _col
+                        elif name == 'volume':
+                            col_chla_vol = _col
+                        elif name == 'quality':
+                            col_chla_qual = _col
+                elif wb['eco'].cell(1, merged_range.min_col).value == 'phaeo':
+                    range_phaeo = merged_range
+                    for _col in range(merged_range.min_col, merged_range.max_col + 1):
+                        name = wb['eco'].cell(2, _col).value
+                        if name == 'ID':
+                            col_phaeo_ID = _col
+                        elif name == 'value':
+                            col_phaeo_value = _col
+                        elif name == 'volume':
+                            col_phaeo_vol = _col
+
+            if col_chla_ID is not None and col_phaeo_ID is not None:
+                max_row = wb['eco'].max_row
+                dchla = [wb['eco'].cell(row=ii, column=col_chla_ID).value for ii in range(4, max_row)]
+                dphaeo = [wb['eco'].cell(row=ii, column=col_phaeo_ID).value for ii in range(4, max_row)]
+                if dchla == dphaeo:
+                    # unmerge cell
+                    wb['eco'].unmerge_cells(str(range_chla))  # chl-a
+                    wb['eco'].unmerge_cells(str(range_phaeo))  # phaeo
+                    wb['eco'].cell(1, col_chla_value).value = wb['eco'].cell(1, range_chla.min_col).value
+                    wb['eco'].cell(1, range_chla.min_col).value = None
+                    wb['eco'].cell(1, col_phaeo_value).value = wb['eco'].cell(1, range_phaeo.min_col).value
+                    wb['eco'].cell(1, range_phaeo.min_col).value = None
+
+                    # rename volume to "filtered volume"
+                    # look for chl-a, volume:
+
+                    wb['eco'].cell(2, col_chla_vol).value = 'filtered volume'
+
+                    # delete column phaeo_vol, phao_ID and chla_quality:
+                    wb['eco'].delete_cols(col_phaeo_vol, 1)
+                    wb['eco'].delete_cols(col_phaeo_ID, 1)
+                    wb['eco'].delete_cols(col_chla_qual, 1)
+
+                    # formatting
+                    for col in range(range_chla.min_col, range_chla.min_col+5):
+                        wb['eco'].cell(1, col).style = m_header_style
+                        wb['eco'].cell(1, col).border = no_border
+                        wb['eco'].cell(2, col).style = m_subheader_style
+                        wb['eco'].cell(2, col).border = no_border
+                        wb['eco'].cell(3, col).style = m_unit_style
+                        wb['eco'].cell(3, col).border = no_border
+                        wb['eco'].cell(max_row, col).style = m_bottom_style
+                    for col in [range_chla.min_col, range_chla.min_col + 5]:
+                        for row in range(1, 4):
+                            wb['eco'].cell(row, col).border = l_border
+                else:
+                    logger.info('%s\t\tchl-a ID different from phaeo ID: merging not possible' % wb['metadata-core']['C1'].value)
             else:
-                logger.info('%s\t\td18O ID different from dD ID: merging not possible' % wb['metadata-core']['C1'].value)
+                logger.info('%s\t\tno ID for both chl-a and phaeo ID: merging not possible' % wb['metadata-core']['C1'].value)
+
+
+    ### Add an update is the spreadsheet
+    # Find where version entries are located
+    _row = 1
+    version_flag = 0
+    while version_flag == 0 and _row < wb['metadata-core'].max_row:
+        print(_row, wb['metadata-core'].cell(_row, 1).value)
+        if wb['metadata-core'].cell(_row, 1).value == 'VERSION' and wb['metadata-core'].cell(_row + 1, 1).value == 'number':
+            version_flag = _row
+            break
+        _row += 1
+
+    # Find line number with  latest version entries
+    _row = version_flag + 2
+    new_line = 0
+    while version_flag == 0 and _row < wb['metadata-core'].max_row:
+        print(_row, wb['metadata-core'].cell(_row, 1).value)
+        if wb['metadata-core'].cell(_row, 1).value is None:
+            new_line = _row
+        _row += 1
+
+    # Add new line afterwards
+    wb['metadata-core'].insert_rows(new_line+1)
+
+    # formatting:
 
     # useful to debug and avoid overriding
-
     # ic_path_test = ic_path.split('.xlsx')[0]+'-test.xlsx'
     # wb.save(ic_path_test)
     wb['metadata-station']['C1'] = __CoreVersion__
@@ -397,5 +500,5 @@ def ice_core_data(ic_path, backup=True):
     #     print('Future version does not exist.')
 
 
-def all_style(ic_path, backup=True):
+def formatting(ic_path, backup=True):
     pass
