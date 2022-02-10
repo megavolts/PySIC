@@ -12,7 +12,6 @@ import pandas as pd
 
 import pysic
 
-__name__ = "profile"
 __author__ = "Marc Oggier"
 __license__ = "GPL"
 

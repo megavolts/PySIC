@@ -4,7 +4,6 @@
 pysic.io.icxl.py : function to import import ice core data from xlsx spreadsheet
 """
 
-__name__ = "core"
 __author__ = "Marc Oggier"
 __license__ = "GPL"
 

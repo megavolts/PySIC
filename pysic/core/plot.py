@@ -14,7 +14,6 @@ import pandas as pd
 from pysic.core.profile import *
 from pysic.core.profile import Profile
 
-__name__ = "plot"
 __author__ = "Marc Oggier"
 __license__ = "GPL"
 
