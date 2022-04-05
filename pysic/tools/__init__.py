@@ -62,7 +62,7 @@ def parse_datetimetz(c_date_v, c_hour_v, c_tz_v):
         if c_tz_v is not None:
             # format 'Country/City'
             if c_tz_v in pytz.all_timezones:
-                _tz = pytz.all_timezones
+                _tz = c_tz_v
                 _dt.replace(tzinfo=dateutil.tz.gettz(_tz))
             elif c_tz_v.split(' ')[0] in pytz.all_timezones:
                 _tz = pytz.all_timezones

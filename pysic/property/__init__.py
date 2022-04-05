@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import pysic.core.plot
 
 __author__ = "Marc Oggier"
 __license__ = "GPL"
@@ -43,7 +42,8 @@ __name__ = "property"
 #               'snow thickness': 'h_{s}',
 #               'pysic permeability': '\kappa'
 #               }
-# prop_parameter_dict = {'conductivity': ['conductivity measurement temperature']}
+prop_parameter_dict = {'conductivity': ['conductivity measurement temperature']}
+prop_associated = {'salinity': ['conductivity', 'specific conductance']}
 #
 #
 # def scale_profile(profile, h_ice_f):

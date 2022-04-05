@@ -14,11 +14,14 @@ from pysic.io import update
 from pysic.tools import inverse_dict, parse_datetimetz, parse_coordinate
 from pysic.core.core import __CoreVersion__
 
-MAX_ROW = 1000
+MAX_ROW = 200
+MAX_COL = 200
 TOL = 1e-12
 
 # DEGUG
 logging.basicConfig(level=logging.DEBUG)
+drop_empty=False
+fill_missing=True
 
 # TODO: modifiy reading to account for false bottom
 def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True):
@@ -291,28 +294,28 @@ def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True)
                 profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d, core_length=core.length, fill_missing=fill_missing)
                 matter = 'ice'
 
-            profile['matter'] = matter
-
-#           def add_sw_salinity(profile):
-            if matter == 'ice' and 'salinity' in profile.get_property() and core.s_water:
+            if not profile.empty:
+                profile['matter'] = matter
+                # TODO def add_sw_salinity(profile):
                 # add sea water salinity at the correct
-                #def profile.get_vref():
-                v_ref_loc = profile.v_ref_loc.unique()
-                if len(v_ref_loc) != 1:
-                    logger.error('%s\t\tvertical reference location not unique')
-                else:
-                    v_ref_loc = v_ref_loc[0]
-                    v_ref_dir = profile.v_ref_dir.unique()
-                    if len(v_ref_dir) != 1:
-                        logger.error('%s\t\tvertical reference direction not unique')
+                if matter == 'ice' and 'salinity' in profile.get_property() and not np.isnan(core.s_water):
+                    # TODO: def profile.get_vref():
+                    v_ref_loc = profile.v_ref_loc.unique()
+                    if len(v_ref_loc) != 1:
+                        logger.error('%s\t\tvertical reference location not unique')
                     else:
-                        v_ref_dir = v_ref_dir[0]
-                        v_ref_h = profile.v_ref_h.unique()
-                        if len(v_ref_h) != 1:
-                            logger.error('%s\t\tvertical reference height not unique')
+                        v_ref_loc = v_ref_loc[0]
+                        v_ref_dir = profile.v_ref_dir.unique()
+                        if len(v_ref_dir) != 1:
+                            logger.error('%s\t\tvertical reference direction not unique')
                         else:
-                            v_ref_h = v_ref_h[0]
-                headers = ['y_low', 'y_sup', 'salinity_ID', 'salinity_value', 'salinity_quality', 'v_ref_loc', 'v_ref_dir', 'v_ref_h', 'matter']
+                            v_ref_dir = v_ref_dir[0]
+                            v_ref_h = profile.v_ref_h.unique()
+                            if len(v_ref_h) != 1:
+                                logger.error('%s\t\tvertical reference height not unique')
+                            else:
+                                v_ref_h = v_ref_h[0]
+                #    headers = ['y_low', 'y_sup', 'salinity_ID', 'salinity_value', 'salinity_quality', 'v_ref_loc', 'v_ref_dir', 'v_ref_h', 'matter']
                 # if v_ref_loc == 'ice bottom':
                 #     # y_low =
                 #     # y_sup =
@@ -324,9 +327,18 @@ def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True)
                 # else:
                 #     logger.error('%s\t\tTODO: implement v_ref_loc %s for profile%' %(core.name, v_ref_loc))
 
+                # add snow, ice surface, and sea water temperature in temperature profile
+                if matter == 'ice' and 'temperature' in profile.get_property():
+                    if not np.isnan(core.t_water):
+                        continue
 
-        #             if matter == 'ice' and profile.get_property() is not None and 'temperature' in profile.get_property():
-#                 headers = ['y_mid', 'temperature_value', 'comment', 'variable', 'v_ref', 'matter']
+                    if not np.isnan(core.t_ice_surface):
+                        continue
+
+                    if not np.isnan(core.t_snow_surface):
+                        continue
+
+    #                 headers = ['y_mid', 'temperature_value', 'comment', 'variable', 'v_ref', 'matter']
 #                 v_ref = profile.v_ref.unique()
 #                 if len(v_ref) == 1:
 #                     v_ref = v_ref[0]
@@ -366,15 +378,15 @@ def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True)
 #                 else:
 #                     logger.error('%s - %s: vertical references mixed up ' %(core.name, sheet))
 #                 profile = profile.sort_values(by='y_mid')
-#             profile['name'] = name
-#             if drop_empty:
-#                 profile.drop_empty_property()
-#
-#             if not profile.empty:
-#                 core.add_profile(profile)
-#                 logger.info('(%s) data imported with success: %s' % (core.name, ", ".join(profile.get_property())))
-#             else:
-#                 logger.info('(%s) no data to import from %s ' % (core.name, sheet))
+                profile['name'] = name
+                if drop_empty:
+                    profile.drop_empty_property()
+
+                if not profile.empty:
+                    core.add_profile(profile)
+                    logger.info('(%s) data imported with success: %s' % (core.name, ", ".join(profile.get_property())))
+                else:
+                    logger.info('(%s) no data to import from %s ' % (core.name, sheet))
     else:
         if not isinstance(ic_property, list):
             if ic_property.lower().find('state variable')+1:
@@ -400,7 +412,10 @@ def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True)
                 else:
                     matter = 'ice'
                     profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d, fill_missing=True)
-                profile['matter'] = matter
+
+                if not profile.empty:
+                    profile['matter'] = matter
+
 
     # Add air, snow surface, ice surface, seawater temperature to temperature profile if exist
 
@@ -459,7 +474,7 @@ def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True)
     return core
 
 
-def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ice surface', 'down']}, core_length=np.nan, fill_missing=True):
+def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ice surface', 'down']}, core_length=np.nan, fill_missing=True, drop_empty=False):
     """
     :param ws_property:
         openpyxl.worksheet, worksheet property to import
@@ -469,94 +484,176 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
         dict, contain information of vertical reference system
     :param core_length:
         float, default np.nan (optional). Ice core length
+    :param fill_missing:
+    :param drop_empty:
     """
     from pysic.core.profile import Profile
+    from pysic.property import prop_associated
 
     logger = logging.getLogger(__name__)
 
     # find last column number with column header and/or subheaders
-    n_row = 1  # header row
-    n_col_min = 1  # start column
-    n_col = n_col_min
-    empty_header = 0
-    headers = []
-    subheaders = []
-    units = []
-    header_dict = {}
-    property_dict = {}
-    while not empty_header and n_col < ws_property.max_column:
-        # Read depth
-        if isinstance(ws_property.cell(n_row, n_col).value, str):
-            h_ = ws_property.cell(n_row, n_col).value  # header
-            hs_ = ws_property.cell(n_row + 1, n_col).value  # subheader
-            hu_ = ws_property.cell(n_row + 2, n_col).value
-
-            headers.append(h_)
-            subheaders.append(hs_)
-            units.append(hu_)
-            n_col += 1
-        elif ws_property.cell(n_row + 1, n_col).value == 'ID':
-            # Look for next property column number
-            property_col = n_col
-            while ws_property.cell(n_row + 1, property_col).value != 'value':
-                property_col += 1
-
-
-
-
-            hs_ = ws_property.cell(n_row + 1, n_col).value  # subheader
-            headers.append(h_)
-            subheaders.append(hs_)
-            units.append(ws_property.cell(n_row+2, n_col).value)
-            n_col += 1
-        elif isinstance(ws_property.cell(n_row+1, n_col).value, str):
-            hs_ = ws_property.cell(n_row + 1, n_col).value   # subheader
-            headers.append(h_)
-            subheaders.append(hs_)
-            units.append(ws_property.cell(n_row+2, n_col).value)
-            n_col += 1
-        else:
-            empty_header = 1
-
-#            subheaders.append(hs_)
-#            n_col += 1
-
-    #
-    # # Old method
-    # # stop when header is empty or max column number is reached
-    # while not empty_header and n_col < ws_property.max_column:
-    #     if isinstance(ws_property.cell(n_row, n_col).value, str):
-    #         h_ = ws_property.cell(n_row, n_col).value  # header
-    #         hs_ = ws_property.cell(n_row + 1, n_col).value  # subheader
-    #         headers.append(h_)
-    #         subheaders.append(hs_)
-    #         units.append(ws_property.cell(n_row + 2, n_col).value)
-    #         n_col += 1
-    #     elif isinstance(ws_property.cell(n_row+1, n_col).value, str):
-    #         hs_ = ws_property.cell(n_row + 1, n_col).value   # subheader
-    #         headers.append(h_)
-    #         subheaders.append(hs_)
-    #         units.append(ws_property.cell(n_row+2, n_col).value)
-    #         n_col += 1
-    #     else:
-    #         empty_header = 1
-    # n_col_max = n_col - 1
-
     if ws_property.max_row < MAX_ROW:
         max_row = ws_property.max_row
     else:
         max_row = MAX_ROW
+    if ws_property.max_column < MAX_COL:
+        max_col = ws_property.max_column
+    else:
+        max_col = MAX_COL
     min_row = 4
 
+    # Dictionnary
+    # parse property headers:
+    header_d = {}
+    header_unit_d = {}
+
+    n_row = 1  # header row
+    n_col_min = 1  # start column
+    n_col = n_col_min
+    empty_header = 0
+    while empty_header < 5 and n_col < max_col:
+        # Read depth
+        if isinstance(ws_property.cell(n_row, n_col).value, str):
+            if 'depth' in ws_property.cell(n_row, n_col).value:
+                h_ = ws_property.cell(n_row, n_col).value
+                hs_ = ws_property.cell(n_row + 1, n_col).value
+                hu_ = ws_property.cell(n_row + 2, n_col).value
+                if h_ not in header_d:
+                    header_d[h_] = {hs_: n_col}
+                    header_unit_d[h_] = {hs_: hu_}
+                else:
+                    header_d[h_].update({hs_: n_col})
+                    header_unit_d[h_].update({hs_: hu_})
+            elif ws_property.cell(n_row, n_col).value == 'comment':
+                h_ = ws_property.cell(n_row, n_col).value
+                hs_ = ws_property.cell(n_row + 1, n_col).value
+                hu_ = ws_property.cell(n_row + 2, n_col).value
+                header_d[h_] = {hs_: n_col}
+                header_unit_d[h_] = {hs_: hu_}
+
+            # specific reader for temperature
+            elif ws_property.cell(n_row, n_col).value == 'temperature':
+                h_ = ws_property.cell(n_row, n_col).value
+                hs_ = ws_property.cell(n_row + 1, n_col).value
+                hu_ = ws_property.cell(n_row + 2, n_col).value
+                if h_ not in header_d:
+                    header_d[h_] = {hs_: n_col}
+                    header_unit_d[h_] = {hs_: hu_}
+                else:
+                    header_d[h_].update({hs_: n_col})
+                    header_unit_d[h_] = {hs_: hu_}
+
+                hs_ = ws_property.cell(n_row + 1, n_col+1).value
+                hu_ = ws_property.cell(n_row + 2, n_col+1).value
+                header_d[h_].update({hs_: n_col+1})
+                header_unit_d[h_] = {hs_: hu_}
+
+            # specific reader entry for eco_pool tab
+            else:
+                prop_col = n_col
+                new_prop = False
+                qual_col = None
+                while not new_prop and empty_header < 5:
+                    if isinstance(ws_property.cell(1, prop_col).value, str):
+                        if 'ID' in header_d[h_] and 'quality' not in header_d[h_]:
+                            if qual_col is not None:
+                                header_d[h_].update({'quality': qual_col})
+                            else:
+                                _col = n_col
+                                while ws_property.cell(n_row + 1,
+                                                       _col).value != 'quality' and _col < ws_property.max_column:
+                                    _col += 1
+                                qual_col = _col
+                                if qual_col is not None:
+                                    header_d[h_].update({'quality': qual_col})
+                                else:
+                                    logger.error(
+                                        'pysic.load.read_generic_profile: undefined quality column for property %s' % h_)
+                        h_ = ws_property.cell(n_row, prop_col).value
+                        hs_ = ws_property.cell(n_row + 1, prop_col).value
+                        hu_ = ws_property.cell(n_row + 2, prop_col).value
+                        header_d[h_] = {hs_: prop_col}
+                        header_unit_d[h_] = {hs_: hu_}
+                    elif ws_property.cell(2, prop_col).value == 'quality':
+                        qual_col = prop_col
+                        hs_ = ws_property.cell(n_row + 1, qual_col).value
+                        header_d[h_].update({hs_: prop_col})
+                    elif ws_property.cell(n_row + 1, prop_col).value != 'ID':
+                        if ws_property.cell(n_row + 1, prop_col).value is not None:
+                            hs_ = ws_property.cell(n_row + 1, prop_col).value
+                            header_d[h_].update({hs_: prop_col})
+                        else:
+                            empty_header += 1
+                    prop_col += 1
+
+                    _ID_flag = (ws_property.cell(n_row + 1, prop_col).value == 'ID')
+                    _comment_flag = (ws_property.cell(n_row, prop_col).value == 'comment')
+                    _ish_flag =  (ws_property.cell(n_row, prop_col).value == 'ice section height')
+                    if _ID_flag or _comment_flag or  _ish_flag:
+                        if 'ID' in header_d[h_] and 'quality' not in header_d[h_]:
+                            header_d[h_].update({'quality': qual_col})
+                        new_prop = True
+                        n_col = n_col + (prop_col - n_col -1)
+            n_col += 1
+        # search for subsamples ID
+        else:
+            prop_col = n_col
+            new_prop = False
+            h_ = None
+            subheader_d = {}
+            subheader_unit_d = {}
+            while not new_prop and empty_header < 5 and prop_col < max_col:
+                if isinstance(ws_property.cell(1, prop_col).value, str):
+                    h_ = ws_property.cell(n_row, prop_col).value
+                    hs_ = ws_property.cell(n_row + 1, prop_col).value
+                    hu_ = ws_property.cell(n_row + 2, prop_col).value
+                    header_d[h_] = {hs_: prop_col}
+                    header_unit_d[h_] = {hs_: hu_}
+
+                    if 'quality' not in header_d[h_] or 'quality' not in subheader_d:
+                        _col = prop_col
+                        while not ws_property.cell(n_row + 1, _col).value == 'ID' and _col < ws_property.max_column:
+                            if ws_property.cell(n_row + 1, _col).value == 'quality':
+                                subheader_d['quality'] = _col
+                                subheader_unit_d['quality'] = ws_property.cell(n_row + 2, _col).value
+                                break
+                            _col += 1
+
+                    for key in subheader_d:
+                        header_d[h_].update({key: subheader_d[key]})
+                        header_unit_d[h_].update({key: subheader_unit_d[key]})
+
+                elif h_ is None:
+                    hs_ = ws_property.cell(n_row + 1, prop_col).value
+                    hu_ = ws_property.cell(n_row + 2, prop_col).value
+                    subheader_d[hs_] = prop_col
+                    subheader_unit_d[hs_] = hu_
+                else:
+                    hs_ = ws_property.cell(n_row + 1, prop_col).value
+                    hu_ = ws_property.cell(n_row + 2, prop_col).value
+                    header_d[h_].update({hs_: prop_col})
+                    header_unit_d[h_].update({hs_: hu_})
+                    for key in subheader_d:
+                        header_d[h_].update({key: subheader_d[key]})
+                        header_unit_d[h_].update({key: subheader_unit_d[key]})
+                prop_col += 1
+
+                if ws_property.cell(n_row + 1, prop_col).value == 'ID' or ws_property.cell(n_row, prop_col).value == 'comment':
+                    new_prop = True
+            n_col = prop_col
+            del subheader_d, subheader_unit_d, prop_col, new_prop
+    del empty_header, n_col, n_row, hs_, hu_, h_
+
     # Read center depth for continuous profile and step profile (if available)
-    if 'depth center' in headers:
-        loc3 = headers.index('depth center')
-        headers[loc3] = 'y_mid'
+    if 'depth center' in header_d:
+        loc3 = header_d['depth center']['value']
+        header_d['y_mid'] = header_d.pop('depth center')
 
         # look for 1st numerical value
         for ii_row in range(min_row, max_row):
+            min_row_3 = ii_row
             if isinstance(ws_property.cell(ii_row, loc3 + 1).value, (float, int)):
-                min_row_3 = ii_row
                 break
 
         y_mid = np.array(
@@ -565,35 +662,39 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
         # discard trailing nan value starting at the end
         y_nan_loc = [ii for ii in np.arange(1, len(y_mid))[::-1] if np.isnan(y_mid[ii])]
         y_mid = np.delete(y_mid, y_nan_loc)
+
+        # if y_mid is not a numeric, then there is no data
+        if np.isnan(y_mid):
+            y_mid = []
+            min_row_3 = np.nan
     else:
         y_mid = []
         min_row_3 = np.nan
 
     # Read lower and upper section depth for step profile or set to nan for continuous profile
-    if 'depth 1' in headers and 'depth 2' in headers:
-        # find column with depth 1
-        loc1 = headers.index('depth 1')
-        headers[loc1] = 'y_low'
-        loc2 = headers.index('depth 2')
-        headers[loc2] = 'y_sup'
+    if 'depth 1' in header_d and 'depth 2' in header_d:
+        y_low_col = header_d['depth 1']['value']
+        header_d['y_low'] = header_d.pop('depth 1')
+        y_sup_col = header_d['depth 2']['value']
+        header_d['y_sup'] = header_d.pop('depth 2')
 
         # find first numerical value
         for ii_row in range(min_row, max_row):
-            if isinstance(ws_property.cell(ii_row, loc1 + 1).value, (float, int)):
+            if isinstance(ws_property.cell(ii_row, y_low_col).value, (float, int)):
                 min_row_1 = ii_row
                 break
             else:
-                min_row_2 = np.nan
+                min_row_1 = np.nan
         for ii_row in range(min_row, max_row):
-            if isinstance(ws_property.cell(ii_row, loc2 + 1).value, (float, int)):
+            if isinstance(ws_property.cell(ii_row, y_sup_col).value, (float, int)):
                 min_row_2 = ii_row
                 break
             else:
                 min_row_2 = np.nan
 
         min_row_12 = min(min_row_1, min_row_2)
-        y_low = np.array([ws_property.cell(ii_row, loc1+1).value for ii_row in range(min_row_12, max_row + 1)]).astype(float)
-        y_sup = np.array([ws_property.cell(ii_row, loc2+1).value for ii_row in range(min_row_12, max_row + 1)]).astype(float)
+        y_low = np.array([ws_property.cell(ii_row, y_low_col).value for ii_row in range(min_row_12, max_row)]).astype(float)
+        y_sup = np.array([ws_property.cell(ii_row, y_sup_col).value for ii_row in range(min_row_12, max_row)]).astype(float)
 
         # discard trailing nan value starting at the end
         y_nan_loc = [ii for ii in np.arange(1, len(y_low))[::-1] if np.isnan(y_low[ii]) and np.isnan(y_sup[ii])]
@@ -607,24 +708,28 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
                 y_mid = (y_low + y_sup) / 2
             else:
                 logger.info('\t\t%s: y_mid are mid points of y_low and y_sup. Do nothing' % ws_property.title)
-        elif np.isnan(y_mid).any() or min_row_3 != min_row_12:
+        elif np.isnan(y_mid).any():
+            y_mid = (y_low + y_sup) / 2
+            logger.warning('\t\t%s: y_mid do not exit. Computing y_mid = (y_low+y_sup)/2'
+                        % ws_property.title)
+        elif min_row_3 != min_row_12:
             y_mid = (y_low + y_sup) / 2
             logger.warning('\t\t%s: not all y_mid exit. Computing y_mid = (y_low+y_sup)/2'
-                        % ws_property.title)
+                           % ws_property.title)
         else:
             y_mid = (y_low + y_sup) / 2
             logger.info('\t\t%s: y_mid does not exist. Computing y_mid = (y_low+y_sup)/2'
                         % ws_property.title)
-    elif 'depth 1' in headers:
-        loc1 = headers.index('depth 1')
-        headers[loc1] = 'y_low'
+    elif 'depth 1' in header_d:
+        y_low_col = header_d['depth 1']['value']
+        header_d['y_low'] = header_d.pop('depth 1')
 
         # find first numerical value
         for ii_row in range(min_row, max_row):
-            if isinstance(ws_property.cell(ii_row, loc1 + 1).value, (float, int)):
+            if isinstance(ws_property.cell(ii_row, y_low_col).value, (float, int)):
                 min_row_1 = ii_row
                 break
-        y_low = np.array([ws_property.cell(ii_row, loc1+1).value for ii_row in range(min_row_1, max_row + 1)]).astype(float)
+        y_low = np.array([ws_property.cell(ii_row, y_low_col).value for ii_row in range(min_row_1, max_row + 1)]).astype(float)
 
         # discard trailing nan value starting at the end
         y_nan_loc = [ii for ii in np.arange(1, len(y_low))[::-1] if np.isnan(y_low[ii])]
@@ -646,15 +751,17 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
                            % ws_property.title)
             dy = np.diff(y_low[-2:])
             y_sup = np.concatenate([y_low[1:], [y_low[-1]+dy]])
-    elif 'depth 2' in headers:
-        loc2 = headers.index('depth 2')
-        headers[loc2] = 'y_sup'
+        min_row_12 = min_row_1
+    elif 'depth 2' in header_d:
+        y_sup_col = header_d['depth 2']['value']
+        header_d['y_sup'] = header_d.pop('depth 2')
+
         # find first numerical value
         for ii_row in range(min_row, max_row):
-            if isinstance(ws_property.cell(ii_row, loc2 + 1).value, (float, int)):
+            if isinstance(ws_property.cell(ii_row, y_sup_col).value, (float, int)):
                 min_row_2 = ii_row
                 break
-        y_sup = np.array([ws_property.cell(ii_row, loc2+1).value for ii_row in range(min_row_2, max_row + 1)]).astype(float)
+        y_sup = np.array([ws_property.cell(ii_row, y_sup_col).value for ii_row in range(min_row_2, max_row + 1)]).astype(float)
 
         logger.warning('\t\t%s: y_low do not exist. Attempting to infer y_low from y_sup'% ws_property.title)
         # discard trailing nan value starting at the end
@@ -675,10 +782,12 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
         else:
             logger.info('\t\t%s: For lower y_low, using y_low[0] = 0' % ws_property.title)
             y_low = np.concatenate([[0], y_sup[:-1]])
+        min_row_12 = min_row_2
     else:
         logger.info('\t\t%s: y_low and y_sup do not exist. Creating nan array of same size as y_mid'% (ws_property.title))
         y_low = np.nan * np.ones(y_mid.__len__())
         y_sup = np.nan * np.ones(y_mid.__len__())
+        min_row_12 = np.nan
 
     # Check length consistency
     if len(y_low) != len(y_mid):
@@ -686,18 +795,29 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
 
     # Read data, according to depth value
     # look up for first numeric or standard entry value
-    row_min = min(min_row_12, min_row_3)
+    if not np.isnan(min_row_12) and not np.isnan(min_row_3):
+        row_min = min(min_row_12, min_row_3)
+    elif not np.isnan(min_row_12):
+        row_min = min_row_12
+    elif not np.isnan(min_row_3):
+        row_min = min_row_3
+    else:
+        logger.warning('\t\t%s: no data' % (ws_property.title))
+        return Profile()
     row_max = row_min + len(y_mid) - 1
+    n_col_max = n_col_min
+    for key in header_d:
+        for subkey in header_d[key]:
+            if n_col_max < header_d[key][subkey]:
+                n_col_max = header_d[key][subkey]
 
-    # Drop column with depth:
-    # _data = [[cell.value if isinstance(cell.value, (float, int)) else np.nan for cell in row]
-    #                   for row in ws_property.iter_rows(n_row_min, n_row_max, n_col_min, n_col_max)]
-    _data = [[cell.value for cell in row] for row in ws_property.iter_rows(row_min, row_max, n_col_min, n_col_max)]
+    # Read data by column
+    _data = [[cell.value for cell in col] for col in ws_property.iter_cols(n_col_min, n_col_max, row_min, row_max)]
 
-    # concatenate header and subheader
+    # define matter type
     if ic_property is None:
         variable_prefix = ''
-        matter = 'sea_ice'
+        matter = 'seaice'
     elif any(map(ic_property.__contains__, ['brine', 'sackhole'])):
         variable_prefix = 'brine_'
         matter = 'brine'
@@ -711,18 +831,23 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
         variable_prefix = ''
         matter = 'seaice'
 
-    # concatenate header and subheader to generate header
-    subheaders = [sh if sh is not None else '' for sh in subheaders]
-    profile_headers = [variable_prefix + h + '_' + subheaders[ii] if (len(subheaders[ii]) > 1 and h not in ['y_low', 'y_sup', 'y_mid', 'comment']) else h
-                       for ii, h in enumerate(headers)]
+    profile = pd.DataFrame()
 
-    profile = pd.DataFrame(_data, columns=profile_headers)
+#    for header in dict(sorted(header_d.items(), key=lambda item: item[1]['value'])):
+    for header in dict(sorted(header_d.items(), key=lambda item: min(item[1].values()))):
+        for subheader in header_d[header]:
+            if len(header_d[header]) > 1:
+                header_name = header + '_' + subheader
+            else:
+                header_name = header
+            if profile.empty:
+                profile = pd.DataFrame(_data[header_d[header][subheader]-1], columns=[header_name])
+            else:
+                profile = pd.concat([profile, pd.DataFrame(_data[header_d[header][subheader]-1], columns=[header_name])], axis=1)
 
     # Add 'y_mid' column if does not exist, and fill it
     if 'y_mid' not in profile.keys():
-        profile['y_mid'] = profile['y_mid'] = (profile.y_low + profile.y_sup)/2
-    elif any(profile.y_mid.isna()):
-        profile.loc[profile.y_mid.isna(), 'y_mid'] = profile.loc[profile.y_mid.isna(), ['y_low', 'y_sup']].sum(axis=1)/2
+        profile['y_mid'] = y_mid
 
     # Add 'comment' column if does not exist and fill it with none value
     if 'comment' not in profile.columns:
@@ -733,7 +858,7 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
         for ii_row in np.where(profile.y_sup.values[:-1] - profile.y_low.values[1:] < -TOL)[0]:
             y_low = profile.loc[profile.index == ii_row, 'y_sup'].values
             y_sup = profile.loc[profile.index == ii_row + 1, 'y_low'].values
-            empty_row = pd.DataFrame([[np.nan] * len(profile_headers)], columns=profile_headers)
+            empty_row = pd.DataFrame([[np.nan] * len(len(profile.columns))], columns=profile.columns)
             empty_row['y_low'] = y_low
             empty_row['y_sup'] = y_sup
             empty_row['y_mid'] = (y_low + y_sup) / 2
@@ -746,36 +871,34 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
         else:
             profile = profile.sort_values('y_mid').reset_index(drop=True)
 
-    # Clean profile:
-    # Drop empty headers
+    # Drop Empty headers
     if None in profile.columns:
         profile = profile.drop(labels=[None], axis=1)
 
     # get profile property from headers (e.g. salinity, temperature, ...)
     ic_property = [h.split('_ID')[0] for h in profile.columns if 'ID' in h]
 
-    # old method
-    # ic_property = [var for var in profile.columns if var not in ['comment', 'y_low', 'y_sup', 'y_mid']]
-    # ic_property = [prop.split('_')[0] for prop in ic_property]
-    # ic_property = list(set(ic_property))
     #
-    # # remove property parameters (e.g. conductivity temperature measurement for conductivity
-    # ic_property = [prop for prop in ic_property if prop not in inverse_dict(prop_parameter_dict)]
+    type_string_header = ['comment']
+    type_float_header = [h for h in profile.columns if h not in type_string_header and 'ID' not in h]
+    type_string_header = [h for h in profile.columns if h not in type_float_header]
 
     # generate list of headers, with float type, and set column type to float
-    string_header = ['comment']
-    float_header = [h for h in profile.columns if h not in string_header]
-    profile[float_header] = profile[float_header].apply(pd.to_numeric, errors='coerce')
+    profile[type_float_header] = profile[type_float_header].apply(pd.to_numeric, errors='coerce')
 
-    # drop property if there is neither an ID and a value for each sections
-    for ic_prop in ic_property:
-        ic_prop_headers = [h for h in profile.columns if ic_prop+'_' in h]
-        if all(profile[ic_prop+'_ID'].isna()) and all(profile[ic_prop+'_value'].notna()):
-            profile.drop(labels=ic_prop_headers)
-
+    # Drop property profile without ID and values
+    for header in header_d:
+        if 'value' in header_d[header] and 'ID' in header_d[header]:
+            if all(profile[header + '_ID'].isna()) and all(profile[header + '_value'].isna()):
+                logger.info('\t\t%s: dropping %s profile without ID and values' % (ws_property.title, header))
+                for subheader in header_d[header]:
+                    profile = profile.drop(labels=[header + '_' + subheader], axis=1)
+                    if header in ic_property:
+                        ic_property.remove(header)
     # remove empty line if all element of depth are nan:
-    subset = [col for col in ['y_low', 'y_sup', 'y_mid'] if col in profile.columns]
-    profile = profile.dropna(axis=0, subset=subset, how='all')
+    if not fill_missing:
+        subset = [col for col in ['y_low', 'y_sup', 'y_mid'] if col in profile.columns]
+        profile = profile.dropna(axis=0, subset=subset, how='all')
 
     # set property by row
     def add_property(x, ic_prop):
@@ -785,21 +908,40 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
             x = ', '.join(list(set(filter(None, x.split(', ')))) + [ic_prop])
         return x
     profile['property'] = None
-    for ic_prop in ic_property:
-        profile_index = profile[(profile[ic_prop + '_ID'].notna() | profile[ic_prop + '_value'].notna())].index
-        profile.loc[profile_index, 'property'] = profile.loc[profile_index, 'property'].apply(lambda x: add_property(x, ic_prop))
 
     # TODO: add property to profile even if na (override)
+    for ic_prop in ic_property:
+        # For property with associated property e.g. salinity with conductivty and specific conductance, consider only
+        flag_associated_prop = False
+        for _props in prop_associated:
+            if ic_prop in prop_associated[_props] or ic_prop == _props:
+                flag_associated_prop = True
+        if flag_associated_prop:
+            profile_index = profile[profile[ic_prop + '_value'].notna()].index
+        else:
+            try:
+                profile_index = profile[(profile[ic_prop + '_ID'].notna() | profile[ic_prop + '_value'].notna())].index
+            except KeyError:
+                profile_index = profile[(profile[ic_prop + '_ID'].notna())].index
+            else:
+                pass
+        profile.loc[profile_index, 'property'] = profile.loc[profile_index, 'property'].apply(lambda x: add_property(x, ic_prop))
 
     # set location, direction and depth of the vertical referential system
     # TODO: improve vertical reference
     if reference_d['ice'][0] == 'ice surface':
         v_ref_loc = 'ice surface'
+        v_ref_h = 0
     elif reference_d['ice'][0] == 'ice/water interface':
         v_ref_loc = 'ice bottom'
+        v_ref_h = 0
     else:
         logger.error('%s\t\tVertical reference %s not defined.' % (ws_property, reference_d['ice'][0]))
+
     profile['v_ref_loc'] = [v_ref_loc] * len(profile.index)
+    profile['v_ref_h'] = [v_ref_h] * len(profile.index)
+    type_string_header.append(v_ref_loc)
+    type_float_header.append(v_ref_h)
 
     if reference_d['ice'][1] == 'up':
         v_ref_dir = 'positive'
@@ -809,20 +951,10 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
         logger.error('%s\t\tVertical reference %s not defined.' % (ws_property, reference_d['ice'][0]))
 
     profile['v_ref_dir'] = [v_ref_dir] * len(profile.index)
-    profile['v_ref_h'] = [0] * len(profile.index)
+    type_float_header.append(v_ref_dir)
 
-    # set columns type
-    string_header.extend(['property', 'v_ref_dir', 'v_ref_h'])
-    float_header.extend(['v_ref_h'])
-    c_string = [h for h in string_header if h in profile.columns]
-    profile[c_string] = profile[c_string].astype(str).replace({'nan': None})
-
-    profile = Profile(profile)
-
-    # import pickle
-    # with open('/home/megavolts/temp.pkl', 'w') as f:
-    #     pickle.dump(profile, f)
-    return profile
+#    profile[type_string_header] = profile[type_string_header].astype(str).replace({'nan': None})
+    return Profile(profile)
 
 
 def read_snow_profile(ws_property, ic_property=None, reference_d={'ice': ['ice surface', 'down']}):
@@ -833,8 +965,11 @@ def read_snow_profile(ws_property, ic_property=None, reference_d={'ice': ['ice s
     :param reference_d:
         top, or bottom
     """
+
     from pysic.core.profile import Profile
     logger = logging.getLogger(__name__)
+
+    logger.error('need to be implemented')
 
     # Read Salinity block
     # read headers:

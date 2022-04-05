@@ -13,6 +13,7 @@ import pysic
 # ic_collection = '/home/megavolts/git/pysic/test/ice core'
 # ic_event = '/home/megavolts/git/pysic/test/ice core/BRW_CS-20210519/'
 ic_core = '/home/megavolts/git/pysic/test/ice core/BRW_CS-20210519/BRW_CS-20210519-85_SALO18.xlsx'
+ic_core = '/home/megavolts/git/pysic/test/ice core/PS122-1_5-3-1.4.1/20191028-PS122-1_5-FYI-SALO18.xlsx'
 # ic_ext = '.xlsx'
 
 # List all ice core data
@@ -22,15 +23,15 @@ ic_core = '/home/megavolts/git/pysic/test/ice core/BRW_CS-20210519/BRW_CS-202105
 #
 # # Import 1 core
 ic_path = ic_core
+backup = True
 #
 
 fill_missing = True
 ic_property = None
 from pysic.io import update
-update.ice_core_data(ic_path)
-#ic = pysic.io.load.ic_from_path(ic_path, ic_property=ic_property, fill_missing=fill_missing)
+ic = pysic.io.load.ic_from_path(ic_path, ic_property=ic_property, fill_missing=fill_missing)
 
-import math
+#import math
 
 #pysic
 # import pickle
