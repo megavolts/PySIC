@@ -20,8 +20,8 @@ TOL = 1e-12
 
 # DEGUG
 logging.basicConfig(level=logging.DEBUG)
-drop_empty=False
-fill_missing=True
+drop_empty = False
+fill_missing = True
 
 # TODO: modifiy reading to account for false bottom
 def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True):
@@ -967,9 +967,183 @@ def read_snow_profile(ws_property, ic_property=None, reference_d={'ice': ['ice s
     """
 
     from pysic.core.profile import Profile
+    from pysic.property import prop_associated
+
     logger = logging.getLogger(__name__)
 
-    logger.error('need to be implemented')
+    logger.error('%s: need to be implemented', ws_property)
+
+    # find last column number with column header and/or subheaders
+    if ws_property.max_row < MAX_ROW:
+        max_row = ws_property.max_row
+    else:
+        max_row = MAX_ROW
+    if ws_property.max_column < MAX_COL:
+        max_col = ws_property.max_column
+    else:
+        max_col = MAX_COL
+    min_row = 4
+
+
+    # Dictionnary
+    # parse property headers:
+    # similar block entry as function read_generic_profile(), but adapted to read the 6 data blocks (salinity, temperature, nutrient, extra sample, SMP, SEW)
+
+    super_header = {}
+    super_header_unit_d = {}
+    new_header_block = 0
+    n_col_min = 1  # start column
+    n_col = n_col_min
+    empty_header = 0
+
+    while new_header_block < 6:
+        header_d = {}
+        header_unit_d = {}
+
+        n_row = 1  # header row
+
+        empty_header = 0
+        max_empty_header = 1
+
+        while empty_header < 3 and n_col < max_col:
+            # Read depth
+            if isinstance(ws_property.cell(n_row, n_col).value, str):
+                if 'depth' in ws_property.cell(n_row, n_col).value:
+                    h_ = ws_property.cell(n_row, n_col).value
+                    hs_ = ws_property.cell(n_row + 1, n_col).value
+                    hu_ = ws_property.cell(n_row + 2, n_col).value
+                    if h_ not in header_d:
+                        header_d[h_] = {hs_: n_col}
+                        header_unit_d[h_] = {hs_: hu_}
+                    else:
+                        header_d[h_].update({hs_: n_col})
+                        header_unit_d[h_].update({hs_: hu_})
+                elif ws_property.cell(n_row, n_col).value == 'comment':
+                    h_ = ws_property.cell(n_row, n_col).value
+                    hs_ = ws_property.cell(n_row + 1, n_col).value
+                    hu_ = ws_property.cell(n_row + 2, n_col).value
+                    header_d[h_] = {hs_: n_col}
+                    header_unit_d[h_] = {hs_: hu_}
+
+                # specific reader for temperature
+                elif ws_property.cell(n_row, n_col).value == 'temperature':
+                    h_ = ws_property.cell(n_row, n_col).value
+                    hs_ = ws_property.cell(n_row + 1, n_col).value
+                    hu_ = ws_property.cell(n_row + 2, n_col).value
+                    if h_ not in header_d:
+                        header_d[h_] = {hs_: n_col}
+                        header_unit_d[h_] = {hs_: hu_}
+                    else:
+                        header_d[h_].update({hs_: n_col})
+                        header_unit_d[h_] = {hs_: hu_}
+
+                    hs_ = ws_property.cell(n_row + 1, n_col+1).value
+                    hu_ = ws_property.cell(n_row + 2, n_col+1).value
+                    header_d[h_].update({hs_: n_col+1})
+                    header_unit_d[h_] = {hs_: hu_}
+
+                # specific reader entry for eco_pool tab
+                else:
+                    prop_col = n_col
+                    new_prop = False
+                    qual_col = None
+                    while not new_prop and empty_header < max_empty_header:
+                        if isinstance(ws_property.cell(1, prop_col).value, str):
+                            if 'ID' in header_d[h_] and 'quality' not in header_d[h_]:
+                                if qual_col is not None:
+                                    header_d[h_].update({'quality': qual_col})
+                                else:
+                                    _col = n_col
+                                    while ws_property.cell(n_row + 1,
+                                                           _col).value != 'quality' and _col < ws_property.max_column:
+                                        _col += 1
+                                    qual_col = _col
+                                    if qual_col is not None:
+                                        header_d[h_].update({'quality': qual_col})
+                                    else:
+                                        logger.error(
+                                            'pysic.load.read_generic_profile: undefined quality column for property %s' % h_)
+                            h_ = ws_property.cell(n_row, prop_col).value
+                            hs_ = ws_property.cell(n_row + 1, prop_col).value
+                            hu_ = ws_property.cell(n_row + 2, prop_col).value
+                            header_d[h_] = {hs_: prop_col}
+                            header_unit_d[h_] = {hs_: hu_}
+                        elif ws_property.cell(2, prop_col).value == 'quality':
+                            qual_col = prop_col
+                            hs_ = ws_property.cell(n_row + 1, qual_col).value
+                            header_d[h_].update({hs_: prop_col})
+                        elif ws_property.cell(n_row + 1, prop_col).value != 'ID':
+                            if ws_property.cell(n_row + 1, prop_col).value is not None:
+                                hs_ = ws_property.cell(n_row + 1, prop_col).value
+                                header_d[h_].update({hs_: prop_col})
+                            else:
+                                empty_header += 1
+                        prop_col += 1
+
+                        _ID_flag = (ws_property.cell(n_row + 1, prop_col).value == 'ID')
+                        _comment_flag = (ws_property.cell(n_row, prop_col).value == 'comment')
+                        _ish_flag =  (ws_property.cell(n_row, prop_col).value == 'ice section height')
+                        if _ID_flag or _comment_flag or  _ish_flag:
+                            if 'ID' in header_d[h_] and 'quality' not in header_d[h_]:
+                                header_d[h_].update({'quality': qual_col})
+                            new_prop = True
+                            n_col = n_col + (prop_col - n_col -1)
+                n_col += 1
+            # search for subsamples ID
+            else:
+                prop_col = n_col
+                new_prop = False
+                h_ = None
+                subheader_d = {}
+                subheader_unit_d = {}
+                while not new_prop and empty_header < max_empty_header and prop_col < max_col:
+                    if isinstance(ws_property.cell(1, prop_col).value, str):
+                        h_ = ws_property.cell(n_row, prop_col).value
+                        hs_ = ws_property.cell(n_row + 1, prop_col).value
+                        hu_ = ws_property.cell(n_row + 2, prop_col).value
+                        header_d[h_] = {hs_: prop_col}
+                        header_unit_d[h_] = {hs_: hu_}
+
+                        if 'quality' not in header_d[h_] or 'quality' not in subheader_d:
+                            _col = prop_col
+                            while not ws_property.cell(n_row + 1, _col).value == 'ID' and _col < ws_property.max_column:
+                                if ws_property.cell(n_row + 1, _col).value == 'quality':
+                                    subheader_d['quality'] = _col
+                                    subheader_unit_d['quality'] = ws_property.cell(n_row + 2, _col).value
+                                    break
+                                _col += 1
+
+                        for key in subheader_d:
+                            header_d[h_].update({key: subheader_d[key]})
+                            header_unit_d[h_].update({key: subheader_unit_d[key]})
+
+                    elif h_ is None:
+                        hs_ = ws_property.cell(n_row + 1, prop_col).value
+                        hu_ = ws_property.cell(n_row + 2, prop_col).value
+                        subheader_d[hs_] = prop_col
+                        subheader_unit_d[hs_] = hu_
+                    else:
+                        hs_ = ws_property.cell(n_row + 1, prop_col).value
+                        hu_ = ws_property.cell(n_row + 2, prop_col).value
+                        header_d[h_].update({hs_: prop_col})
+                        header_unit_d[h_].update({hs_: hu_})
+                        for key in subheader_d:
+                            header_d[h_].update({key: subheader_d[key]})
+                            header_unit_d[h_].update({key: subheader_unit_d[key]})
+                    prop_col += 1
+
+                    if ws_property.cell(n_row + 1, prop_col).value == 'ID' or ws_property.cell(n_row, prop_col).value == 'comment':
+                        new_prop = True
+                n_col = prop_col
+                del subheader_d, subheader_unit_d, prop_col, new_prop
+
+        super_header[new_header_block] = header_d
+        super_header_unit_d[new_header_block] = header_unit_d
+        new_header_block += 1
+
+    del empty_header, n_col, n_row, hu_, h_
+
+    # Read headers
 
     # Read Salinity block
     # read headers:
