@@ -9,7 +9,7 @@ import logging as logging
 
 from pysic.core.profile import Profile
 
-__CoreVersion__ = "1.4.6"
+__CoreVersion__ = "1.4.7"
 __comment__ = "core.py contains class Core() to store an sea ice core, and a collection of functions to handle ice core" \
               "data"
 

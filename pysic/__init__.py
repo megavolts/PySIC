@@ -44,3 +44,10 @@ TOL = 1e-12
 
 # TODO: add test function
 # TODO: add function Core.check() to check the integrity of the ice core and profiles
+
+
+#pysic_fp = os.path.getfile('pysic/__init__.py')
+#print(pysic_fp)
+# from inspect import getfile
+# from os.path import dirname
+# pysic_fp = dirname(getfile(pysic))

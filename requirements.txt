@@ -1,13 +1,15 @@
 # requirements file
 ### BEGIN ###
+# required to have ordered dict
+#python>=3.7
 matplotlib>=1.3.1
 numpy>=1.8.2
 pandas>=0.21.0
-scipy~=1.7.3
-openpyxl~=3.0.9
+scipy>=1.7.3
+openpyxl>=3.0.9
 pytz
 python-dateutil
 ### END ###
 
-python-dateutil~=2.8.2
-setuptools~=57.0.0
+python-dateutil>=2.8.2
+setuptools>=57.0.0

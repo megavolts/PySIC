@@ -32,7 +32,10 @@ class Profile(pd.DataFrame):
         else:
             property = []
             for prop_grp in self.property.unique():
-                property += list(filter(None, prop_grp.split(', ')))
+                if prop_grp is not None:
+                    if ', ' in property:
+                        property += list(filter(None, prop_grp.split(', ')))
+                    property += [prop_grp]
         if string_rtn:
             return ', '.join(property)
         else:
