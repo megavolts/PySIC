@@ -66,6 +66,7 @@ def list_folder(dirpath, fileext='.xlsx', level=0):
     return ics_set
 
 def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True):
+    from pysic.core.profile import Profile
     """
     :param ic_path:
         string: path to the ice core data. Ice core data should be stored in defined spreadsheet
@@ -492,7 +493,7 @@ def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True)
 
                 if not profile.empty:
                     profile['matter'] = matter
-
+            core.profile = Profile(pd.concat([core.profile, profile]))
 
     # Add air, snow surface, ice surface, seawater temperature to temperature profile if exist
 
@@ -770,6 +771,8 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
                 min_row_2 = np.nan
 
         min_row_12 = min(min_row_1, min_row_2)
+        if np.isnan(min_row_12):
+            return Profile()
         y_low = np.array([ws_property.cell(ii_row, y_low_col).value for ii_row in range(min_row_12, max_row)]).astype(float)
         y_sup = np.array([ws_property.cell(ii_row, y_sup_col).value for ii_row in range(min_row_12, max_row)]).astype(float)
 
@@ -940,7 +943,7 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
         for ii_row in np.where(profile.y_sup.values[:-1] - profile.y_low.values[1:] < -TOL)[0]:
             y_low = profile.loc[profile.index == ii_row, 'y_sup'].values
             y_sup = profile.loc[profile.index == ii_row + 1, 'y_low'].values
-            empty_row = pd.DataFrame([[np.nan] * len(len(profile.columns))], columns=profile.columns)
+            empty_row = pd.DataFrame([[np.nan] * len(profile.columns)], columns=profile.columns)
             empty_row['y_low'] = y_low
             empty_row['y_sup'] = y_sup
             empty_row['y_mid'] = (y_low + y_sup) / 2

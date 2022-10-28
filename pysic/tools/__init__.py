@@ -1,4 +1,5 @@
 def version2int(version):
+    version = str(version)
     version_int = [int(v) for v in version.split('.')]
     if len(version_int) < 3:
         version_int.append(0)
