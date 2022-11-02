@@ -44,7 +44,10 @@ __name__ = "property"
 #               }
 prop_parameter_dict = {'conductivity': ['conductivity measurement temperature']}
 prop_associated = {'salinity': ['conductivity', 'specific conductance'], 'texture': ['inclusion', 'description']}
-prop_associated_tab = {'salo18': ['conductivity', 'specific conductance'], 'tex': ['inclusion', 'description']}
+prop_associated_tab = {'salo18': ['conductivity', 'specific conductance', 'dD', 'd_excess'],
+                       'tex': ['inclusion', 'description'],
+                       'eco': ['phaeo'],
+                       'ct': ['conductivity', 'specific conductance', 'dD', 'd_excess']}
 prop_associated_list = [['d18O', 'dD', 'd_excess'],
                         ['salinity', 'conductivity', 'specific conductance'],
                         ['texture', 'inclusion', 'description']]

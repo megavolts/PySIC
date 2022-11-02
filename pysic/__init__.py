@@ -19,6 +19,8 @@ __credits__ = ["Hajo Eicken", "Andy Mahoney", "Josh Jones"]
 import pysic.core
 import pysic.io
 import pysic.io.load
+import pysic.io.update
+import pysic.io.clean
 from .__version__ import __version__
 from pysic.core.event import Event
 from pysic.core.core import Core
