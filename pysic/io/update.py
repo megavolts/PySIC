@@ -21,17 +21,8 @@ from pysic.property import prop_associated_tab
 import pysic
 pysic_fp = pysic.__path__[0]
 
-#ic_path = '/home/megavolts/git/pysic/pysic/ressources/AAA_BB-YYYYXXZZ-N_P-1.4.6.xlsx'
-
-
 data_row_n = 42
-
-# Cell style
-# unit
-unit_style = Font(name='Geneva', charset=1, family=2.0, b=False, i=True, strike=None, outline=None,
-                  shadow=None, condense=None, color=None, extend=None, sz=9.0, u=None, vertAlign=None,
-                  scheme=None)
-unit_alignment = Alignment(horizontal='right')
+user = 'Marc Oggier'
 
 # Border style
 # bottom border
@@ -100,14 +91,12 @@ noFill = PatternFill(fill_type=None)
 m_data_style = NamedStyle(name="m_data_style")
 m_data_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')  # black
 m_data_style.alignment = Alignment(horizontal='right', wrapText=True, vertical='center')
-#m_data_style.fill = PatternFill(fgColor=white, bgColor=white, fill_type="solid")
 m_data_style.fill = PatternFill(fill_type=None)
 
 # data entry style, left aligned: black font, left alignment, white/no background
 m_data_l_style = NamedStyle(name="m_data_l_style")
 m_data_l_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')  # black
 m_data_l_style.alignment = Alignment(horizontal='left', wrapText=True, vertical='center')
-#m_data_l_style.fill = PatternFill(fgColor=white, bgColor=white, fill_type="solid")
 m_data_l_style.fill = PatternFill(fill_type=None)
 
 # background style: dark grey
@@ -153,7 +142,6 @@ m_version_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=T
 m_version_style.alignment = Alignment(horizontal='left', wrapText=False, vertical='center')
 m_version_style.fill = PatternFill(start_color=dark_grey, end_color=dark_grey, fill_type="solid")
 
-
 # Data validation
 vert_ref_list = DataValidation(type="list", formula1='"ice surface, ice/water interface, snow surface, water level"')
 vert_dir_list = DataValidation(type="list", formula1='"up, down"')
@@ -161,9 +149,6 @@ texture_dv = DataValidation(type="list", formula1='{0}!$F$3:$F$27'.format(quote_
 inclusion_dv = DataValidation(type="list", formula1='{0}!$G$3:$G$27'.format(quote_sheetname('lists')), allow_blank=True)
 description_dv = DataValidation(type="list", formula1='{0}!$H$3:$H$27'.format(quote_sheetname('lists')), allow_blank=True)
 
-
-#TODO: find surname and given name form os
-user = 'Marc Oggier'
 
 def ice_core_data(ic_path, backup=True, user=user):
     """
@@ -1874,14 +1859,9 @@ def version_1_4_3_to_1_4_4(wb):
                 wb[sheetname].cell(3, col_start + 2).value = 'm'
 
                 # Formatting
-                for col in range(col_start, col_start + 3):
-                    wb[sheetname].cell(1, col).style = 'm_header_style'
-                    wb[sheetname].cell(1, col).border = noBorder
-                    wb[sheetname].cell(2, col).style = m_subheader_style
-                    wb[sheetname].cell(2, col).border = noBorder
-                    wb[sheetname].cell(3, col).style = 'm_unit_style'
-                    wb[sheetname].cell(3, col).border = noBorder
-                    wb[sheetname].cell(wb[sheetname].max_row, col).style = 'm_bkg_style'
+                col_end = col_start + 2
+                styleHeaderPainter(wb[sheetname], col_start, col_end)
+                styleBottomPainter(wb[sheetname], col_start, col_end)
                 for col in [col_start, col_start + 3]:
                     for row in range(1, wb[sheetname].max_row):
                         wb[sheetname].cell(row, col).border = l_border
@@ -1923,14 +1903,9 @@ def version_1_4_3_to_1_4_4(wb):
                 wb[sheetname].cell(3, col_start + 2).value = '[0-9]'
 
                 # formatting
-                for col in range(col_start, col_start + 3):
-                    wb[sheetname].cell(1, col).style = 'm_header_style'
-                    wb[sheetname].cell(1, col).border = noBorder
-                    wb[sheetname].cell(2, col).style = 'm_subheader_style'
-                    wb[sheetname].cell(2, col).border = noBorder
-                    wb[sheetname].cell(3, col).style = 'm_unit_style'
-                    wb[sheetname].cell(3, col).border = noBorder
-                    wb[sheetname].cell(wb[sheetname].max_row, col).style = 'm_bkg_style'
+                col_end = col_start + 2
+                styleHeaderPainter(wb[sheetname], col_start, col_end)
+                styleBottomPainter(wb[sheetname], col_start, col_end)
                 for col in [col_start, col_start + 3]:
                     for row in range(1, wb[sheetname].max_row):
                         wb[sheetname].cell(row, col).border = l_border
@@ -2158,15 +2133,9 @@ def version_1_4_5_to_1_4_6(wb):
                 wb[sheetname].delete_cols(d18O_qual_idx, 1)
 
             # formatting
-            for col_idx in range(d18O_id_idx, col_end + 1):
-                wb[sheetname].cell(1, col_idx).style = 'm_header_style'
-                wb[sheetname].cell(1, col_idx).border = noBorder
-                wb[sheetname].cell(2, col_idx).style = 'm_subheader_style'
-                wb[sheetname].cell(2, col_idx).border = noBorder
-                wb[sheetname].cell(3, col_idx).style = 'm_unit_style'
-                wb[sheetname].cell(3, col_idx).border = noBorder
-                wb[sheetname].cell(wb[sheetname].max_row, col_idx).style = 'm_bkg_style'
-
+            col_start = d18O_id_idx
+            styleHeaderPainter(wb[sheetname], col_start, col_end)
+            styleBottomPainter(wb[sheetname], col_start, col_end)
             if header in sheetname in prop_associated_tab and header in prop_associated_tab[sheetname]:
                 pass
             else:
@@ -2210,14 +2179,8 @@ def version_1_4_5_to_1_4_6(wb):
                     wb[sheetname].cell(1, col_start).value = None
 
                     # formatting
-                    for col_idx in range(col_start, col_end + 1):
-                        wb[sheetname].cell(1, col_idx).style = 'm_header_style'
-                        wb[sheetname].cell(1, col_idx).border = noBorder
-                        wb[sheetname].cell(2, col_idx).style = 'm_subheader_style'
-                        wb[sheetname].cell(2, col_idx).border = noBorder
-                        wb[sheetname].cell(3, col_idx).style = 'm_unit_style'
-                        wb[sheetname].cell(3, col_idx).border = noBorder
-                        wb[sheetname].cell(max_row, col_idx).style = 'm_bkg_style'
+                    styleHeaderPainter(wb[sheetname], col_start, col_end)
+                    styleBottomPainter(wb[sheetname], col_start, col_end)
 
                     if sheetname in prop_associated_tab and header in prop_associated_tab[sheetname]:
                         pass
@@ -2253,15 +2216,8 @@ def version_1_4_5_to_1_4_6(wb):
             # formatting
             col_start = col
             col_end = col + 2
-            for col_idx in range(col_start, col_end + 1):
-                wb[sheetname].cell(1, col_idx).style = 'm_header_style'
-                wb[sheetname].cell(1, col_idx).border = noBorder
-                wb[sheetname].cell(2, col_idx).style = 'm_subheader_style'
-                wb[sheetname].cell(2, col_idx).border = noBorder
-                wb[sheetname].cell(3, col_idx).style = 'm_unit_style'
-                wb[sheetname].cell(3, col_idx).border = noBorder
-                wb[sheetname].cell(wb[sheetname].max_row, col_idx).style = 'm_bkg_style'
-
+            styleHeaderPainter(wb[sheetname], col_start,col_end)
+            styleBottomPainter(wb[sheetname], col_start,col_end)
             for col in [col_start - 1, col_end + 2]:
                 for row in range(1, wb[sheetname].max_row):
                     wb[sheetname].cell(row, col).border = l_border
@@ -2320,14 +2276,8 @@ def version_1_4_5_to_1_4_6(wb):
                 logger.info(
                     '%s\t\td18O ID different from dD ID: merging not possible' % wb['metadata-core']['C1'].value)
             # formatting
-            for col_idx in range(sh_idx['d18O']['ID'], sh_idx['d18O']['ID'] + 4):
-                wb[sheetname].cell(1, col_idx).style = 'm_header_style'
-                wb[sheetname].cell(1, col_idx).border = noBorder
-                wb[sheetname].cell(2, col_idx).style = 'm_subheader_style'
-                wb[sheetname].cell(2, col_idx).border = noBorder
-                wb[sheetname].cell(3, col_idx).style = 'm_unit_style'
-                wb[sheetname].cell(3, col_idx).border = noBorder
-                wb[sheetname].cell(max_row, col_idx).style = 'm_bkg_style'
+            styleHeaderPainter(wb[sheetname], sh_idx['d18O']['ID'], sh_idx['d18O']['ID'] + 4)
+            styleBottomPainter(wb[sheetname], sh_idx['d18O']['ID'], sh_idx['d18O']['ID'] + 4)
             for row in range(1, max_row):
                 wb[sheetname].cell(row, sh_idx['d18O']['ID']).border = l_border
 
@@ -2487,13 +2437,8 @@ def version_1_4_6_to_1_4_7(wb):
                 wb[sheetname].cell(3, sh_idx['dD']['value'] + 1).value = '‰'
                 wb[sheetname].cell(3, sh_idx['dD']['value']).value = '‰'
                 wb[sheetname].cell(3, sh_idx['d18O']['value']).value = '‰'
-                wb[sheetname].cell(1, sh_idx['dD']['value'] + 1).style = 'm_header_style'
-                wb[sheetname].cell(1, sh_idx['dD']['value'] + 1).border = noBorder
-                wb[sheetname].cell(2, sh_idx['dD']['value'] + 1).style = 'm_subheader_style'
-                wb[sheetname].cell(2, sh_idx['dD']['value'] + 1).border = noBorder
-                wb[sheetname].cell(3, sh_idx['dD']['value'] + 1).style = 'm_unit_style'
-                wb[sheetname].cell(3, sh_idx['dD']['value'] + 1).border = noBorder
-                wb[sheetname].cell(wb[sheetname].max_row, sh_idx['dD']['value'] + 1).style = 'm_bkg_style'
+                styleHeaderPainter(wb[sheetname], sh_idx['dD']['value'] + 1, sh_idx['dD']['value'] + 1)
+                styleBottomPainter(wb[sheetname], sh_idx['dD']['value'] + 1, sh_idx['dD']['value'] + 1)
 
                 # remove colum of dD_IDy
                 wb[sheetname].delete_cols(sh_idx['dD']['ID'], 1)
@@ -2837,7 +2782,6 @@ def version_1_4_7_to_1_4_8(wb):
             wb[sheetname].cell(1, col_idx).value = 'value'
             wb[sheetname].cell(1, col_idx).value = '‰'
             # formatting
-            max_row = wb[sheetname].max_row
             styleHeaderPainter(wb[sheetname], col_idx, col_idx + 1)
             styleBottomPainter(wb[sheetname], col_idx, col_idx + 1)
 
@@ -2890,7 +2834,6 @@ def version_1_4_7_to_1_4_8(wb):
         logger.debug('\t %s updated from 1.4.7 to 1.4.8' % (wb['metadata-core']['C1'].value))
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
-
 
 def formatting(ic_path, backup=True):
     pass
@@ -2994,6 +2937,26 @@ def unmergeHeaderRow(ws, header_row=1, nomerge_header=[], styleDict={1: m_header
         else:
             merged_cells.remove(merge_cell)
 
+
+def hasData(ws):
+    row_idx = 1
+    flag_depth = False
+    while not flag_depth and row_idx <= 4:
+        if len(find_str_in_row(ws, 'depth', row_idx)) > 0:
+            flag_depth = True
+        else:
+            row_idx += 1
+    depth = []
+    max_row = ws.max_row
+    col_idx = find_str_in_row(ws, 'depth', row_idx)
+
+    data_depth = [[ws.cell(row=ii, column=jj).value for ii in range(row_idx + 3, max_row)] for jj in col_idx]
+    data_depth = np.array(data_depth).astype(float)
+    # copy default ct page if there is no data
+    if np.isnan(data_depth).all():
+        return False
+    else:
+        return True
 
 ###############
 ## Copy a sheet with style, format, layout, ect. from one Excel file to another Excel file
@@ -3100,7 +3063,6 @@ def stylePainter(worksheet, col_comment_idx, max_col, max_row, styleDict={1:m_he
     for row in range(2, max_row + 1):
         worksheet.row_dimensions[row].height = 12.75
 
-
 def styleHeaderPainter(ws, start_col, end_col, start_row=1, styleDict={1:m_header_style, 2:m_subheader_style, 3:m_unit_style}):
     start_row -= 1
     for row in styleDict.keys():
@@ -3143,27 +3105,6 @@ def cleanDataWorksheet(worksheet, col_comment_idx, max_col, max_row, clear_all=F
                 flag_row_empty = False
     if flag_row_empty:
         worksheet.delete_rows(max_row + 1, worksheet.max_row - max_row)
-
-
-def hasData(ws):
-    row_idx = 1
-    flag_depth = False
-    while not flag_depth and row_idx <= 4:
-        if len(find_str_in_row(ws, 'depth', row_idx)) > 0:
-            flag_depth = True
-        else:
-            row_idx += 1
-    depth = []
-    max_row = ws.max_row
-    col_idx = find_str_in_row(ws, 'depth', row_idx)
-
-    data_depth = [[ws.cell(row=ii, column=jj).value for ii in range(row_idx + 3, max_row)] for jj in col_idx]
-    data_depth = np.array(data_depth).astype(float)
-    # copy default ct page if there is no data
-    if np.isnan(data_depth).all():
-        return False
-    else:
-        return True
 
 def cleanWorksheet(ws):
     if ws.title not in ['lists', 'locations']:
