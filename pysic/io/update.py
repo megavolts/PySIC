@@ -19,12 +19,18 @@ from pysic.tools import version2int
 from pysic.property import prop_associated_tab
 
 import pysic
+
+__all__ = ['ice_core_data']
+
 pysic_fp = pysic.__path__[0]
 
 data_row_n = 42
 user = 'Marc Oggier'
 
 # Border style
+# top and bottom border
+tb_border = Border(left=Side(border_style=None), right=Side(border_style=None),
+                  top=Side(border_style='hair', color='00000000'), bottom=Side(border_style='hair', color='00000000'))
 # bottom border
 b_border = Border(left=Side(border_style=None), right=Side(border_style=None),
                   top=Side(border_style=None), bottom=Side(border_style='hair', color='00000000'))
@@ -44,79 +50,25 @@ br_border = Border(left=Side(border_style=None), right=Side(border_style='hair',
 noBorder = Border(left=Side(border_style=None), right=Side(border_style=None),
                   top=Side(border_style=None), bottom=Side(border_style=None))
 
-## METADATA TAB STYLE
-m_header_style = NamedStyle(name="m_header_style")
-m_header_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=True, italic=False, color='FF000000')  # black
-m_header_style.alignment = Alignment(horizontal='center', wrapText=True, vertical='top')
-m_header_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFE0E0E0", fill_type="solid")
-
-m_subheader_style = NamedStyle(name="m_subheader_style")
-m_subheader_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')
-m_subheader_style.alignment = Alignment(horizontal='center', wrapText=True, vertical='center')
-m_subheader_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFE0E0E0", fill_type="solid")
-
-m_unit_style = NamedStyle(name="m_unit_style")
-m_unit_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=True, color='FF000000')
-m_unit_style.alignment = Alignment(horizontal='center', wrapText=True, vertical='center')
-m_unit_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFE0E0E0", fill_type="solid")
-
-m_unit_l_style = NamedStyle(name="m_unit_l_style")
-m_unit_l_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=True, color='FF000000')
-m_unit_l_style.alignment = Alignment(horizontal='left', wrapText=True, vertical='center')
-m_unit_l_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFE0E0E0", fill_type="solid")
-
-m_subheader_style_coring = NamedStyle(name="m_subheader_style_coring")
-m_subheader_style_coring.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=True, italic=False, color='FF000000')  # black
-m_subheader_style_coring.alignment = Alignment(horizontal='left', wrapText=True, vertical='center')
-m_subheader_style_coring.fill = PatternFill(start_color="FFCCCCCC", end_color="FFBFBFBF", fill_type="solid")
-
-m_unit_style_coring = NamedStyle(name="m_unit_style_coring")
-m_unit_style_coring.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=True, color='FF000000')
-m_unit_style_coring.alignment = Alignment(horizontal='right', wrapText=True, vertical='center')
-m_unit_style_coring.fill = PatternFill(start_color="FFCCCCCC", end_color="FFBFBFBF", fill_type="solid")
-
-m_comment_style_coring = NamedStyle(name="m_comment_style_coring")
-m_comment_style_coring.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=True, color='FF000000')
-m_comment_style_coring.alignment = Alignment(horizontal='left', wrapText=False, vertical='center')
-m_comment_style_coring.fill = PatternFill(start_color="FFCCCCCC", end_color="FFBFBFBF", fill_type="solid")
-
-## PROPERTY TAB
+# Color scheme
 mid_grey = "FFCCCCCC"
 light_grey = "FFDDDDDD"
 dark_grey = "FFB2B2B2"
 white = "ffFFFFFF"
 noFill = PatternFill(fill_type=None)
 
-# data right: black font, right aligned, white/no background
-m_data_style = NamedStyle(name="m_data_style")
-m_data_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')  # black
-m_data_style.alignment = Alignment(horizontal='right', wrapText=True, vertical='center')
-m_data_style.fill = PatternFill(fill_type=None)
+# METADATA TAB STYLE
+# - suptitle: black bold font, left aligned, dark grey background
+m_header_title_style = NamedStyle(name="m_header_title_style")
+m_header_title_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=True, italic=False, color='FF000000')
+m_header_title_style.alignment = Alignment(horizontal='left', wrapText=False, vertical='center')
+m_header_title_style.fill = PatternFill(start_color=mid_grey, end_color=mid_grey, fill_type="solid")
 
-# data entry style, left aligned: black font, left alignment, white/no background
-m_data_l_style = NamedStyle(name="m_data_l_style")
-m_data_l_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')  # black
-m_data_l_style.alignment = Alignment(horizontal='left', wrapText=True, vertical='center')
-m_data_l_style.fill = PatternFill(fill_type=None)
-
-# background style: dark grey
-m_bkg_style = NamedStyle(name="m_bkg_style")
-m_bkg_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')
-m_bkg_style.alignment = Alignment(horizontal='left', wrapText=False, vertical='center')
-m_bkg_style.fill = PatternFill(start_color=dark_grey, end_color=dark_grey, fill_type="solid")
-m_bottom_style = m_bkg_style
-
-# subheader right: black font, right aligned, light grey background
-m_subheader_r_style = NamedStyle(name="m_subheader_r_style")
-m_subheader_r_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')
-m_subheader_r_style.alignment = Alignment(horizontal='right', wrapText=True, vertical='center')
-m_subheader_r_style.fill = PatternFill(start_color=light_grey, end_color=light_grey, fill_type="solid")
-
-# subheader left: black font, left aligned, light grey background
-m_subheader_l_style = NamedStyle(name="m_subheader_l_style")
-m_subheader_l_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')
-m_subheader_l_style.alignment = Alignment(horizontal='left', wrapText=True, vertical='center')
-m_subheader_l_style.fill = PatternFill(start_color=light_grey, end_color=light_grey, fill_type="solid")
+# - header: black, bold font; dark grey background
+m_header_style = NamedStyle(name="m_header_style")
+m_header_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=True, italic=False, color='FF000000')  # black
+m_header_style.alignment = Alignment(horizontal='center', wrapText=False, vertical='top')
+m_header_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFE0E0E0", fill_type="solid")
 
 # header right: black bold font, right aligned, light grey background
 m_header_r_style = NamedStyle(name="m_header_r_style")
@@ -130,17 +82,79 @@ m_header_l_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=
 m_header_l_style.alignment = Alignment(horizontal='left', wrapText=False, vertical='center')
 m_header_l_style.fill = PatternFill(start_color=light_grey, end_color=light_grey, fill_type="solid")
 
-# header title: black bold font, left aligned, dark grey background
-m_header_title_style = NamedStyle(name="m_header_title_style")
-m_header_title_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=True, italic=False, color='FF000000')
-m_header_title_style.alignment = Alignment(horizontal='left', wrapText=False, vertical='center')
-m_header_title_style.fill = PatternFill(start_color=mid_grey, end_color=mid_grey, fill_type="solid")
+# - subheader right: black, bold font; light grey background
+m_subheader_r_style = NamedStyle(name="m_subheader_r_style")
+m_subheader_r_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')
+m_subheader_r_style.alignment = Alignment(horizontal='right', wrapText=True, vertical='center')
+m_subheader_r_style.fill = PatternFill(start_color=light_grey, end_color=light_grey, fill_type="solid")
 
-# version: black bold font, left aligned, bkg background
-m_version_style = NamedStyle(name="m_version_style")
-m_version_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=True, italic=False, color='FF000000')
-m_version_style.alignment = Alignment(horizontal='left', wrapText=False, vertical='center')
-m_version_style.fill = PatternFill(start_color=dark_grey, end_color=dark_grey, fill_type="solid")
+# - subheader left: black, bold font; light grey background
+m_subheader_l_style = NamedStyle(name="m_subheader_l_style")
+m_subheader_l_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')
+m_subheader_l_style.alignment = Alignment(horizontal='left', wrapText=True, vertical='center')
+m_subheader_l_style.fill = PatternFill(start_color=light_grey, end_color=light_grey, fill_type="solid")
+
+# - unit: right, black, italic font; light grey background
+m_unit_r_style = NamedStyle(name="m_unit_r_style")
+m_unit_r_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=True, color='FF000000')
+m_unit_r_style.alignment = Alignment(horizontal='right', wrapText=False, vertical='center')
+m_unit_r_style.fill = PatternFill(start_color="FFCCCCCC", end_color="FFBFBFBF", fill_type="solid")
+
+# - comment: left, black, italic font; light grey background
+m_comment_style = NamedStyle(name="m_comment_style")
+m_comment_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=True, color='FF000000')
+m_comment_style.alignment = Alignment(horizontal='left', wrapText=False, vertical='center')
+m_comment_style.fill = PatternFill(start_color="FFCCCCCC", end_color="FFBFBFBF", fill_type="solid")
+
+# data, right: black; no background
+m_data_r_style = NamedStyle(name="m_data_r_style")
+m_data_r_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')  # black
+m_data_r_style.alignment = Alignment(horizontal='right', wrapText=False, vertical='center')
+m_data_r_style.fill = PatternFill(fill_type=None)
+
+# data, left: black; no background
+m_data_l_style = NamedStyle(name="m_data_l_style")
+m_data_l_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')  # black
+m_data_l_style.alignment = Alignment(horizontal='left', wrapText=False, vertical='center')
+m_data_l_style.fill = PatternFill(fill_type=None)
+
+
+## PROPERTY TAB
+# - header
+p_header_style = NamedStyle(name="p_header_style")
+p_header_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=True, italic=False, color='FF000000')  # black
+p_header_style.alignment = Alignment(horizontal='center', wrapText=False, vertical='top')
+p_header_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFE0E0E0", fill_type="solid")
+
+# - subheader
+p_subheader_style = NamedStyle(name="p_subheader_style")
+p_subheader_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')
+p_subheader_style.alignment = Alignment(horizontal='center', wrapText=False, vertical='center')
+p_subheader_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFE0E0E0", fill_type="solid")
+
+# - unit
+p_unit_style = NamedStyle(name="p_unit_style")
+p_unit_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=True, color='FF000000')
+p_unit_style.alignment = Alignment(horizontal='center', wrapText=False, vertical='center')
+p_unit_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFE0E0E0", fill_type="solid")
+
+# data, right: black, no background (for number)
+p_data_r_style = NamedStyle(name="p_data_r_style")
+p_data_r_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')  # black
+p_data_r_style.alignment = Alignment(horizontal='right', wrapText=True, vertical='center')
+p_data_r_style.fill = PatternFill(fill_type=None)
+
+# data, left:  black, no background (for string)
+p_data_l_style = NamedStyle(name="p_data_l_style")
+p_data_l_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')  # black
+p_data_l_style.alignment = Alignment(horizontal='left', wrapText=True, vertical='center')
+p_data_l_style.fill = PatternFill(fill_type=None)
+
+# BACKGROUND
+m_bkg_style = NamedStyle(name="m_bkg_style")
+m_bkg_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')
+m_bkg_style.alignment = Alignment(horizontal='left', wrapText=False, vertical='center')
+m_bkg_style.fill = PatternFill(start_color=dark_grey, end_color=dark_grey, fill_type="solid")
 
 # Data validation
 vert_ref_list = DataValidation(type="list", formula1='"ice surface, ice/water interface, snow surface, water level"')
@@ -149,6 +163,10 @@ texture_dv = DataValidation(type="list", formula1='{0}!$F$3:$F$27'.format(quote_
 inclusion_dv = DataValidation(type="list", formula1='{0}!$G$3:$G$27'.format(quote_sheetname('lists')), allow_blank=True)
 description_dv = DataValidation(type="list", formula1='{0}!$H$3:$H$27'.format(quote_sheetname('lists')), allow_blank=True)
 
+m_styles_list = ['m_header_style', 'm_subheader_style', 'm_unit_style', 'm_unit_l_style', 'm_subheader_style',\
+                'm_unit_style_coring', 'm_comment_style', 'm_data_style', 'm_data_l_style', 'm_bkg_style',\
+                'm_subheader_r_style', 'm_subheader_l_style', 'm_header_r_style', 'm_header_l_style',\
+                'm_header_title_style']
 
 def ice_core_data(ic_path, backup=True, user=user):
     """
@@ -169,10 +187,9 @@ def ice_core_data(ic_path, backup=True, user=user):
     version = ws_summary['C1'].value
     version_int = version2int(version)
 
-    m_styles = ['m_subheader_style']
-    for style in m_styles:
+    for style in m_styles_list:
         if style not in wb.style_names:
-            wb.add_named_style(style)
+            wb.add_named_style(eval(style))
 
     flag_update = False
     if version_int[1] <= 4 and version_int[2] < 1:
@@ -499,7 +516,6 @@ def version_1_3_0_to_1_4_1(wb):
         vert_dir_list.add('D14')
         vert_dir_list.add('D16')
         vert_dir_list.add('D18')
-        wb.save('/home/megavolts/test.xlsx')
 
         # formatting
         max_col = 26
@@ -511,13 +527,13 @@ def version_1_3_0_to_1_4_1(wb):
             for col in range(7, max_col + 1):
                 wb[sheetname].cell(row, col).style = m_bkg_style
 
-        wb[sheetname]['A12'].style = m_version_style
+        wb[sheetname]['A12'].style = m_header_title_style
         for row in range(row_insert_idx + 1, row_insert_idx + 6 + 1):
             # A header
             wb[sheetname].cell(row, 1).style = m_header_l_style
             wb[sheetname].cell(row, 2).style = m_subheader_l_style
             wb[sheetname].cell(row, 3).style = m_subheader_r_style
-            wb[sheetname].cell(row, 4).style = m_data_style
+            wb[sheetname].cell(row, 4).style = m_data_l_style
 
         # cell line
         for row in np.arange(row_insert_idx + 2, row_insert_idx + row_n - 2, 2):
@@ -530,11 +546,12 @@ def version_1_3_0_to_1_4_1(wb):
         flag_instrument = True
         flag_version = True
         while flag_instrument or flag_version:
-            if isinstance(wb[sheetname].cell(row, 1).value, str) and 'INSTRUMENT' in wb[sheetname].cell(row, 1).value:
+            if isinstance(wb[sheetname].cell(row, 1).value, str) and\
+                    'INSTRUMENT' in wb[sheetname].cell(row, 1).value:
                 flag_instrument = False
                 row_instrument_idx = row
-            elif isinstance(wb[sheetname].cell(row, 1).value, str) and 'DATA VERSION' in wb[sheetname].cell(row,
-                                                                                                            1).value:
+            elif isinstance(wb[sheetname].cell(row, 1).value, str) and\
+                    'DATA VERSION' in wb[sheetname].cell(row, 1).value:
                 flag_version = False
                 row_version_idx = row
             row += 1
@@ -548,7 +565,6 @@ def version_1_3_0_to_1_4_1(wb):
                 merged_cell.shift(0, row_n)
         # insert row_n rows starting at row_insert_idx row
         wb[sheetname].insert_rows(row_insert_idx, row_n)
-
         wb[sheetname].cell(row_version_idx, 1).value = 'VERSION'
 
         # insert text
@@ -567,12 +583,10 @@ def version_1_3_0_to_1_4_1(wb):
             for col in range(1, max_col + 1):
                 wb[sheetname].cell(row, col).style = m_bkg_style
 
-        wb[sheetname].cell(row_instrument_idx, 1).style = m_version_style
+        wb[sheetname].cell(row_instrument_idx, 1).style = m_header_title_style
         for row in range(row_instrument_idx + 1, row_version_idx - 1):
-            # A header
-            wb[sheetname].cell(row, 1).style = m_subheader_l_style
-            wb[sheetname].cell(row, 2).style = m_subheader_l_style
-            wb[sheetname].cell(row, 3).style = m_data_l_style
+            wb[sheetname].cell(row, 1).style = m_subheader_r_style
+            wb[sheetname].cell(row, 2).style = m_subheader_r_style
             # merge cell from col C (3) to col H (8)
             for merge_cells in wb[sheetname].merged_cells.ranges:
                 if merge_cells.left[0][0] == row and merge_cells.left[0][1] == 3:
@@ -582,22 +596,26 @@ def version_1_3_0_to_1_4_1(wb):
                     wb[sheetname].cell(row, col).style = m_bkg_style
             new_range = 'C' + str(row) + ':H' + str(row)
             wb[sheetname].merge_cells(new_range)
+            wb[sheetname].cell(row, 3).style = m_data_l_style
             if row < row_version_idx - 2:
                 for col in range(1, 8 + 1):
                     wb[sheetname].cell(row, col).border = b_border
 
-        wb[sheetname].cell(row_version_idx, 1).style = m_version_style
+        wb[sheetname].cell(row_version_idx, 1).style = m_header_title_style
+        # version subheader
         row = row_version_idx + 1
-        for col in range(1, 8 + 1):
-            wb[sheetname].cell(row, col).style = m_subheader_l_style
+        for col_idx in range(1, 3):
+            wb[sheetname].cell(row, col_idx).style = m_subheader_r_style
+        for col_idx in range(3, 8 + 1):
+            wb[sheetname].cell(row, col_idx).style = m_subheader_l_style
+        # version entries
         for row in range(row_version_idx + 2, wb[sheetname].max_row):
+            for col_idx in range(1, 3):
+                wb[sheetname].cell(row, col).style = m_data_r_style
             for col in range(1, 8 + 1):
                 wb[sheetname].cell(row, col).style = m_data_l_style
-                if col >= 3:
-                    wb[sheetname].cell(row, col).alignment = Alignment(horizontal='left', wrapText=False,
-                                                                       vertical='center')
                 if col == 2:
-                    wb[sheetname].cell(row, col).number_format = 'mm-dd-yy'
+                    wb[sheetname].cell(row, col).number_format = 'yyyy-dd-mm'
 
         # remove extra columns
         wb[sheetname].delete_cols(27, wb[sheetname].max_column-26)
@@ -615,7 +633,7 @@ def version_1_3_0_to_1_4_1(wb):
 
         # Formatting
         for col in range(1, 5):
-            wb[sheetname].cell(1, col).style = m_version_style
+            wb[sheetname].cell(1, col).style = m_header_title_style
             if col == 3:
                 wb[sheetname].cell(1, col).font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False,
                                                        italic=True, color='FF000000')
@@ -650,7 +668,7 @@ def version_1_3_0_to_1_4_1(wb):
         for col in range(1, 8 + 1):
             wb[sheetname].cell(9, col).border = b_border
             if col > 2:
-                wb[sheetname].style = m_data_style
+                wb[sheetname].style = m_data_r_style
         for row in range(7, 10 + 1):
             wb[sheetname].cell(row, 5).border = r_border
             wb[sheetname].cell(row, 6).border = l_border
@@ -1706,7 +1724,7 @@ def version_1_3_0_to_1_4_1(wb):
             # formatting
             max_row = 3 + data_row_n + 1
             l_border_col = ['F', 'I', 'O', 'U']
-            styleDict = {1: m_header_style, 2: m_header_style, 3: m_subheader_l_style, 4: m_unit_style}
+            styleDict = {1: p_header_style, 2: p_header_style, 3: p_subheader_style, 4: p_unit_style}
             worksheetDataFormatting(wb[sheetname], max_row, l_border_col, styleDict)
 
         # - LOCATIONS
@@ -1750,7 +1768,7 @@ def version_1_4_1_to_1_4_2(wb):
         wb[sheetname].cell(mergeCells.right[0][0], mergeCells.right[0][1]).value = 'Core'
 
         # formatting
-        wb[sheetname].cell(1, mergeCells.right[0][1]).style = 'm_header_style'
+        wb[sheetname].cell(1, mergeCells.right[0][1]).style = 'p_header_style'
         for row in range(1, wb[sheetname].max_row):
             wb[sheetname].cell(row, mergeCells.right[0][1]).border = l_border
 
@@ -1779,11 +1797,12 @@ def version_1_4_2_to_1_4_3(wb):
         wb['metadata-station']['A43'].value = 'wind direction'
 
         # formatting
-        wb['metadata-station']['A33'].style = m_subheader_style_coring
-        wb['metadata-station']['B33'].style = m_unit_style_coring
+        wb['metadata-station']['A33'].style = m_subheader_l_style
+        wb['metadata-station']['B33'].style = m_unit_r_style
 
-        wb['metadata-station']['D33'].style = m_comment_style_coring
-        wb['metadata-station']['E33'].style = m_comment_style_coring
+        wb['metadata-station']['D33'].style = m_comment_style
+        wb['metadata-station']['E33'].style = m_comment_style
+
         for col in range(openpyxl.utils.column_index_from_string('A'),
                          openpyxl.utils.column_index_from_string('E') + 1):
             wb['metadata-station'].cell(32, col).border = b_border
@@ -2003,6 +2022,11 @@ def version_1_4_4_to_1_4_5(wb):
     version = version2int(wb['metadata-station']['C1'].value)
     if version[0] < 2 and version[1] < 5 and version[2] < 5:
 
+        # TODO :remove
+        for style in m_styles_list:
+            if style not in wb.style_names:
+                wb.add_named_style(eval(style))
+
         # - METADATA-STATION
         sheetname = 'metadata-station'
         wb[sheetname]['D42'].value = None
@@ -2018,7 +2042,7 @@ def version_1_4_4_to_1_4_5(wb):
         # style B42:B46 not bold, align right
         col_idx = openpyxl.utils.cell.column_index_from_string('B')
         for row_idx in range(42, 46 + 1):
-            wb[sheetname].cell(row_idx, col_idx).style = 'm_unit_style_coring'
+            wb[sheetname].cell(row_idx, col_idx).style = 'm_unit_style'
         # Border formatting
         # C-H
         for col_idx in range(openpyxl.utils.column_index_from_string('C'),
@@ -2060,7 +2084,6 @@ def version_1_4_5_to_1_4_6(wb):
     logger = logging.getLogger(__name__)
     version = version2int(wb['metadata-station']['C1'].value)
     if version[0] < 2 and version[1] < 5 and version[2] < 6:
-
         # - METADATA-CORE
         # Clean metadata-core
         sheetname = 'metadata-core'
@@ -2152,51 +2175,78 @@ def version_1_4_5_to_1_4_6(wb):
         merged_cells = list(wb[sheetname].merged_cells.ranges)
         max_row = wb[sheetname].max_row
 
-        # Store merge range for later
+        # store merged cell ranges for d18O and dD
+        stored_headers = ['chl-a', 'phaeo']
         property_range = {}
+        merged_cells = wb[sheetname].merged_cells.ranges
         for merge_cell in merged_cells:
-            row_start = merge_cell.left[0][0]
-            col_start = merge_cell.left[0][1]
-            if merge_cell.start_cell.value in ['chl-a', 'phaeo']:
-                for prop in ['chl-a', 'phao']:
-                    property_range[prop] = merge_cell.start_cell.value
+            if merge_cell.start_cell.value in stored_headers:
+                for prop in stored_headers:
+                    if merge_cell.start_cell.value == prop:
+                        property_range[prop] = merge_cell
 
         # Unmerge header cells for nutrient
-        for merge_cell in merged_cells:
-            if merge_cell.left[0][0] == 1:
-                if merge_cell.start_cell.value == 'nutrient':
-                    col_start = merge_cell.left[0][1]
-                    col_end = merge_cell.right[0][1]
-
-                    # unmerged cell
-                    header = merge_cell.start_cell.value
-                    wb[sheetname].unmerge_cells(merge_cell.coord)
-
-                    # move header to column with 'value' subheader
-                    value_col_idx = find_str_in_row(wb[sheetname], 'value', 2)
-                    value_col_idx = value_col_idx[(value_col_idx >= col_start) & (value_col_idx <= col_end)][0]
-                    wb[sheetname].cell(1, value_col_idx).value = 'nutrient'
-                    wb[sheetname].cell(1, col_start).value = None
-
-                    # formatting
-                    styleHeaderPainter(wb[sheetname], col_start, col_end)
-                    styleBottomPainter(wb[sheetname], col_start, col_end)
-
-                    if sheetname in prop_associated_tab and header in prop_associated_tab[sheetname]:
-                        pass
-                    else:
-                        for col in [col_start]:
-                            for row in range(1, max_row):
-                                wb[sheetname].cell(row, col).border = l_border
+        unmergeHeaderRow(wb[sheetname])
 
         # update necessary for MOSAiC-UTQ dataset
         # correct typo 'eco. data sampe' with 'eco. data sample'
         for _col in range(1, wb[sheetname].max_column):
             if wb[sheetname].cell(1, _col).value == 'eco. data sampe':
                 wb[sheetname].cell(1, _col).value == 'eco. data sample'
+
         # add phaeo column, and/or merge chl-a and phaeo ID
         if 'chl-a' in property_range and 'phaeo' in property_range:
-            logging.error("NOT IMPLEMENTED: 'chl-a' in property_range and 'phaeo' in property_range")
+
+            # found column id for ID and qual for chl-a and phaeo
+            sh_idx = {}
+            for prop in property_range:
+                if prop not in sh_idx:
+                    sh_idx[prop] = {}
+                merge_cell = property_range[prop]
+                col_start = merge_cell.left[0][1]
+                col_end = merge_cell.right[0][1]
+                for col_idx in range(col_start, col_end + 1):
+                    subheader = wb[sheetname].cell(2, col_idx).value
+                    sh_idx[prop][subheader] = col_idx
+
+            # Check if IDs match:
+            chla_ID = [wb[sheetname].cell(row=ii, column=sh_idx['chl-a']['ID']).value for ii in range(4, max_row)]
+            phaeo_ID = [wb[sheetname].cell(row=ii, column=sh_idx['phaeo']['ID']).value for ii in range(4, max_row)]
+            chla_qual = [wb[sheetname].cell(row=ii, column=sh_idx['chl-a']['quality']).value for ii in range(4, max_row)]
+            phaeo_qual = [wb[sheetname].cell(row=ii, column=sh_idx['phaeo']['quality']).value for ii in range(4, max_row)]
+            chla_vol = [wb[sheetname].cell(row=ii, column=sh_idx['chl-a']['volume']).value for ii in range(4, max_row)]
+            phaeo_vol = [wb[sheetname].cell(row=ii, column=sh_idx['phaeo']['volume']).value for ii in range(4, max_row)]
+
+            if chla_ID == phaeo_ID and chla_vol == phaeo_vol:
+                # remove colum of dD_IDy
+                wb[sheetname].cell(1, sh_idx['chl-a']['ID']).value = None
+                wb[sheetname].cell(1, sh_idx['chl-a']['value']).value = 'chl-a'
+                wb[sheetname].cell(1, sh_idx['phaeo']['value']).value = 'phaeo'
+                delete_col_with_merge(wb[sheetname], sh_idx['phaeo']['volume'], 1, True, 4)
+                delete_col_with_merge(wb[sheetname], sh_idx['phaeo']['ID'], 1, True, 4)
+                if chla_qual != phaeo_qual:
+                    logging.error('NOT IMPLEMENTED: d18O_qual != dD_qual')
+                    col_end = sh_idx['phaeo']['quality'] - 2
+                else:
+                    # remove colum for d18O_qual
+                    delete_col_with_merge(wb[sheetname], sh_idx['chl-a']['quality'], 1, True, 4)
+                    col_end = sh_idx['phaeo']['quality'] - 3
+
+                # rename 'volume' subheader to 'filtered volume':
+                col_start = sh_idx['chl-a']['ID']
+                col_idx = find_str_in_row(wb[sheetname], 'volume', 2)
+                col_idx = col_idx[(col_start <= col_idx) & (col_idx <= col_end)]
+                wb[sheetname].cell(2, col_idx[0]).value = 'filtered volume'
+                wb[sheetname].cell(3, col).value = 'L'
+
+            else:
+                logger.info(
+                    '%s\t\tdifferent IDs, quality or volume: merging not possible' % wb['metadata-core']['C1'].value)
+                # rename 'volume' to 'filtered volume' if needed
+                logger.error('%s\t\tTODO: rename volume to filtered volume or instered filtered volume column'
+                             % wb['metadata-core']['C1'].value)
+                # insert 'filtered volume if needed
+
         elif 'chl-a' in property_range:
             # look for chl-a value column
             for col in range(4, wb[sheetname].max_column):
@@ -2208,19 +2258,28 @@ def version_1_4_5_to_1_4_6(wb):
             wb[sheetname].cell(2, col + 1).value = 'value'
             wb[sheetname].cell(3, col + 1).value = 'mg/m3'
 
-            # insert 'filtered volume' column before chl-a value column
-            wb[sheetname].insert_cols(col, 1)
-            wb[sheetname].cell(2, col).value = 'filtered volume'
-            wb[sheetname].cell(3, col).value = 'L'
+            # check if a volume column exist for 'chl-a'
+            col_idx = find_str_in_row(wb[sheetname], 'volume', 2)
+            col_idx = col_idx[(col - 1 <= col_idx) & (col_idx <= col + 2)]
+            if len(col_idx) == 1:
+                wb[sheetname].cell(2, col_idx[0]).value = 'filtered volume'
+                wb[sheetname].cell(3, col).value = 'L'
+            elif len(col_idx) == 0:
+                # insert 'filtered volume' column before chl-a value column
+                wb[sheetname].insert_cols(col, 1)
+                wb[sheetname].cell(2, col).value = 'filtered volume'
+                wb[sheetname].cell(3, col).value = 'L'
+            else:
+                logger.error("\t\t: more than one column with 'volume' in subheader")
 
             # formatting
-            col_start = col
+            col_start = col - 2
             col_end = col + 2
-            styleHeaderPainter(wb[sheetname], col_start,col_end)
-            styleBottomPainter(wb[sheetname], col_start,col_end)
-            for col in [col_start - 1, col_end + 2]:
-                for row in range(1, wb[sheetname].max_row):
-                    wb[sheetname].cell(row, col).border = l_border
+        styleHeaderPainter(wb[sheetname], col_start, col_end)
+        styleBottomPainter(wb[sheetname], col_start, col_end)
+        for col in [col_start, col_end + 1]:
+            for row in range(1, wb[sheetname].max_row):
+                wb[sheetname].cell(row, col).border = l_border
 
         # SNOW
         sheetname = 'snow'
@@ -2292,11 +2351,9 @@ def version_1_4_6_to_1_4_7(wb):
     logger = logging.getLogger(__name__)
     version = version2int(wb['metadata-station']['C1'].value)
     if version[0] < 2 and version[1] < 5 and version[2] < 7:
-
         # - SALO18
         sheetname = 'salo18'
         # -- Unmerge header cells
-        merged_cells = list(wb[sheetname].merged_cells)
         if sheetname in wb.sheetnames:
             unmergeHeaderRow(wb[sheetname])
 
@@ -2331,10 +2388,9 @@ def version_1_4_6_to_1_4_7(wb):
             ## -- implement incorrect merge cell
             chla_value_idx = find_str_in_row(wb[sheetname], 'chl-a', 1)
             if len(chla_value_idx) > 0:
-                new_range = openpyxl.utils.get_column_letter(
-                    chla_value_idx - 2) + '1:' + openpyxl.utils.get_column_letter(
-                    chla_value_idx - 1) + '1'
-                wb[sheetname].merge_cells(merged_cells)
+                new_range = openpyxl.utils.get_column_letter(chla_value_idx[0] - 2) + '1:' +\
+                            openpyxl.utils.get_column_letter(chla_value_idx[0] - 1) + '1'
+                wb[sheetname].merge_cells(new_range)
 
         # - ECO-POOL
         # Insert 'eco-pool' tab
@@ -2377,9 +2433,42 @@ def version_1_4_6_to_1_4_7(wb):
             ## --unmerge header
             unmergeHeaderRow(wb[sheetname])
 
-            # Rename 'ECO data sample' rename to 'eco property'
-            col_idx = find_str_in_row(wb[sheetname], 'ECO data example', 1)[0]
-            wb[sheetname].cell(1, col_idx).value = 'eco property'
+            # Rename 'ECO data sample' rename to 'eco property' or insert 'eco property' columns
+            col_idx = find_str_in_row(wb[sheetname], 'ECO data example', 1)
+            if len(col_idx) == 0:
+                # Add eco property block after temperature and nutrient
+                col_comment = find_str_in_row(wb[sheetname], 'comment', 1)[0]
+                temp_flag = find_str_in_row(wb[sheetname], 'temperature', 1)
+                nuts_flag = find_str_in_row(wb[sheetname], 'nutrient', 1)
+
+                col_idx = col_comment + 2
+                if len(temp_flag) > 0:
+                    col_idx = col_idx + 4
+                if len(nuts_flag) > 0:
+                    col_idx = col_idx + 4
+
+                # - eco sample: insert 3 column
+                col_n = 4
+                insert_col_with_merge(wb[sheetname], col_idx, col_n)
+                wb[sheetname].cell(1, col_idx).value = 'ECO data example'
+                wb[sheetname].cell(2, col_idx).value = 'ID'
+                wb[sheetname].cell(2, col_idx + 1).value = 'value'
+                wb[sheetname].cell(2, col_idx + 2).value = 'quality'
+                wb[sheetname].cell(3, col_idx).value = '-'
+                wb[sheetname].cell(3, col_idx + 1).value = '-'
+                wb[sheetname].cell(3, col_idx + 2).value = '[0-9]'
+                merge_range = openpyxl.utils.get_column_letter(col_idx) + '1:' + openpyxl.utils.get_column_letter(
+                    col_idx + 2) + '1'
+                wb[sheetname].merge_cells(merge_range)
+
+                # formatting
+                styleHeaderPainter(wb[sheetname], col_idx, col_idx + 2)
+                styleBottomPainter(wb[sheetname], col_idx, col_idx + 2)
+                for row_idx in range(1, wb[sheetname].max_row + 1):
+                    wb[sheetname].cell(row_idx, col_idx + 3).style = 'm_bkg_style'
+            else:
+                col_idx = find_str_in_row(wb[sheetname], 'ECO data example', 1)[0]
+                wb[sheetname].cell(1, col_idx).value = 'eco property'
 
             ## remove leftborder for temperature, nutrient, eco property, Snow micro pen SMP, SWE
             col_idx = find_str_in_row(wb[sheetname], 'comment', 1)[0]
@@ -2409,8 +2498,13 @@ def version_1_4_6_to_1_4_7(wb):
                             property_range[prop] = merge_cell
             # --unmerge header
             unmergeHeaderRow(wb[sheetname])
+
+            # clean worksheet to remove empty row at the end
+            cleanWorksheet(wb[sheetname])
+
             # -- reorganize d18O and dD, add d_excess
             max_row = wb[sheetname].max_row
+
             # found column id for ID and qual of d18O and dD
             sh_idx = {}
             for prop in property_range:
@@ -2462,11 +2556,11 @@ def version_1_4_6_to_1_4_7(wb):
                 if flag_m[key] == 0:
                     for h in header_after:
                         col_idx = find_str_in_row(wb[sheetname], h, 1)
-                        if len(col_idx) == 1:
+                        if len(col_idx) > 1:
                             col_idx = col_idx[0]
                             break
-                        elif len(col_idx) > 0:
-                            logger.error("%s - %s: too many values of '%s' in header" % (
+                        elif len(col_idx) == 0:
+                            logger.error("%s - %s: no header available" % (
                             wb['metadata-core']['C1'].value, sheetname, h))
                     while wb[sheetname].cell(2, col_idx - 1).value not in ['quality'] and col_idx > 1:
                         col_idx = col_idx - 1
@@ -2510,6 +2604,9 @@ def version_1_4_6_to_1_4_7(wb):
                             property_range[prop] = merge_cell
             # --unmerge header
             unmergeHeaderRow(wb[sheetname])
+
+            # clean worksheet to remove empty row at the end
+            cleanWorksheet(wb[sheetname])
 
             # Reorganize d18O, dD colums and add d_excess
             max_row = wb[sheetname].max_row
@@ -2556,12 +2653,13 @@ def version_1_4_6_to_1_4_7(wb):
                 if flag_m[key] == 0:
                     for h in header_after:
                         col_idx = find_str_in_row(wb[sheetname], h, 1)
-                        if len(col_idx) == 1:
+                        if len(col_idx) > 1:
                             col_idx = col_idx[0]
                             break
-                        elif len(col_idx) > 0:
-                            logger.error("%s - %s: too many values of '%s' in header" % (
+                        else:
+                            logger.error("%s - %s: none of the label present in headers" % (
                             wb['metadata-core']['C1'].value, sheetname, h))
+
                     quality_flag = False
                     while wb[sheetname].cell(2, col_idx - 1).value not in ['quality'] and col_idx > 1:
                         col_idx = col_idx - 1
@@ -2643,7 +2741,7 @@ def version_1_4_6_to_1_4_7(wb):
         # - CT
         sheetname = 'ct'
         if sheetname in wb.sheetnames:
-            unmergeHeaderRow(wb[sheetname], 1, styleDict={1: m_header_style, 2: m_header_style, 3: m_subheader_style})
+            unmergeHeaderRow(wb[sheetname], 1, styleDict={1: p_header_style, 2: p_header_style, 3: p_subheader_style})
             unmergeHeaderRow(wb[sheetname], 2)
 
         # - LISTS
@@ -2669,12 +2767,11 @@ def version_1_4_7_to_1_4_8(wb):
     logger = logging.getLogger(__name__)
     version = version2int(wb['metadata-station']['C1'].value)
     if version[0] < 2 and version[1] < 5 and version[2] < 8:
-
         # - METADATA-CORE
         sheetname = 'metadata-core'
         wb[sheetname].merge_cells('C1:H1')
-        wb[sheetname]['D2'].border = noBorder
-        wb[sheetname]['D3'].border = b_border
+        wb[sheetname]['C1'].border = noBorder
+        wb[sheetname]['C2'].border = tb_border
         if isMerged(wb[sheetname], 4, 3):
             wb[sheetname].unmerge_cells(findMergeCell(wb[sheetname], 4, 3).coord)
         wb[sheetname].merge_cells('C4:H4')
@@ -2684,9 +2781,10 @@ def version_1_4_7_to_1_4_8(wb):
         wb[sheetname].cell(row_idx, 3).value = 'brand, specification (type, diameter, accuracy…)'
         wb[sheetname].cell(row_idx, 3).font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=True,
                                                    italic=False, color='FF000000')
+        wb[sheetname].cell(row_idx, 5).value = None
         wb[sheetname].cell(row_idx, 8).value = 'one by line'
         wb[sheetname].cell(row_idx, 8).font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False,
-                                                   italic=True, color='FF000000')
+                                                   italic=False, color='FF000000')
 
         # - METADATA-STATION
         sheetname = 'metadata-station'
@@ -2697,11 +2795,16 @@ def version_1_4_7_to_1_4_8(wb):
         if wb[sheetname]['I37'].value in [None, '']:
             wb[sheetname]['I37'].style = 'm_bkg_style'
         # Remove bold font in data
-        wb[sheetname]['C3'].font = m_data_style.font
-        wb[sheetname]['C4'].font = m_data_style.font
+        wb[sheetname]['C3'].font = m_data_r_style.font
+        wb[sheetname]['C4'].font = m_data_r_style.font
         for row_idx in openpyxl.utils.rows_from_range('C9:H10'):
             for cell in row_idx:
-                wb[sheetname][cell].font = m_data_style.font
+                wb[sheetname][cell].font = m_data_r_style.font
+        # No bottom border for associated cores after I-column
+        row_idx = find_str_in_col(wb[sheetname], 'associated cores', 1)[0]
+        for col_idx in range(9, wb[sheetname].max_column):
+            if wb[sheetname].cell(row_idx, col_idx).value is not None:
+                wb[sheetname].cell(row_idx, col_idx).border = noBorder
 
         # - SALO18
         sheetname = 'salo18'
@@ -2731,6 +2834,12 @@ def version_1_4_7_to_1_4_8(wb):
         if sheetname in wb.sheetnames:
             wb[sheetname].row_dimensions[1].height = 25
             wb[sheetname].row_dimensions[2].height = 25
+            col_idx = find_str_in_row(wb[sheetname], 'melted sample', 1)[0]
+            if wb[sheetname].cell(2, col_idx).value in ['total volume']:
+               col_new_idx = find_str_in_row(wb[sheetname], 'value', 2)
+               col_new_idx = col_new_idx[col_idx <= col_new_idx][0]
+               wb[sheetname].cell(1, col_new_idx).value = wb[sheetname].cell(1, col_idx).value
+               wb[sheetname].cell(1, col_idx).value = None
 
         # - TM
         sheetname = 'TM'
@@ -2816,7 +2925,7 @@ def version_1_4_7_to_1_4_8(wb):
         wb[sheetname]['U3'].value = 'value'
         wb[sheetname]['J4'].value = '-'
         wb[sheetname]['P4'].value = '-'
-        ws = wb[sheetname]
+        unmergeHeaderRow(wb[sheetname])
 
         if not hasData(wb[sheetname]):
             sheet_index = wb._sheets.index(wb[sheetname])
@@ -2835,7 +2944,7 @@ def version_1_4_7_to_1_4_8(wb):
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
 
-def formatting(ic_path, backup=True):
+def formatting(ws, backup=True):
     pass
 
 def find_str_in_row(ws, header, row_idx=1):
@@ -2894,7 +3003,7 @@ def findMergeCell(ws, row_idx, col_idx):
             return mergedCell
     return False
 
-def unmergeHeaderRow(ws, header_row=1, nomerge_header=[], styleDict={1: m_header_style, 2: m_subheader_style, 3: m_unit_style}):
+def unmergeHeaderRow(ws, header_row=1, nomerge_header=[], styleDict={1: p_header_style, 2: p_subheader_style, 3: p_unit_style}):
     merged_cells = ws.merged_cells.ranges
     while len(merged_cells) > 0:
         merge_cell = merged_cells[0]
@@ -2929,14 +3038,13 @@ def unmergeHeaderRow(ws, header_row=1, nomerge_header=[], styleDict={1: m_header
                 styleHeaderPainter(ws, col_start, col_end, start_row=header_row, styleDict=styleDict)
 
                 sheetname = ws.title
-                if header in sheetname in prop_associated_tab and header in prop_associated_tab[sheetname]:
+                if header is not None and sheetname in prop_associated_tab and header in prop_associated_tab[sheetname]:
                     pass
                 else:
                     for row in range(1, ws.max_row):
                         ws.cell(row, col_start).border = l_border
         else:
             merged_cells.remove(merge_cell)
-
 
 def hasData(ws):
     row_idx = 1
@@ -3033,7 +3141,7 @@ def correctDataRowNumber(worksheet, max_row):
         if flag_empty:
             delete_row_with_merge(worksheet, row_insert_idx, row_n)
 
-def stylePainter(worksheet, col_comment_idx, max_col, max_row, styleDict={1:m_header_style, 2:m_subheader_l_style, 3:m_unit_style}):
+def stylePainter(worksheet, col_comment_idx, max_col, max_row, styleDict={1:p_header_style, 2:p_subheader_l_style, 3:p_unit_style}):
     for row in range(1, max_row):
         for col in range(1, col_comment_idx + 1):
             if row in styleDict.keys():
@@ -3042,10 +3150,17 @@ def stylePainter(worksheet, col_comment_idx, max_col, max_row, styleDict={1:m_he
                 except ValueError:
                     worksheet.cell(row, col).style = styleDict[row].name
             else:
-                try:
-                    worksheet.cell(row, col).style = m_data_style
-                except ValueError:
-                    worksheet.cell(row, col).style = 'm_data_style'
+                # TODO add other text entry
+                if worksheet.cell(1, col).value in ['comment'] or worksheet.cell(2, col).value in ['comment']:
+                    try:
+                        worksheet.cell(row, col).style = p_data_l_style
+                    except ValueError:
+                        worksheet.cell(row, col).style = 'p_data_l_style'
+                else:
+                    try:
+                        worksheet.cell(row, col).style = p_data_r_style
+                    except ValueError:
+                        worksheet.cell(row, col).style = 'p_data_r_style'
         for col in range(col_comment_idx + 1, max_col + 1):
             try:
                 worksheet.cell(row, col).style = m_bkg_style
@@ -3063,7 +3178,7 @@ def stylePainter(worksheet, col_comment_idx, max_col, max_row, styleDict={1:m_he
     for row in range(2, max_row + 1):
         worksheet.row_dimensions[row].height = 12.75
 
-def styleHeaderPainter(ws, start_col, end_col, start_row=1, styleDict={1:m_header_style, 2:m_subheader_style, 3:m_unit_style}):
+def styleHeaderPainter(ws, start_col, end_col, start_row=1, styleDict={1:p_header_style, 2:p_subheader_style, 3:p_unit_style}):
     start_row -= 1
     for row in styleDict.keys():
         for col in range(start_col, end_col + 1):
@@ -3072,7 +3187,7 @@ def styleHeaderPainter(ws, start_col, end_col, start_row=1, styleDict={1:m_heade
             except ValueError:
                 ws.cell(start_row+row, col).style = styleDict[row].name
 
-def styleBottomPainter(ws, start_col, end_col, row_idx=None, styleDict={1:m_header_style, 2:m_subheader_style, 3:m_unit_style}):
+def styleBottomPainter(ws, start_col, end_col, row_idx=None):
     if row_idx is None:
         row_idx = ws.max_row
     for col_idx in range(start_col, end_col + 1):
@@ -3082,7 +3197,7 @@ def styleBottomPainter(ws, start_col, end_col, row_idx=None, styleDict={1:m_head
             ws.cell(row_idx, col_idx).style = 'm_bkg_style'
 
 
-def cleanDataWorksheet(worksheet, col_comment_idx, max_col, max_row, clear_all=False):
+def cleanDataWorksheet(worksheet, col_comment_idx, max_col, max_row):
     logger = logging.getLogger(__name__)
     for row in range(1, worksheet.max_row):
         for col in range(max_col + 1, worksheet.max_column):
@@ -3157,7 +3272,7 @@ def cleanWorksheet(ws):
     else:  # do nothing
         pass
 
-def worksheetDataFormatting(worksheet, max_row, l_border_col=[], styleDict={1:m_header_style, 2:m_subheader_l_style, 3:m_unit_style}):
+def worksheetDataFormatting(worksheet, max_row, l_border_col=[], styleDict={1:p_header_style, 2:p_subheader_l_style, 3:p_unit_style}):
     # find last column with header
     for col in list(range(1, worksheet.max_column))[::-1]:
         if worksheet.cell(1, col).value not in [None, '']:

@@ -1,5 +1,5 @@
 __comment__ = "loadxl.py contained function to import ice core data from xlsx spreadsheet"
-__all__ = ['load']
+__all__ = ['load', 'update', 'clean']
 
 import os
 import logging
