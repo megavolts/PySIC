@@ -2916,6 +2916,17 @@ def version_1_4_7_to_1_4_8(wb):
                wb[sheetname].cell(1, col_new_idx).value = wb[sheetname].cell(1, col_idx).value
                wb[sheetname].cell(1, col_idx).value = None
 
+            for mergeCells in wb[sheetname].merged_cells.ranges:
+                if mergeCells.start_cell.value == 'field sample':
+                    mergeCells.start_cell.value = None
+                elif mergeCells.start_cell.value == 'ice section height':
+                    col_idx = find_str_in_row(wb[sheetname], 'mean', 2)
+                    if len(col_idx) == 1:
+                        col_idx = col_idx[0]
+                        wb[sheetname].cell(2, col_idx).value = 'value'
+                    elif len(col_idx) > 1:
+                        logger.error('%s - two many values for col_idx' % (wb['metadata-core']['C1'].value, sheet))
+
             # Unmerge
             unmergeHeaderRow(wb[sheetname])
 
@@ -2989,9 +3000,17 @@ def version_1_4_7_to_1_4_8(wb):
 
         # - SEAWATER
         sheetname = 'seawater'
-        # -- remove 'depth 2' column, and rename 'depth 1' to 'depth
-        wb[sheetname]['A1'] = 'depth'
-        delete_col_with_merge(wb[sheetname], 2, 1, True, 4)
+
+        # -- remove 'depth 2' column, and rename 'depth 1' to 'depth. Collapse column if same depht.
+        max_row = wb[sheetname].max_row
+        depth1_val = [wb[sheetname].cell(row=ii, column=1).value for ii in range(4, max_row)]
+        depth2_val = [wb[sheetname].cell(row=ii, column=2).value for ii in range(4, max_row)]
+        if depth1_val == depth2_val:
+            delete_col_with_merge(wb[sheetname], 2, 1)
+            wb[sheetname]['A1'] = 'depth'
+        else:
+            cell = openpyxl.utils.get_column_letter(col_idx) + str(row_idx)
+            logging.error('\t\t-%s: cell %s is not empty impossible to delete column' % (worksheet.title, cell))
 
         wb[sheetname]['B3'].value = '-'
         if len(find_str_in_row(wb[sheetname], 'd_excess', 1)) == 0:
@@ -3030,6 +3049,10 @@ def version_1_4_7_to_1_4_8(wb):
             copy_cells(wb_source[sheetname], wb[sheetname])  # copy all the cel values and styles
             copy_sheet_attributes(wb_source[sheetname], wb[sheetname])
 
+        # - sediment
+        sheetname = 'sediment'
+        unmergeHeaderRow(wb[sheetname])
+
         # update version number
         wb['metadata-station']['C1'] = '1.4.8'
         wb.active = wb['metadata-station']
@@ -3052,14 +3075,14 @@ def spreadsheet_style(wb, row_offset=1, col_offset=3):
                 'sackhole': ['temperature'],
                 'density-densimetry': ['mass'],
                 'density-volume': ['diameter', 'mass'],
-                'sediment': ['sediment-mass', 'particulate mass'],
+                'sediment': ['sediment mass', 'particulate mass'],
                 }
     subheader_d = {'snow': 'snow weight', 'density-densimetry': ['air'], 'density-volume': ['measurement1']}
     sheetnames_l = ['lists', 'locations']
     version = wb['metadata-station']['C1'].value
     version_int = version2int(version)
     # TODO Throw error for early version
-    if version_int[0] <= 1 and version_int[1] <=4 and version_int[2] <=8:
+    if version_int[0] <= 1 and version_int[1] <= 4 and version_int[2] < 8:
         logger.error('Unable to update style')
     else:
         sheetname = 'metadata-core'
@@ -3416,8 +3439,6 @@ def spreadsheet_style(wb, row_offset=1, col_offset=3):
         for sheetname in wb.sheetnames:
             if sheetname not in sheetnames_l:
                 lr_cell = findLowerRightCell(wb[sheetname], col_offset=0, row_offset=0)
-                col_offset = 3
-                row_offset = 1
 
                 # Header & Data
                 if wb[sheetname].title in ['ct']:
@@ -3457,7 +3478,7 @@ def spreadsheet_style(wb, row_offset=1, col_offset=3):
                 else:
                     max_border_col = lr_cell.column
 
-                # Add border
+                # Find border location
                 border_col = []
                 for col_idx in range(1, max_border_col + 1):
                     if wb[sheetname].cell(start_data_row - 2, col_idx).value == 'ID':
@@ -3472,7 +3493,7 @@ def spreadsheet_style(wb, row_offset=1, col_offset=3):
                             str(wb[sheetname].cell(2, col_idx).value) in subheader_d[sheetname]:
                         border_col.append(col_idx)
 
-                # - remove all border
+                # Remove all border, and apply border at defined border location
                 for col_idx in range(1, lr_cell.column + 1):
                     for row_idx in range(1, max_row):
                         wb[sheetname].cell(row_idx, col_idx).border = noBorder
@@ -3691,9 +3712,9 @@ def delete_col_with_merge(worksheet, col_delete_idx, col_n=1, check_empty=False,
             for col_idx in range(col_delete_idx, col_delete_idx + col_n):
                 if worksheet.cell(row_idx, col_idx).value not in [None, '']:
                     cell = openpyxl.utils.get_column_letter(col_idx) + str(row_idx)
-                    logging.error('\t\t-%s: cell %s is not empty impossible to delete column' %(worksheet.title, cell))
+                    logging.error('\t\t-%s: cell %s is not empty impossible to delete column' % (worksheet.title, cell))
                     flag_empty = False
-                    break
+                    return False
                 else:
                     pass
     else:
