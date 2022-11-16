@@ -3487,7 +3487,7 @@ def spreadsheet_style(wb, row_offset=1, col_offset=3):
                         border_col.append(col_idx)
                     elif sheetname in header_d and \
                             str(wb[sheetname].cell(1, col_idx).value) in header_d[sheetname] and \
-                            wb[sheetname].cell(1, col_idx).value == 'value':
+                            wb[sheetname].cell(2, col_idx).value == 'value':
                         border_col.append(col_idx)
                     elif sheetname in subheader_d and \
                             str(wb[sheetname].cell(2, col_idx).value) in subheader_d[sheetname]:
