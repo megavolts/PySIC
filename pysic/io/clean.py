@@ -264,3 +264,4 @@ def metadata_core(wb, user=user):
                 wb[sheetname].cell(last_entry, 5).value = modification[0]
             else:
                 logging.error('%s - %s: error in incremental version' % (wb['metadata-core']['C1'].value, sheetname))
+

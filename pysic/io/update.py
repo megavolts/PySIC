@@ -51,60 +51,68 @@ noBorder = Border(left=Side(border_style=None), right=Side(border_style=None),
                   top=Side(border_style=None), bottom=Side(border_style=None))
 
 # Color scheme
-mid_grey = "FFCCCCCC"
-light_grey = "FFDDDDDD"
-dark_grey = "FFB2B2B2"
-white = "ffFFFFFF"
-noFill = PatternFill(fill_type=None)
+black = "FF000000"
+dark_grey = "FFB2B2B2"  # background
+mid_grey = "FFDDDDDD"  # header
+light_grey = "FFEEEEEE"   # data computed
+white = "FFFFFFFF"
+noFill = PatternFill(fill_type=None)  # data entry
 
 # METADATA TAB STYLE
 # - suptitle: black bold font, left aligned, dark grey background
-m_header_title_style = NamedStyle(name="m_header_title_style")
-m_header_title_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=True, italic=False, color='FF000000')
-m_header_title_style.alignment = Alignment(horizontal='left', wrapText=False, vertical='center')
-m_header_title_style.fill = PatternFill(start_color=mid_grey, end_color=mid_grey, fill_type="solid")
+m_title_style = NamedStyle(name="m_title_style")
+m_title_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=True, italic=False, color='FF000000')
+m_title_style.alignment = Alignment(horizontal='left', wrapText=False, vertical='center')
+m_title_style.fill = PatternFill(start_color=dark_grey, end_color="FFDDDDDD", fill_type="solid")
+
+# - suptitle: black bold font, left aligned, dark grey background
+m_title_c_style = NamedStyle(name="m_title_c_style")
+m_title_c_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=True, italic=False, color='FF000000')
+m_title_c_style.alignment = Alignment(horizontal='center', wrapText=False, vertical='center')
+m_title_c_style.fill = PatternFill(start_color=dark_grey, end_color="FFDDDDDD", fill_type="solid")
+
 
 # - header: black, bold font; dark grey background
 m_header_style = NamedStyle(name="m_header_style")
 m_header_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=True, italic=False, color='FF000000')  # black
 m_header_style.alignment = Alignment(horizontal='center', wrapText=False, vertical='top')
-m_header_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFE0E0E0", fill_type="solid")
+m_header_style.fill = PatternFill(start_color=mid_grey, end_color="FFE0E0E0", fill_type="solid")
 
 # header right: black bold font, right aligned, light grey background
 m_header_r_style = NamedStyle(name="m_header_r_style")
 m_header_r_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=True, italic=False, color='FF000000')
 m_header_r_style.alignment = Alignment(horizontal='right', wrapText=False, vertical='center')
-m_header_r_style.fill = PatternFill(start_color=light_grey, end_color=light_grey, fill_type="solid")
+m_header_r_style.fill = PatternFill(start_color=mid_grey, end_color="FFDDDDDD", fill_type="solid")
 
 # header left: black bold font, left aligned, light grey background
 m_header_l_style = NamedStyle(name="m_header_l_style")
 m_header_l_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=True, italic=False, color='FF000000')
 m_header_l_style.alignment = Alignment(horizontal='left', wrapText=False, vertical='center')
-m_header_l_style.fill = PatternFill(start_color=light_grey, end_color=light_grey, fill_type="solid")
+m_header_l_style.fill = PatternFill(start_color=mid_grey, end_color="FFDDDDDD", fill_type="solid")
 
 # - subheader right: black, bold font; light grey background
 m_subheader_r_style = NamedStyle(name="m_subheader_r_style")
 m_subheader_r_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')
 m_subheader_r_style.alignment = Alignment(horizontal='right', wrapText=True, vertical='center')
-m_subheader_r_style.fill = PatternFill(start_color=light_grey, end_color=light_grey, fill_type="solid")
+m_subheader_r_style.fill = PatternFill(start_color=mid_grey, end_color="FFDDDDDD", fill_type="solid")
 
 # - subheader left: black, bold font; light grey background
 m_subheader_l_style = NamedStyle(name="m_subheader_l_style")
 m_subheader_l_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')
 m_subheader_l_style.alignment = Alignment(horizontal='left', wrapText=True, vertical='center')
-m_subheader_l_style.fill = PatternFill(start_color=light_grey, end_color=light_grey, fill_type="solid")
+m_subheader_l_style.fill = PatternFill(start_color=mid_grey, end_color="FFDDDDDD", fill_type="solid")
 
 # - unit: right, black, italic font; light grey background
 m_unit_r_style = NamedStyle(name="m_unit_r_style")
 m_unit_r_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=True, color='FF000000')
 m_unit_r_style.alignment = Alignment(horizontal='right', wrapText=False, vertical='center')
-m_unit_r_style.fill = PatternFill(start_color="FFCCCCCC", end_color="FFBFBFBF", fill_type="solid")
+m_unit_r_style.fill = PatternFill(start_color=mid_grey, end_color="FFDDDDDD", fill_type="solid")
 
 # - comment: left, black, italic font; light grey background
 m_comment_style = NamedStyle(name="m_comment_style")
 m_comment_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=True, color='FF000000')
 m_comment_style.alignment = Alignment(horizontal='left', wrapText=False, vertical='center')
-m_comment_style.fill = PatternFill(start_color="FFCCCCCC", end_color="FFBFBFBF", fill_type="solid")
+m_comment_style.fill = PatternFill(start_color=dark_grey, end_color="FFDDDDDD", fill_type="solid")
 
 # data, right: black; no background
 m_data_r_style = NamedStyle(name="m_data_r_style")
@@ -118,36 +126,42 @@ m_data_l_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=Fa
 m_data_l_style.alignment = Alignment(horizontal='left', wrapText=False, vertical='center')
 m_data_l_style.fill = PatternFill(fill_type=None)
 
+# computed data, right: black; no background
+m_cdata_r_style = NamedStyle(name="m_cdata_r_style")
+m_cdata_r_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')  # black
+m_cdata_r_style.alignment = Alignment(horizontal='right', wrapText=False, vertical='center')
+m_cdata_r_style.fill = PatternFill(start_color=light_grey, end_color="FFDDDDDD", fill_type="solid")
+
 
 ## PROPERTY TAB
 # - header
 p_header_style = NamedStyle(name="p_header_style")
 p_header_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=True, italic=False, color='FF000000')  # black
-p_header_style.alignment = Alignment(horizontal='center', wrapText=False, vertical='top')
-p_header_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFE0E0E0", fill_type="solid")
+p_header_style.alignment = Alignment(horizontal='center', wrapText=False, vertical='center')
+p_header_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFDDDDDD", fill_type="solid")
 
 # - subheader
 p_subheader_style = NamedStyle(name="p_subheader_style")
 p_subheader_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')
 p_subheader_style.alignment = Alignment(horizontal='center', wrapText=False, vertical='center')
-p_subheader_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFE0E0E0", fill_type="solid")
+p_subheader_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFDDDDDD", fill_type="solid")
 
 # - unit
 p_unit_style = NamedStyle(name="p_unit_style")
 p_unit_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=True, color='FF000000')
 p_unit_style.alignment = Alignment(horizontal='center', wrapText=False, vertical='center')
-p_unit_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFE0E0E0", fill_type="solid")
+p_unit_style.fill = PatternFill(start_color="FFDDDDDD", end_color="FFDDDDDD", fill_type="solid")
 
 # data, right: black, no background (for number)
 p_data_r_style = NamedStyle(name="p_data_r_style")
 p_data_r_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')  # black
-p_data_r_style.alignment = Alignment(horizontal='right', wrapText=True, vertical='center')
+p_data_r_style.alignment = Alignment(horizontal='right', wrapText=False, vertical='top')
 p_data_r_style.fill = PatternFill(fill_type=None)
 
 # data, left:  black, no background (for string)
 p_data_l_style = NamedStyle(name="p_data_l_style")
 p_data_l_style.font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False, color='FF000000')  # black
-p_data_l_style.alignment = Alignment(horizontal='left', wrapText=True, vertical='center')
+p_data_l_style.alignment = Alignment(horizontal='left', wrapText=False, vertical='top')
 p_data_l_style.fill = PatternFill(fill_type=None)
 
 # BACKGROUND
@@ -163,10 +177,10 @@ texture_dv = DataValidation(type="list", formula1='{0}!$F$3:$F$27'.format(quote_
 inclusion_dv = DataValidation(type="list", formula1='{0}!$G$3:$G$27'.format(quote_sheetname('lists')), allow_blank=True)
 description_dv = DataValidation(type="list", formula1='{0}!$H$3:$H$27'.format(quote_sheetname('lists')), allow_blank=True)
 
-m_styles_list = ['m_header_style', 'm_subheader_style', 'm_unit_style', 'm_unit_l_style', 'm_subheader_style',\
-                'm_unit_style_coring', 'm_comment_style', 'm_data_style', 'm_data_l_style', 'm_bkg_style',\
-                'm_subheader_r_style', 'm_subheader_l_style', 'm_header_r_style', 'm_header_l_style',\
-                'm_header_title_style']
+m_styles_list = ['m_title_style', 'm_title_c_style', 'm_header_style', 'm_header_r_style', 'm_header_l_style',
+                 'm_subheader_r_style', 'm_subheader_l_style', 'm_unit_r_style', 'm_comment_style', 'm_data_r_style',
+                 'm_data_l_style', 'm_cdata_r_style', 'p_header_style', 'p_subheader_style', 'p_unit_style',
+                 'p_data_r_style', 'p_data_l_style', 'm_bkg_style']
 
 def ice_core_data(ic_path, backup=True, user=user):
     """
@@ -206,7 +220,6 @@ def ice_core_data(ic_path, backup=True, user=user):
             if not os.path.exists(ic_bkp):
                 shutil.copy(ic_path, ic_bkp)
                 logger.info('%s\t\tsaving backup version to %s' % (wb['metadata-core']['C1'].value, backup_dir))
-
 
         # Update from 1.2 to 1.3:
         if version_int[1] == 2:
@@ -260,7 +273,7 @@ def ice_core_data(ic_path, backup=True, user=user):
             # update version
             wb['metadata-station']['C1'].value = '1.4.8'
             version_int[2] = 8
-
+            spreadsheet_style(wb)
 
     if flag_update:
         ### Add an update is the 'metadata-core'
@@ -296,6 +309,7 @@ def ice_core_data(ic_path, backup=True, user=user):
         wb.close()
     else:
         logger.debug('%s\t\talready at latest (%s) version' % (wb['metadata-core']['A1'].value, __CoreVersion__))
+
 
 ## Update scripts:
 def version_1_2_x_to_1_3_0(wb):
@@ -527,7 +541,7 @@ def version_1_3_0_to_1_4_1(wb):
             for col in range(7, max_col + 1):
                 wb[sheetname].cell(row, col).style = m_bkg_style
 
-        wb[sheetname]['A12'].style = m_header_title_style
+        wb[sheetname]['A12'].style = m_title_style
         for row in range(row_insert_idx + 1, row_insert_idx + 6 + 1):
             # A header
             wb[sheetname].cell(row, 1).style = m_header_l_style
@@ -583,7 +597,7 @@ def version_1_3_0_to_1_4_1(wb):
             for col in range(1, max_col + 1):
                 wb[sheetname].cell(row, col).style = m_bkg_style
 
-        wb[sheetname].cell(row_instrument_idx, 1).style = m_header_title_style
+        wb[sheetname].cell(row_instrument_idx, 1).style = m_title_style
         for row in range(row_instrument_idx + 1, row_version_idx - 1):
             wb[sheetname].cell(row, 1).style = m_subheader_r_style
             wb[sheetname].cell(row, 2).style = m_subheader_r_style
@@ -601,7 +615,7 @@ def version_1_3_0_to_1_4_1(wb):
                 for col in range(1, 8 + 1):
                     wb[sheetname].cell(row, col).border = b_border
 
-        wb[sheetname].cell(row_version_idx, 1).style = m_header_title_style
+        wb[sheetname].cell(row_version_idx, 1).style = m_title_style
         # version subheader
         row = row_version_idx + 1
         for col_idx in range(1, 3):
@@ -633,7 +647,7 @@ def version_1_3_0_to_1_4_1(wb):
 
         # Formatting
         for col in range(1, 5):
-            wb[sheetname].cell(1, col).style = m_header_title_style
+            wb[sheetname].cell(1, col).style = m_title_style
             if col == 3:
                 wb[sheetname].cell(1, col).font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False,
                                                        italic=True, color='FF000000')
@@ -1701,7 +1715,7 @@ def version_1_3_0_to_1_4_1(wb):
             # - brine
             col_n = 1
             col_idx = openpyxl.utils.column_index_from_string('Q')
-            wb[sheetname]['O1'].value = 'ice'
+            wb[sheetname]['O1'].value = 'brine'
             wb[sheetname]['O2'].value = 'salinity'
             wb[sheetname]['O3'].value = 'ID'
             wb[sheetname]['P3'].value = 'value'
@@ -1793,11 +1807,11 @@ def version_1_4_2_to_1_4_3(wb):
         wb['metadata-station']['D33'].value = 'under ice'
         wb['metadata-station']['D32'].value = 'under ice'
 
-        # update "wind orientation' to 'wind direction'
+        # update "wind orientation" to "'"wind direction"
         wb['metadata-station']['A43'].value = 'wind direction'
 
         # formatting
-        wb['metadata-station']['A33'].style = m_subheader_l_style
+        wb['metadata-station']['A33'].style = m_header_l_style
         wb['metadata-station']['B33'].style = m_unit_r_style
 
         wb['metadata-station']['D33'].style = m_comment_style
@@ -1930,7 +1944,6 @@ def version_1_4_3_to_1_4_4(wb):
                         wb[sheetname].cell(row, col).border = l_border
             else:
                 logging.error('%s NOT IMPLEMENTED YET' % key)
-        wb.save('/home/megavolts/test.xlsx')
 
         # remove nutrient_volume column
         col_h_idx = find_str_in_row(wb[sheetname], 'nutrient')[0]
@@ -1964,7 +1977,7 @@ def version_1_4_3_to_1_4_4(wb):
                                 col_idx + 2) + '1'
                             wb[sheetname].merge_cells(new_range)
                             # formatting
-                            wb[sheetname].cell(1, col_idx).style = 'm_header_style'
+                            wb[sheetname].cell(1, col_idx).style = m_header_style
                             wb[sheetname].cell(1, col_idx).border = noBorder
                 # formatting
                 max_row = wb[sheetname].max_row
@@ -2042,7 +2055,7 @@ def version_1_4_4_to_1_4_5(wb):
         # style B42:B46 not bold, align right
         col_idx = openpyxl.utils.cell.column_index_from_string('B')
         for row_idx in range(42, 46 + 1):
-            wb[sheetname].cell(row_idx, col_idx).style = 'm_unit_style'
+            wb[sheetname].cell(row_idx, col_idx).style = 'm_unit_r_style'
         # Border formatting
         # C-H
         for col_idx in range(openpyxl.utils.column_index_from_string('C'),
@@ -2172,7 +2185,6 @@ def version_1_4_5_to_1_4_6(wb):
 
         # ECO
         sheetname = 'eco'
-        merged_cells = list(wb[sheetname].merged_cells.ranges)
         max_row = wb[sheetname].max_row
 
         # store merged cell ranges for d18O and dD
@@ -2382,10 +2394,10 @@ def version_1_4_6_to_1_4_7(wb):
         # -ECO:
         sheetname = 'eco'
         if sheetname in wb.sheetnames:
-            ## --unmerge header
+            # Unmerge header
             unmergeHeaderRow(wb[sheetname], ['melted volume'])
 
-            ## -- implement incorrect merge cell
+            # Implement incorrect merge cell
             chla_value_idx = find_str_in_row(wb[sheetname], 'chl-a', 1)
             if len(chla_value_idx) > 0:
                 new_range = openpyxl.utils.get_column_letter(chla_value_idx[0] - 2) + '1:' +\
@@ -2393,13 +2405,14 @@ def version_1_4_6_to_1_4_7(wb):
                 wb[sheetname].merge_cells(new_range)
 
         # - ECO-POOL
+        sheetname = 'eco-pool'
         # Insert 'eco-pool' tab
         eco_sheet_index = wb._sheets.index(wb['eco'])
-        wb.create_sheet("eco-pool", eco_sheet_index + 1)
+        wb.create_sheet(sheetname, eco_sheet_index + 1)
         wb_source = openpyxl.load_workbook(os.path.join(pysic_fp, 'ressources/AAA_BB-YYYYXXZZ-N_P-1.4.7-eco-pool_lists.xlsx'),
                                            data_only=True)
-        copy_cells(wb_source["eco-pool"], wb['eco-pool'])  # copy all the cel values and styles
-        copy_sheet_attributes(wb_source['eco-pool'], wb['eco-pool'])
+        copy_cells(wb_source[sheetname], wb[sheetname])  # copy all the cel values and styles
+        copy_sheet_attributes(wb_source[sheetname], wb[sheetname])
 
         # - SNOW
         sheetname = 'snow'
@@ -2556,15 +2569,16 @@ def version_1_4_6_to_1_4_7(wb):
                 if flag_m[key] == 0:
                     for h in header_after:
                         col_idx = find_str_in_row(wb[sheetname], h, 1)
-                        if len(col_idx) > 1:
+                        if len(col_idx) > 0:
                             col_idx = col_idx[0]
+                            flag_no_header = False
                             break
                         elif len(col_idx) == 0:
-                            logger.error("%s - %s: no header available" % (
-                            wb['metadata-core']['C1'].value, sheetname, h))
+                            flag_no_header = True
+                    if flag_no_header:
+                        logger.error("%s - %s: no header available" % (wb['metadata-core']['C1'].value, sheetname, h))
                     while wb[sheetname].cell(2, col_idx - 1).value not in ['quality'] and col_idx > 1:
                         col_idx = col_idx - 1
-
                     insert_col_with_merge(wb[sheetname], col_idx, col_n)
 
                     #  Add header, subheader and unit for 'eco property'
@@ -2653,14 +2667,15 @@ def version_1_4_6_to_1_4_7(wb):
                 if flag_m[key] == 0:
                     for h in header_after:
                         col_idx = find_str_in_row(wb[sheetname], h, 1)
-                        if len(col_idx) > 1:
+                        if len(col_idx) > 0:
                             col_idx = col_idx[0]
+                            flag_no_header = False
                             break
-                        else:
-                            logger.error("%s - %s: none of the label present in headers" % (
-                            wb['metadata-core']['C1'].value, sheetname, h))
+                        elif len(col_idx) == 0:
+                            flag_no_header = True
+                    if flag_no_header:
+                        logger.error("%s - %s: no header available" % (wb['metadata-core']['C1'].value, sheetname, h))
 
-                    quality_flag = False
                     while wb[sheetname].cell(2, col_idx - 1).value not in ['quality'] and col_idx > 1:
                         col_idx = col_idx - 1
                     insert_col_with_merge(wb[sheetname], col_idx, col_n)
@@ -2743,6 +2758,16 @@ def version_1_4_6_to_1_4_7(wb):
         if sheetname in wb.sheetnames:
             unmergeHeaderRow(wb[sheetname], 1, styleDict={1: p_header_style, 2: p_header_style, 3: p_subheader_style})
             unmergeHeaderRow(wb[sheetname], 2)
+            import gc
+            gc.get_count()
+            gc.collect()
+            # correct for 'salinity'
+            for col_idx in find_str_in_row(wb[sheetname], 'salinity', 2):
+                mergeCells = findMergeCell(wb[sheetname], 2, col_idx)
+                if mergeCells:
+                    wb[sheetname].unmerge_cells(mergeCells.coord)
+                wb[sheetname].cell(2, col_idx + 1).value = 'salinity'
+                wb[sheetname].cell(2, col_idx).value = None
 
         # - LISTS
         sheetname = 'lists'
@@ -2769,6 +2794,13 @@ def version_1_4_7_to_1_4_8(wb):
     if version[0] < 2 and version[1] < 5 and version[2] < 8:
         # - METADATA-CORE
         sheetname = 'metadata-core'
+        wb[sheetname]['B2'].value = 'YYYY-MM-DD'
+        wb[sheetname]['B2'].style = 'm_unit_r_style'
+        wb[sheetname]['B2'].border = b_border
+        wb[sheetname]['B3'].value = 'hh:mm | TZ'
+        wb[sheetname]['B3'].style = 'm_unit_r_style'
+        wb[sheetname]['B3'].border = b_border
+
         wb[sheetname].merge_cells('C1:H1')
         wb[sheetname]['C1'].border = noBorder
         wb[sheetname]['C2'].border = tb_border
@@ -2788,12 +2820,50 @@ def version_1_4_7_to_1_4_8(wb):
 
         # - METADATA-STATION
         sheetname = 'metadata-station'
-        # Change salintiy unit from PSU to - (unitless)
-        wb[sheetname]['A32'].value = 'seawater temperature'
-        wb[sheetname]['A33'].value = 'seawater salinity'
-        wb[sheetname]['B33'].value = '-'
-        if wb[sheetname]['I37'].value in [None, '']:
-            wb[sheetname]['I37'].style = 'm_bkg_style'
+        wb[sheetname]['D1'].value = "to be used with PySIC python module (https://github.com/megavolts/pysic)"
+
+        # Insert line above 'sampling'
+        insert_row_with_merge(wb[sheetname], 2, 1)
+        for col_idx in range(1, 27):
+            wb[sheetname].cell(2, col_idx).style = 'm_bkg_style'
+        # Set all caps block title
+        for title in ['sampling', 'position', 'date and time', 'ice geometry', 'ice temperature', 'sampling event', 'weather information', 'general comments']:
+            row_idx = find_str_in_col(wb[sheetname], title, 1)
+            if len(row_idx) > 0:
+                row_idx = row_idx[0]
+                mergeCells = findMergeCell(wb[sheetname], row_idx, 1)
+                if mergeCells:
+                    wb[sheetname].unmerge_cells(mergeCells.coord)
+                    for col_idx in range(mergeCells.left[0][1], mergeCells.right[0][1]+1):
+                        wb[sheetname].cell(row_idx, col_idx).style = 'm_bkg_style'
+                wb[sheetname].cell(row_idx, 1).value = title.upper()
+                wb[sheetname].cell(row_idx, 1).style = 'm_title_style'
+
+        # Collapse title and header for 'POSITION' and 'DATE AND TIME'
+        for title in ['POSITION', 'DATE AND TIME']:
+            row_idx = find_str_in_col(wb[sheetname], title, 1)[0]
+            wb[sheetname].cell(row_idx + 1, 1).value = title
+            wb[sheetname].cell(row_idx + 1, 1).style = 'm_title_style'
+            delete_row_with_merge(wb[sheetname], row_idx, 1)
+
+        # Rename 'ICE TEMPERATURE' to 'ENVIRONMENTAL CONDITIONS'
+        row_idx = find_str_in_col(wb[sheetname], 'ICE TEMPERATURE', 1)[0]
+        wb[sheetname].cell(row_idx, 1).value = 'ENVIRONMENTAL CONDITIONS'
+
+        # Change salinity unit from PSU to - (unitless)
+        row_idx = find_str_in_col(wb[sheetname], 'water temperature', 1)[0]
+        wb[sheetname].cell(row_idx, 1).value = 'seawater temperature'
+        wb[sheetname].cell(row_idx + 1, 1).value = 'seawater salinity'
+        wb[sheetname].cell(row_idx + 1, 2).value = '-'
+        wb[sheetname].cell(row_idx + 1, 1).style = 'm_header_l_style'
+        wb[sheetname].cell(row_idx + 1, 2).style = 'm_unit_r_style'
+        wb[sheetname].cell(row_idx + 1, 3).style = 'm_data_r_style'
+        wb[sheetname].cell(row_idx + 1, 4).style = 'm_comment_style'
+
+        row_idx = find_str_in_col(wb[sheetname], 'associated cores', 1)[0]
+        if wb[sheetname].cell(row_idx, 9).value in [None, '']:
+            wb[sheetname].cell(row_idx, 9).style = 'm_bkg_style'
+
         # Remove bold font in data
         wb[sheetname]['C3'].font = m_data_r_style.font
         wb[sheetname]['C4'].font = m_data_r_style.font
@@ -2813,6 +2883,11 @@ def version_1_4_7_to_1_4_8(wb):
         if 'Depth' in wb[sheetname]['B1'].value:
             wb[sheetname]['B1'].value = 'depth 2'
         wb[sheetname]['D3'].value = '-'
+
+        # - TEMP
+        sheetname = 'temp'
+        # -- rename 'depth center' to 'depth':
+        wb[sheetname]['A1'] = 'depth'
 
         # - TEX
         sheetname = 'tex'
@@ -2840,6 +2915,19 @@ def version_1_4_7_to_1_4_8(wb):
                col_new_idx = col_new_idx[col_idx <= col_new_idx][0]
                wb[sheetname].cell(1, col_new_idx).value = wb[sheetname].cell(1, col_idx).value
                wb[sheetname].cell(1, col_idx).value = None
+
+            # Unmerge
+            unmergeHeaderRow(wb[sheetname])
+
+            # add vertical border in front of ECOx
+            col_idx = find_str_in_row(wb[sheetname], 'ECO', 2)[0]
+            for row_idx in range(1, wb[sheetname].max_row):
+                wb[sheetname].cell(row_idx, col_idx).border = l_border
+
+            # add vertical border after 'depth 2' of ECOx
+            col_idx = find_str_in_row(wb[sheetname], 'depth 2', 1)[0] + 1
+            for row_idx in range(1, wb[sheetname].max_row):
+                wb[sheetname].cell(row_idx, col_idx).border = l_border
 
         # - TM
         sheetname = 'TM'
@@ -2896,11 +2984,16 @@ def version_1_4_7_to_1_4_8(wb):
 
         # - SACKHOLE
         sheetname = 'sackhole'
+        wb[sheetname]['A1'].value = 'depth'
         wb[sheetname]['C3'].value = '-'
 
         # - SEAWATER
         sheetname = 'seawater'
-        wb[sheetname]['D3'].value = '-'
+        # -- remove 'depth 2' column, and rename 'depth 1' to 'depth
+        wb[sheetname]['A1'] = 'depth'
+        delete_col_with_merge(wb[sheetname], 2, 1, True, 4)
+
+        wb[sheetname]['B3'].value = '-'
         if len(find_str_in_row(wb[sheetname], 'd_excess', 1)) == 0:
             col_idx = find_str_in_row(wb[sheetname], 'dD', 1)[0] + 1
             insert_col_with_merge(wb[sheetname], col_idx, 1)
@@ -2944,8 +3037,500 @@ def version_1_4_7_to_1_4_8(wb):
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
 
-def formatting(ws, backup=True):
-    pass
+def version_1_4_7_to_1_4_9(wb):
+    logger = logging.getLogger(__name__)
+    version = version2int(wb['metadata-station']['C1'].value)
+
+def spreadsheet_style(wb, row_offset=1, col_offset=3):
+    logger = logging.getLogger(__name__)
+
+    # def old_format(wb)
+    header_d = {'metadata-core': ['THICKNESS', 'REFERENCE', 'INSTRUMENTS', 'VERSION', 'brand'],
+                'temperature': ['temperature'],
+                'stratigraphy': ['texture', 'core section'],
+                'seawater': ['temperature'],
+                'sackhole': ['temperature'],
+                'density-densimetry': ['mass'],
+                'density-volume': ['diameter', 'mass'],
+                'sediment': ['sediment-mass', 'particulate mass'],
+                }
+    subheader_d = {'snow': 'snow weight', 'density-densimetry': ['air'], 'density-volume': ['measurement1']}
+    sheetnames_l = ['lists', 'locations']
+    version = wb['metadata-station']['C1'].value
+    version_int = version2int(version)
+    # TODO Throw error for early version
+    if version_int[0] <= 1 and version_int[1] <=4 and version_int[2] <=8:
+        logger.error('Unable to update style')
+    else:
+        sheetname = 'metadata-core'
+        sheetnames_l.append(sheetname)
+        lr_cell = findLowerRightCell(wb[sheetname])
+        # background for all cells:
+        for row_idx in range(1, lr_cell.row + 1):
+            for col_idx in range(1, lr_cell.column + 1):
+                wb[sheetname].cell(row_idx, col_idx).style = 'm_bkg_style'
+                wb[sheetname].cell(row_idx, col_idx).border = noBorder
+
+        # --CORE INFORMATION
+        for row_idx in range(1, 5):
+            wb[sheetname].cell(row_idx, 1).style = 'm_header_l_style'
+            wb[sheetname].cell(row_idx, 2).style = 'm_unit_r_style'
+
+        wb[sheetname]['C1'].style = 'm_data_l_style'
+        wb[sheetname]['C2'].style = 'm_data_r_style'
+        wb[sheetname]['C3'].style = 'm_data_r_style'
+        wb[sheetname]['D3'].style = 'm_data_l_style'
+        wb[sheetname]['C4'].style = 'm_data_l_style'
+        for col_idx in range(1, 3):
+            wb[sheetname].cell(2, col_idx).border = tb_border
+        for col_idx in range(1, 4):
+            wb[sheetname].cell(3, col_idx).border = tb_border
+        wb[sheetname].cell(3, 4).border = b_border
+
+        # --THICKNESS
+        title_row = find_str_in_col(wb[sheetname], 'THICKNESS', 1)[0]
+        wb[sheetname].cell(title_row, 1).style = 'm_title_style'
+
+        start_row = title_row + 1
+        end_row = start_row + 3
+        for row_idx in range(start_row, end_row + 1):
+            # -- format
+            wb[sheetname].cell(row_idx, 1).style = 'm_header_l_style'
+            wb[sheetname].cell(row_idx, 2).style = 'm_unit_r_style'
+            if row_idx == start_row + 2:
+                wb[sheetname].cell(row_idx, 3).style = 'm_cdata_r_style'
+            else:
+                wb[sheetname].cell(row_idx, 3).style = 'm_data_r_style'
+            wb[sheetname].cell(row_idx, 4).style = 'm_comment_style'
+
+            # -- border
+            col_idx = 1
+            while wb[sheetname].cell(row_idx, col_idx).value not in [None, ''] or \
+                    wb[sheetname].cell(row_idx, col_idx).fill.fgColor.rgb in [light_grey, '00000000']:
+                if wb[sheetname].cell(row_idx + 1, col_idx).value not in [None, ''] or \
+                        isMerged(wb[sheetname], row_idx + 1, col_idx) or \
+                        wb[sheetname].cell(row_idx + 1, col_idx).fill.fgColor.rgb in [light_grey, '00000000']:
+                    wb[sheetname].cell(row_idx, col_idx).border = b_border
+                col_idx += 1
+
+        # REFERENCE DATA
+        title_row = find_str_in_col(wb[sheetname], 'REFERENCE', 1)[0]
+        wb[sheetname].cell(title_row, 1).style = 'm_title_style'
+        wb[sheetname].cell(title_row, 3).style = 'm_title_style'
+        wb[sheetname].cell(title_row, 8).style = 'm_title_style'
+        wb[sheetname].cell(title_row, 8).font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False,
+                                                     italic=False, color='FF000000')
+        start_row = title_row + 1
+        end_row = start_row + 5
+        for row_idx in range(start_row, end_row + 1):
+            # -- format
+            wb[sheetname].cell(row_idx, 1).style = 'm_header_l_style'
+            wb[sheetname].cell(row_idx, 2).style = 'm_subheader_l_style'
+            wb[sheetname].cell(row_idx, 3).style = 'm_unit_r_style'
+            wb[sheetname].cell(row_idx, 4).style = 'm_data_l_style'
+            wb[sheetname].cell(row_idx, 5).style = 'm_comment_style'
+            # -- border
+            if row_idx < end_row and wb[sheetname].cell(row_idx + 1, 1).value not in [None, '']:
+                for col_idx in range(1, 9):
+                    wb[sheetname].cell(row_idx, col_idx).border = b_border
+        # -- number format
+        wb[sheetname].cell(2, 3).number_format = 'yyyy-dd-mm'
+        wb[sheetname].cell(3, 3).number_format = 'hh:mm'
+
+        # - INSTRUMENTS
+        title_row = find_str_in_col(wb[sheetname], 'INSTRUMENTS', 1)[0]
+        wb[sheetname].cell(title_row, 1).style = 'm_title_style'
+        wb[sheetname].cell(title_row, 3).style = 'm_title_style'
+
+        row_start = title_row + 1
+        row_end = find_str_in_col(wb[sheetname], 'VERSION', 1)[0] - 2
+        for row_idx in range(row_start, row_end + 1):
+            for col_idx in range(1, 9):
+                # -- format
+                if col_idx < 3:
+                    wb[sheetname].cell(row_idx, col_idx).style = 'm_subheader_l_style'
+                else:
+                    wb[sheetname].cell(row_idx, col_idx).style = 'm_data_l_style'
+                # -- border
+                if row_idx < row_end:
+                    wb[sheetname].cell(row_idx, col_idx).border = b_border
+
+        # - VERSION
+        title_row = find_str_in_col(wb[sheetname], 'VERSION', 1)[0]
+        wb[sheetname].cell(title_row, 1).style = 'm_title_style'
+
+        row_idx = title_row + 1
+        for col_idx in range(1, 9):
+            # -- format
+            if col_idx < 3:
+                wb[sheetname].cell(row_idx, col_idx).style = 'm_subheader_r_style'
+            else:
+                wb[sheetname].cell(row_idx, col_idx).style = 'm_subheader_l_style'
+
+        row_start = title_row + 2
+        row_end = lr_cell.row
+        for row_idx in range(row_start, row_end + 1):
+            for col_idx in range(1, 9):
+                # -- format
+                if col_idx < 3:
+                    wb[sheetname].cell(row_idx, col_idx).style = 'm_data_r_style'
+                else:
+                    wb[sheetname].cell(row_idx, col_idx).style = 'm_data_l_style'
+                # -- border
+                if row_idx < row_end:
+                    wb[sheetname].cell(row_idx, col_idx).border = b_border
+
+                # -- number format
+                if col_idx == 2:
+                    wb[sheetname].cell(row_idx, col_idx).number_format = 'yyyy-dd-mm'
+
+        # Set row height
+        for row_idx in range(1, lr_cell.row):
+            wb[sheetname].row_dimensions[1].height = 12.75
+
+        # Set column width
+        wb['metadata-core'].column_dimensions['A'].width = 17
+
+        # - METADATA-STATION
+        sheetname = 'metadata-station'
+        sheetnames_l.append(sheetname)
+        lr_cell = findLowerRightCell(wb[sheetname])
+
+        # Remove background and border for all cells:
+        for row_idx in range(1, lr_cell.row + 1):
+            for col_idx in range(1, lr_cell.column + 1):
+                wb[sheetname].cell(row_idx, col_idx).style = 'm_bkg_style'
+                wb[sheetname].cell(row_idx, col_idx).border = noBorder
+
+        # -- ICE DATA SHEET
+        # Format
+        wb[sheetname]['A1'].style = 'm_title_style'
+        wb[sheetname]['B1'].style = 'm_title_style'
+        wb[sheetname]['C1'].style = 'm_title_style'
+        wb[sheetname]['C1'].font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=True,
+                                        color='FF000000')
+        wb[sheetname]['D1'].style = 'm_title_style'
+        wb[sheetname]['D1'].font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, italic=False,
+                                        color='FF000000')
+
+        # -- SAMPLING
+        title_row = find_str_in_col(wb[sheetname], 'SAMPLING', 1)[0]
+        wb[sheetname].cell(title_row, 1).style = 'm_title_style'
+
+        row_start = title_row + 1
+        row_end = row_start + 1
+        for row_idx in range(row_start, row_end + 1):
+            for col_idx in range(1, 6):
+                # --- format
+                if col_idx < 3:
+                    wb[sheetname].cell(row_idx, col_idx).style = 'm_header_l_style'
+                else:
+                    wb[sheetname].cell(row_idx, col_idx).style = 'm_data_l_style'
+                # --- border
+                if row_idx < row_end:
+                    wb[sheetname].cell(row_idx, col_idx).border = b_border
+
+        # POSITION
+        # - title
+        title_row = find_str_in_col(wb[sheetname], 'POSITION', 1)[0]
+        wb[sheetname].cell(title_row, 1).style = 'm_title_style'
+        # - header
+        for col_idx in range(3, 9):
+            wb[sheetname].cell(title_row, col_idx).style = 'm_title_c_style'
+            wb[sheetname].cell(title_row + 1, col_idx).style = 'm_title_c_style'
+            wb[sheetname].cell(title_row + 1, col_idx).font = Font(name='Geneva', charset=1, family=2.0, sz=9.0, bold=False, \
+                                                                   italic=True, color='FF000000')
+        row_start = title_row + 2
+        row_end = row_start + 1
+        for row_idx in range(row_start, row_end + 1):
+            for col_idx in range(1, 9):
+                # -- format
+                if col_idx == 1:
+                    wb[sheetname].cell(row_idx, col_idx).style = 'm_header_l_style'
+                elif col_idx == 2:
+                    wb[sheetname].cell(row_idx, col_idx).style = 'm_unit_r_style'
+                else:
+                    wb[sheetname].cell(row_idx, col_idx).style = 'm_data_l_style'
+                # -- border
+                if row_idx < row_end:
+                    wb[sheetname].cell(row_idx, col_idx).border = b_border
+
+        # -- border
+        col_idx = 6
+        for row_idx in range(row_start - 2, row_end + 1):
+            if row_idx in [row_start]:
+                wb[sheetname].cell(row_idx, col_idx).border = bl_border
+            else:
+                wb[sheetname].cell(row_idx, col_idx).border = l_border
+
+        # DATE AND TIME
+        title_row = find_str_in_col(wb[sheetname], 'DATE AND TIME', 1)[0]
+        wb[sheetname].cell(title_row, 1).style = 'm_title_style'
+        # Set header
+        for col_idx in range(3, 5):
+            wb[sheetname].cell(title_row, col_idx).style = 'm_title_c_style'
+
+        # Set subheader and data
+        row_start = title_row + 1
+        row_end = row_start + 2
+        for row_idx in range(row_start, row_end + 1):
+            for col_idx in range(1, 5):
+                # Format
+                if col_idx == 1:
+                    wb[sheetname].cell(row_idx, col_idx).style = 'm_header_l_style'
+                elif col_idx == 2:
+                    wb[sheetname].cell(row_idx, col_idx).style = 'm_unit_r_style'
+                else:
+                    wb[sheetname].cell(row_idx, col_idx).style = 'm_data_r_style'
+                # Border
+                if row_idx < row_end:
+                    wb[sheetname].cell(row_idx, col_idx).border = b_border
+        # Date format
+        wb[sheetname].cell(row_start, 3).number_format = 'yyyy-dd-mm'
+        wb[sheetname].cell(row_start, 4).number_format = 'yyyy-dd-mm'
+        wb[sheetname].cell(row_start + 1, 3).number_format = 'hh:mm'
+        wb[sheetname].cell(row_start + 1, 4).number_format = 'hh:mm'
+
+        # Border
+        col_idx = 4
+        for row_idx in range(row_start - 1, row_end + 1):
+            if row_idx >= row_start and wb[sheetname].cell(row_idx + 1, col_idx).value not in [None, '']:
+                wb[sheetname].cell(row_idx, col_idx).border = bl_border
+            else:
+                wb[sheetname].cell(row_idx, col_idx).border = l_border
+
+        # ICE GEOMETRY
+        title_row = find_str_in_col(wb[sheetname], 'ICE GEOMETRY', 1)[0]
+        wb[sheetname].cell(title_row, 1).style = 'm_title_style'
+        row_start = title_row + 1
+        row_end = row_start + 7
+        for row_idx in range(row_start, row_end + 1):
+            # -- format
+            wb[sheetname].cell(row_idx, 1).style = 'm_header_l_style'
+            wb[sheetname].cell(row_idx, 2).style = 'm_unit_r_style'
+            if row_idx < row_start + 2:
+                wb[sheetname].cell(row_idx, 3).style = 'm_cdata_r_style'
+            else:
+                wb[sheetname].cell(row_idx, 3).style = 'm_data_l_style'
+            if row_idx == row_start:
+                for col_idx in range(4, 9):
+                    wb[sheetname].cell(row_idx, col_idx).style = 'm_data_r_style'
+            # -- border
+            if row_idx < row_end:
+                for col_idx in range(1, 4):
+                    wb[sheetname].cell(row_idx, col_idx).border = b_border
+
+        # ICE TEMPERATURE
+        title_row = find_str_in_col(wb[sheetname], 'ENVIRONMENTAL CONDITIONS', 1)[0]
+        wb[sheetname].cell(title_row, 1).style = 'm_title_style'
+        row_start = title_row + 1
+        row_end = row_start + 4
+        for row_idx in range(row_start, row_end + 1):
+            # Format
+            wb[sheetname].cell(row_idx, 1).style = 'm_header_l_style'
+            wb[sheetname].cell(row_idx, 2).style = 'm_unit_r_style'
+            wb[sheetname].cell(row_idx, 3).style = 'm_data_r_style'
+            wb[sheetname].cell(row_idx, 4).style = 'm_comment_style'
+
+            # Border
+            for col_idx in range(1, 5):
+                if wb[sheetname].cell(row_idx + 1, col_idx).value not in [None, ''] or \
+                        wb[sheetname].cell(row_idx, col_idx).fill.fgColor.rgb in [light_grey, '00000000']:
+                    if wb[sheetname].cell(row_idx + 1, col_idx).value not in [None, ''] or \
+                            wb[sheetname].cell(row_idx + 1, col_idx).fill.fgColor.rgb in [light_grey, '00000000'] or \
+                            isMerged(wb[sheetname], row_idx + 1, col_idx):
+                        wb[sheetname].cell(row_idx, col_idx).border = b_border
+
+        # SAMPLING EVENT
+        title_row = find_str_in_col(wb[sheetname], 'SAMPLING EVENT', 1)[0]
+        wb[sheetname].cell(title_row, 1).style = 'm_title_style'
+        row_start = title_row + 1
+        row_end = row_start + 3
+        for row_idx in range(row_start, row_end + 1):
+            # -- format
+            wb[sheetname].cell(row_idx, 1).style = 'm_header_l_style'
+            wb[sheetname].cell(row_idx, 2).style = 'm_header_l_style'
+            wb[sheetname].cell(row_idx, 3).style = 'm_data_l_style'
+            wb[sheetname].cell(row_idx, 4).style = 'm_comment_style'
+
+            if row_idx in [row_start + 1, row_start + 2]:
+                col_idx = 4
+                while wb[sheetname].cell(row_idx, col_idx).value not in [None, '']:
+                    wb[sheetname].cell(row_idx, col_idx).style = 'm_data_l_style'
+                    col_idx += 1
+
+            # -- border
+            if row_idx < row_end:
+                for col_idx in range(1, 4):
+                    wb[sheetname].cell(row_idx, col_idx).border = b_border
+                col_idx = 3
+                while wb[sheetname].cell(row_idx, col_idx).value not in [None, '']:
+                    if wb[sheetname].cell(row_idx + 1, col_idx).value not in [None, ''] or \
+                            isMerged(wb[sheetname], row_idx + 1, col_idx) or \
+                            wb[sheetname].cell(row_idx + 1, col_idx).fill == noFill:
+                        wb[sheetname].cell(row_idx, col_idx).border = b_border
+                    col_idx += 1
+
+        # WEATHER INFORMATION
+        title_row = find_str_in_col(wb[sheetname], 'WEATHER INFORMATION', 1)[0]
+        wb[sheetname].cell(title_row, 1).style = 'm_title_style'
+        row_start = title_row + 1
+        row_end = row_start + 4
+        for row_idx in range(row_start, row_end + 1):
+            # -- format
+            wb[sheetname].cell(row_idx, 1).style = 'm_header_l_style'
+            wb[sheetname].cell(row_idx, 2).style = 'm_unit_r_style'
+            wb[sheetname].cell(row_idx, 3).style = 'm_data_r_style'
+            wb[sheetname].cell(row_idx, 4).style = 'm_comment_style'
+            if wb[sheetname].cell(row_idx, 5).value not in [None, '']:
+                wb[sheetname].cell(row_idx, 5).style = 'm_comment_style'
+            if row_idx in [row_start + 1, row_start + 2]:
+                col_idx = 4
+                while wb[sheetname].cell(row_idx, col_idx).value not in [None, '']:
+                    wb[sheetname].cell(row_idx, col_idx).style = 'm_data_l_style'
+                    col_idx += 1
+            # -- border
+            col_idx = 1
+            while wb[sheetname].cell(row_idx, col_idx).value not in [None, ''] or \
+                    wb[sheetname].cell(row_idx, col_idx).fill.fgColor.rgb in [light_grey, '00000000']:
+                if wb[sheetname].cell(row_idx + 1, col_idx).value not in [None, ''] or \
+                        isMerged(wb[sheetname], row_idx + 1, col_idx) or \
+                        wb[sheetname].cell(row_idx + 1, col_idx).fill.fgColor.rgb in [light_grey, '00000000']:
+                    wb[sheetname].cell(row_idx, col_idx).border = b_border
+                col_idx += 1
+
+        # GENERAL COMMENTS
+        title_row = find_str_in_col(wb[sheetname], 'GENERAL COMMENTS', 1)[0]
+        wb[sheetname].cell(title_row, 1).style = 'm_title_style'
+        row_start = title_row + 1
+        row_end = row_start
+        for row_idx in range(row_start, row_end + 1):
+            # -- format
+            wb[sheetname].cell(row_idx, 1).style = 'm_data_l_style'
+
+        # Row height
+        for row_idx in range(1, lr_cell.row):
+            wb[sheetname].row_dimensions[1].height = 12.75
+
+        # - PROPERTY TABS
+        for sheetname in wb.sheetnames:
+            if sheetname not in sheetnames_l:
+                lr_cell = findLowerRightCell(wb[sheetname], col_offset=0, row_offset=0)
+                col_offset = 3
+                row_offset = 1
+
+                # Header & Data
+                if wb[sheetname].title in ['ct']:
+                    style_d = {1: p_header_style, 2: p_header_style, 3: p_subheader_style, 4: p_unit_style}
+                    start_data_row = 5
+                else:
+                    style_d = {1: p_header_style, 2: p_subheader_style, 3: p_unit_style}
+                    start_data_row = 4
+                start_col = 1
+                end_col = lr_cell.column
+                max_row = lr_cell.row
+                styleHeaderPainter(wb[sheetname], start_col, end_col, start_row=1, styleDict=style_d)
+                styleDataPainter(wb[sheetname], start_col, end_col, data_row=start_data_row, max_row=max_row)
+
+                # Add background
+                col_offset = 3
+                row_offset = 1
+                max_row = lr_cell.row + 1
+                styleBottomPainter(wb[sheetname], start_col, end_col + col_offset, row_idx=max_row)
+                for col_idx in range(lr_cell.column + 1, lr_cell.column + 1 + col_offset):
+                    for row_idx in range(1, max_row + 1):
+                        wb[sheetname].cell(1, col_idx).style = 'm_bkg_style'
+                    # set column width
+                    col = openpyxl.utils.get_column_letter(col_idx)
+                    wb[sheetname].column_dimensions[col].width = 0.5 * 14  # 1.76 in, fudge_factor = 13.97; 0.5"
+
+                if wb[sheetname].title in ['snow']:
+                    for col_idx in range(1, lr_cell.column + 1):
+                        if all([wb[sheetname].cell(ii, col_idx).value is None for ii in range(1, start_data_row)]):
+                            col = openpyxl.utils.get_column_letter(col_idx)
+                            for row_idx in range(1, lr_cell.row + 1):
+                                wb[sheetname].cell(row_idx, col_idx).style = 'm_bkg_style'
+                            # set column width
+                            wb[sheetname].column_dimensions[col].width = 0.1 * 13.97  # 0.5 in, fudge_factor = 13.97; 0.5"
+
+                        max_border_col = find_str_in_row(wb[sheetname], 'comment', 1)[0]
+                else:
+                    max_border_col = lr_cell.column
+
+                # Add border
+                border_col = []
+                for col_idx in range(1, max_border_col + 1):
+                    if wb[sheetname].cell(start_data_row - 2, col_idx).value == 'ID':
+                        border_col.append(col_idx)
+                    elif any([wb[sheetname].cell(ii, col_idx).value == 'comment' for ii in range(1, start_data_row)]):
+                        border_col.append(col_idx)
+                    elif sheetname in header_d and \
+                            str(wb[sheetname].cell(1, col_idx).value) in header_d[sheetname] and \
+                            wb[sheetname].cell(1, col_idx).value == 'value':
+                        border_col.append(col_idx)
+                    elif sheetname in subheader_d and \
+                            str(wb[sheetname].cell(2, col_idx).value) in subheader_d[sheetname]:
+                        border_col.append(col_idx)
+
+                # - remove all border
+                for col_idx in range(1, lr_cell.column + 1):
+                    for row_idx in range(1, max_row):
+                        wb[sheetname].cell(row_idx, col_idx).border = noBorder
+                        if col_idx in border_col:
+                            wb[sheetname].cell(row_idx, col_idx).border = l_border
+                    wb[sheetname].cell(row_idx, max_row + 1).border = noBorder
+
+                # Set row heights
+                wb[sheetname].row_dimensions[1].height = 25
+                wb[sheetname].row_dimensions[2].height = 25
+                for row_idx in range(3, lr_cell.row):
+                    wb[sheetname].row_dimensions[row_idx].height = 12.75
+
+                # Set column widths [.78" == 13]
+                for col_idx in range(1, lr_cell.column):
+                    col = openpyxl.utils.get_column_letter(col_idx)
+                    wb[sheetname].column_dimensions[col].width = 13
+
+                # set quality width to 6 if header is 0
+                for col_idx in find_str_in_row(wb[sheetname], 'quality', 2):
+                    if wb[sheetname].cell(1, col_idx).value in [None, '']:
+                        col = openpyxl.utils.get_column_letter(col_idx)
+                        wb[sheetname].column_dimensions[col].width = 6
+                for col_idx in find_str_in_row(wb[sheetname], 'quality', 3):
+                    if wb[sheetname].cell(1, col_idx).value in [None, ''] and wb[sheetname].cell(2, col_idx).value in [None,
+                                                                                                                       '']:
+                        col = openpyxl.utils.get_column_letter(col_idx)
+                        wb[sheetname].column_dimensions[col].width = 6
+
+                # set width to 1" for
+                for header in ['specific conductance', 'conductivity', 'stratigraphy']:
+                    for col_idx in find_str_in_row(wb[sheetname], header, 1):
+                        col = openpyxl.utils.get_column_letter(col_idx)
+                        wb[sheetname].column_dimensions[col].width = 13 / .78  # 1")
+                    for col_idx in find_str_in_row(wb[sheetname], header, 2):
+                        col = openpyxl.utils.get_column_letter(col_idx)
+                        wb[sheetname].column_dimensions[col].width = 13 / .78  # 1")
+                # set width to 1.75" for
+                for header in ['inclusion', 'description', 'comment']:
+                    for col_idx in find_str_in_row(wb[sheetname], header, 1):
+                        col = openpyxl.utils.get_column_letter(col_idx)
+                        wb[sheetname].column_dimensions[col].width = 13 / .78  # 1")
+                    for col_idx in find_str_in_row(wb[sheetname], header, 2):
+                        col = openpyxl.utils.get_column_letter(col_idx)
+                        wb[sheetname].column_dimensions[col].width = 1.75 * 13 / .78  # 1")
+
+                # set wrapping text for
+                for header in ['particulate mass', 'specific conductance', 'core section', 'snow micropen SMP',
+                               'melted volume', 'eco property']:
+                    for col_idx in find_str_in_row(wb[sheetname], header, 1):
+                        col = openpyxl.utils.get_column_letter(col_idx)
+                        wb[sheetname].cell(1, col_idx).alignment = Alignment(horizontal='center', wrapText=True,
+                                                                             vertical='center')
+                    for col_idx in find_str_in_row(wb[sheetname], header, 2):
+                        col = openpyxl.utils.get_column_letter(col_idx)
+                        wb[sheetname].cell(1, col_idx).alignment = Alignment(horizontal='center', wrapText=True,
+                                                                             vertical='center')
+
 
 def find_str_in_row(ws, header, row_idx=1):
     """
@@ -3004,9 +3589,10 @@ def findMergeCell(ws, row_idx, col_idx):
     return False
 
 def unmergeHeaderRow(ws, header_row=1, nomerge_header=[], styleDict={1: p_header_style, 2: p_subheader_style, 3: p_unit_style}):
-    merged_cells = ws.merged_cells.ranges
-    while len(merged_cells) > 0:
-        merge_cell = merged_cells[0]
+    merged_cells_d = {mergeCells.coord: mergeCells for mergeCells in ws.merged_cells.ranges}
+    while len(merged_cells_d) > 0:
+        key = list(merged_cells_d.keys())[0]
+        merge_cell = merged_cells_d[key]
         if merge_cell.left[0][0] == header_row:
             col_start = merge_cell.left[0][1]
             col_end = merge_cell.right[0][1]
@@ -3014,7 +3600,7 @@ def unmergeHeaderRow(ws, header_row=1, nomerge_header=[], styleDict={1: p_header
             # unmerged cell
             header = merge_cell.start_cell.value
             if header in nomerge_header:
-                merged_cells.remove(merge_cell)
+                merged_cells_d.pop(key)
             else:
                 ws.unmerge_cells(merge_cell.coord)
 
@@ -3043,8 +3629,9 @@ def unmergeHeaderRow(ws, header_row=1, nomerge_header=[], styleDict={1: p_header
                 else:
                     for row in range(1, ws.max_row):
                         ws.cell(row, col_start).border = l_border
+            merged_cells_d.pop(key)
         else:
-            merged_cells.remove(merge_cell)
+            merged_cells_d.pop(key)
 
 def hasData(ws):
     row_idx = 1
@@ -3070,10 +3657,11 @@ def hasData(ws):
 ## Copy a sheet with style, format, layout, ect. from one Excel file to another Excel file
 ## Please add the ..path\\+\\file..  and  ..sheet_name.. according to your desire.
 
+
 def insert_row_with_merge(worksheet, row_insert_idx, row_n=1):
     # move merged cells downwards below row_insert_idx row
     for merged_cell in worksheet.merged_cells.ranges:
-        if merged_cell.right[0][0] > row_insert_idx:
+        if merged_cell.right[0][0] >= row_insert_idx:
             merged_cell.shift(0, row_n)
     # insert row_n rows starting at row_insert_idx row
     worksheet.insert_rows(row_insert_idx, row_n)
@@ -3082,7 +3670,7 @@ def delete_row_with_merge(worksheet, row_insert_idx, row_n=1):
     # move merged cells downwards below row_insert_idx row
     for merged_cell in worksheet.merged_cells.ranges:
         if merged_cell.right[0][0] > row_insert_idx:
-            merged_cell.shift(0, row_n)
+            merged_cell.shift(0, -row_n)
     # remove data validation
     for row_idx in range(row_insert_idx, row_insert_idx + row_n):
         for col_idx in range(1, worksheet.max_column):
@@ -3141,7 +3729,7 @@ def correctDataRowNumber(worksheet, max_row):
         if flag_empty:
             delete_row_with_merge(worksheet, row_insert_idx, row_n)
 
-def stylePainter(worksheet, col_comment_idx, max_col, max_row, styleDict={1:p_header_style, 2:p_subheader_l_style, 3:p_unit_style}):
+def stylePainter(worksheet, col_comment_idx, max_col, max_row, styleDict={1:p_header_style, 2:p_subheader_style, 3:p_unit_style}):
     for row in range(1, max_row):
         for col in range(1, col_comment_idx + 1):
             if row in styleDict.keys():
@@ -3186,6 +3774,30 @@ def styleHeaderPainter(ws, start_col, end_col, start_row=1, styleDict={1:p_heade
                 ws.cell(start_row+row, col).style = styleDict[row]
             except ValueError:
                 ws.cell(start_row+row, col).style = styleDict[row].name
+
+def styleDataPainter(ws, start_col, end_col, data_row=4, max_row=None):
+    if max_row is None:
+        max_row = ws.max_row
+    for col_idx in range(start_col, end_col + 1):
+        # detect string or number/date base on subheader value
+        flag_string = False
+        for row_offset in range(1, data_row):
+            cell_value = ws.cell(data_row-row_offset, col_idx).value
+            if isinstance(cell_value, str):
+                if cell_value in ['comment', 'ID', 'texture', 'inclusion', 'description', 'character']:
+                    flag_string = True
+        for row_idx in range(data_row, max_row + 1):
+            if flag_string:  # string data
+                try:
+                    ws.cell(row_idx, col_idx).style = p_data_l_style
+                except ValueError:
+                    ws.cell(row_idx, col_idx).style = 'p_data_l_style'
+            else:   # number or date #data
+                try:
+                    ws.cell(row_idx, col_idx).style = p_data_r_style
+                except ValueError:
+                    ws.cell(row_idx, col_idx).style = 'p_data_r_style'
+
 
 def styleBottomPainter(ws, start_col, end_col, row_idx=None):
     if row_idx is None:
@@ -3272,7 +3884,66 @@ def cleanWorksheet(ws):
     else:  # do nothing
         pass
 
-def worksheetDataFormatting(worksheet, max_row, l_border_col=[], styleDict={1:p_header_style, 2:p_subheader_l_style, 3:p_unit_style}):
+def findLowerRightCell(ws, col_offset=3, row_offset=1, start_row=1, max_row=None):
+    if max_row is None:
+        max_row = ws.max_row
+    if ws.title not in ['lists', 'locations']:
+        # find max row and max_col
+        max_col = 1
+        max_row = 1
+        for row_idx in range(start_row, ws.max_row + 1)[::-1]:
+            for col_idx in range(1, ws.max_column + 1)[::-1]:
+                if ws.cell(row_idx, col_idx).value not in [None, '']:
+                    if max_col < col_idx:
+                        max_col = col_idx
+                    if max_row < row_idx:
+                        max_row = row_idx
+
+        # correct minimum max_row and max_col
+        if ws.title == 'metadata-core':
+            if max_col < 26:
+                max_col = 26
+        elif ws.title in ['metadata-station', 'metadata-coring']:
+            if max_row < 49:
+                max_row = 49
+        elif ws.title == 'snow':
+            if max_row < 3 + data_row_n + row_offset:
+                max_row = 3 + data_row_n + row_offset
+            if max_col < find_str_in_row(ws, 'SWE', 1)[0] + 3:
+                if isMerged(ws, 1, find_str_in_row(ws, 'SWE', 1)[0]):
+                    max_col = find_str_in_row(ws, 'SWE', 1)[0] + col_offset
+                else:
+                    max_col = find_str_in_row(ws, 'SWE', 1)[0] + 3 + col_offset
+        elif ws.title == 'ct':
+            if max_row < 4 + data_row_n + row_offset:
+                max_row = 4 + data_row_n + row_offset
+            col_idx = 0
+            if len(find_str_in_row(ws, 'comment', 1)) > 0:
+                col_idx = find_str_in_row(ws, 'comment', 1)[0]
+            if len(find_str_in_row(ws, 'comment', 2)) > 0:
+                col_idx = find_str_in_row(ws, 'comment', 2)[0]
+            if len(find_str_in_row(ws, 'comment', 3)) > 0:
+                col_idx = find_str_in_row(ws, 'comment', 3)[0]
+            if max_col < col_idx + col_offset:
+                max_col = col_idx + col_offset
+        else:
+            if max_row < 3 + data_row_n + row_offset:
+                max_row = 3 + data_row_n + row_offset
+            col_idx = 1
+            if len(find_str_in_row(ws, 'comment', 1)) > 0:
+                col_idx = find_str_in_row(ws, 'comment', 1)[0]
+            elif len(find_str_in_row(ws, 'comment', 2)) > 0:
+                col_idx = find_str_in_row(ws, 'comment', 2)[0]
+            elif len(find_str_in_row(ws, 'comment', 3)) > 0:
+                col_idx = find_str_in_row(ws, 'comment', 3)[0]
+            if max_col < col_idx + col_offset:
+                max_col = col_idx + col_offset
+    else:
+        max_row = ws.max_row
+        max_col = ws.max_column
+    return ws.cell(max_row, max_col)
+
+def worksheetDataFormatting(worksheet, max_row, l_border_col=[], styleDict={1:p_header_style, 2:p_subheader_style, 3:p_unit_style}):
     # find last column with header
     for col in list(range(1, worksheet.max_column))[::-1]:
         if worksheet.cell(1, col).value not in [None, '']:
