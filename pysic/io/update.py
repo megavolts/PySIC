@@ -469,6 +469,7 @@ def version_1_3_0_to_1_4_1(wb):
         version = version2int(wb['metadata-station']['C1'].value)
     except KeyError:
         version = version2int(wb['metadata-coring']['C1'].value)
+
     if version[0] < 2 and version[1] < 4 and version[2] < 1:
         # Update from 1.3 to 1.4.1
         # - METADATA-CORE
@@ -597,10 +598,14 @@ def version_1_3_0_to_1_4_1(wb):
             for col in range(1, max_col + 1):
                 wb[sheetname].cell(row, col).style = m_bkg_style
 
+        wb.save('/home/megavolts/test.xlsx')
+        wb = openpyxl.load_workbook(filename='/home/megavolts/test.xlsx')
+
         wb[sheetname].cell(row_instrument_idx, 1).style = m_title_style
         for row in range(row_instrument_idx + 1, row_version_idx - 1):
             wb[sheetname].cell(row, 1).style = m_subheader_r_style
             wb[sheetname].cell(row, 2).style = m_subheader_r_style
+            # merge cell from col C (3) to col H (8)
             # merge cell from col C (3) to col H (8)
             for merge_cells in wb[sheetname].merged_cells.ranges:
                 if merge_cells.left[0][0] == row and merge_cells.left[0][1] == 3:
@@ -608,12 +613,21 @@ def version_1_3_0_to_1_4_1(wb):
                 # make sure that unmerged cell are correctly painted
                 for col in range(9, max_col + 1):
                     wb[sheetname].cell(row, col).style = m_bkg_style
+
+            # #merged_cells = wb[sheetname].merged_cells.ranges.copy()
+            # for cell_group in wb[sheetname].merged_cells.ranges:
+            #     if cell_group.start_cell.row == row and cell_group.start_cell.column == 3:
+            #         # 2023-02-10 : fix but do not why it doesn't work
+            #         wb[sheetname].unmerge_cells(str(cell_group))
+            #         for col in range(9, max_col + 1):
+            #             wb[sheetname].cell(row, col).style = m_bkg_style
             new_range = 'C' + str(row) + ':H' + str(row)
             wb[sheetname].merge_cells(new_range)
             wb[sheetname].cell(row, 3).style = m_data_l_style
             if row < row_version_idx - 2:
                 for col in range(1, 8 + 1):
                     wb[sheetname].cell(row, col).border = b_border
+        wb.save('/home/megavolts/test2.xlsx')
 
         wb[sheetname].cell(row_version_idx, 1).style = m_title_style
         # version subheader
@@ -927,9 +941,8 @@ def version_1_3_0_to_1_4_1(wb):
             wb['salo181'].title = sheetname
         if 'salo18' in wb.sheetnames:
             # unmerge all cells
-            while len(wb[sheetname].merged_cells.ranges) > 0:
-                merged_cells = wb[sheetname].merged_cells.ranges[0].coord
-                wb[sheetname].unmerge_cells(merged_cells)
+            while wb[sheetname].merged_cells.ranges:
+                wb[sheetname].merged_cells.ranges.pop()
             # remove all data validation
             row_idx = wb[sheetname].max_row
             for col in range(1, wb[sheetname].max_column):
@@ -992,9 +1005,11 @@ def version_1_3_0_to_1_4_1(wb):
                 wb['temp1'].title = sheetname
         if sheetname in wb.sheetnames:
             # unmerge all cells
-            while len(wb[sheetname].merged_cells.ranges) > 0:
-                merged_cells = wb[sheetname].merged_cells.ranges[0].coord
-                wb[sheetname].unmerge_cells(merged_cells)
+            # while len(wb[sheetname].merged_cells.ranges) > 0:
+            #     merged_cells = wb[sheetname].merged_cells.ranges[0].coord
+            #     wb[sheetname].unmerge_cells(merged_cells)
+            while wb[sheetname].merged_cells.ranges:
+                wb[sheetname].merged_cells.ranges.pop()
             # remove first line
             row_n = 1
             row_delete_idx = 1
@@ -1018,6 +1033,7 @@ def version_1_3_0_to_1_4_1(wb):
             max_row = 3 + data_row_n + 1
             l_border_col = ['B', 'D']
             worksheetDataFormatting(wb[sheetname], max_row, l_border_col)
+        wb.save('/home/megavolts/test.xlsx')
 
         # - TEX
         sheetname = 'tex'
@@ -1027,9 +1043,11 @@ def version_1_3_0_to_1_4_1(wb):
                 wb['tex1'].title = sheetname
         if sheetname in wb.sheetnames:
             # unmerge all cell
-            while len(wb[sheetname].merged_cells.ranges) > 0:
-                merged_cells = wb[sheetname].merged_cells.ranges[0].coord
-                wb[sheetname].unmerge_cells(merged_cells)
+            while wb[sheetname].merged_cells.ranges:
+                wb[sheetname].merged_cells.ranges.pop()
+            # while len(wb[sheetname].merged_cells.ranges) > 0:
+            #     merged_cells = wb[sheetname].merged_cells.ranges[0].coord
+            #     wb[sheetname].unmerge_cells(merged_cells)
 
             # remove first line
             row_n = 1
@@ -1060,6 +1078,10 @@ def version_1_3_0_to_1_4_1(wb):
             wb[sheetname]['K1'].value = 'comment'
             subheader_list = ['value', 'quality', 'value', 'value', 'ID', 'type', 'quality', 'section', 'value']
             unit_list = ['-', '[0-9]', '-', '-', '-', '-', '[0-9]', '-', '-']
+
+            wb.save('/home/megavolts/test.xlsx')
+            wb = openpyxl.load_workbook('/home/megavolts/test.xlsx')
+
             for ii, col_idx in enumerate(range(openpyxl.utils.column_index_from_string('C'),
                                                openpyxl.utils.column_index_from_string('K') + 1)):
                 wb[sheetname].cell(2, col_idx).value = subheader_list[ii]
@@ -1093,9 +1115,8 @@ def version_1_3_0_to_1_4_1(wb):
                 wb['eco1'].title = sheetname
         if sheetname in wb.sheetnames:
             # unmerge all cell
-            while len(wb[sheetname].merged_cells.ranges) > 0:
-                merged_cells = wb[sheetname].merged_cells.ranges[0].coord
-                wb[sheetname].unmerge_cells(merged_cells)
+            while wb[sheetname].merged_cells.ranges:
+                wb[sheetname].merged_cells.ranges.pop()
 
             # remove first line
             row_n = 1
@@ -1182,9 +1203,8 @@ def version_1_3_0_to_1_4_1(wb):
             wb[sheetname + '_temp'].title = sheetname
         if sheetname in wb.sheetnames:
             # unmerge all cell
-            while len(wb[sheetname].merged_cells.ranges) > 0:
-                merged_cells = wb[sheetname].merged_cells.ranges[0].coord
-                wb[sheetname].unmerge_cells(merged_cells)
+            while wb[sheetname].merged_cells.ranges:
+                wb[sheetname].merged_cells.ranges.pop()
             # remove first line
             delete_row_with_merge(wb[sheetname], 1, 1)
             removeExistingCellDataValidation(wb[sheetname], 'C1')
@@ -1354,9 +1374,8 @@ def version_1_3_0_to_1_4_1(wb):
                 wb['density-volume1'].title = sheetname
         if sheetname in wb.sheetnames:
             # unmerge all cell
-            while len(wb[sheetname].merged_cells.ranges) > 0:
-                merged_cells = wb[sheetname].merged_cells.ranges[0].coord
-                wb[sheetname].unmerge_cells(merged_cells)
+            while wb[sheetname].merged_cells.ranges:
+                wb[sheetname].merged_cells.ranges.pop()
 
             # remove first line
             row_n = 1
@@ -1421,9 +1440,8 @@ def version_1_3_0_to_1_4_1(wb):
             for col in range(1, wb[sheetname].max_column):
                 removeExistingCellDataValidation(wb[sheetname], wb[sheetname].cell(row_idx, col))
             # unmerge all cell
-            while len(wb[sheetname].merged_cells.ranges) > 0:
-                merged_cells = wb[sheetname].merged_cells.ranges[0].coord
-                wb[sheetname].unmerge_cells(merged_cells)
+            while wb[sheetname].merged_cells.ranges:
+                wb[sheetname].merged_cells.ranges.pop()
             # remove first line
             delete_row_with_merge(wb[sheetname], 1, 1)
 
@@ -1474,9 +1492,8 @@ def version_1_3_0_to_1_4_1(wb):
         sheetname = 'seawater'
         if sheetname in wb.sheetnames:
             # unmerge all cells
-            while len(wb[sheetname].merged_cells.ranges) > 0:
-                merged_cells = wb[sheetname].merged_cells.ranges[0].coord
-                wb[sheetname].unmerge_cells(merged_cells)
+            while wb[sheetname].merged_cells.ranges:
+                wb[sheetname].merged_cells.ranges.pop()
             # remove all data validation
             row_idx = wb[sheetname].max_row
             for col in range(1, wb[sheetname].max_column):
@@ -1587,6 +1604,9 @@ def version_1_3_0_to_1_4_1(wb):
         # - SEDIMENT
         sheetname = 'sediment'
         if sheetname in wb.sheetnames:
+            # unmerge all cells
+            while wb[sheetname].merged_cells.ranges:
+                wb[sheetname].merged_cells.ranges.pop()
             # remove all data validation
             row_idx = wb[sheetname].max_row
             for col in range(1, wb[sheetname].max_column):
@@ -1665,9 +1685,8 @@ def version_1_3_0_to_1_4_1(wb):
             wb['_temp'].title = sheetname
         if sheetname in wb.sheetnames:
             # unmerge all cells
-            while len(wb[sheetname].merged_cells.ranges) > 0:
-                merged_cells = wb[sheetname].merged_cells.ranges[0].coord
-                wb[sheetname].unmerge_cells(merged_cells)
+            while wb[sheetname].merged_cells.ranges:
+                wb[sheetname].merged_cells.ranges.pop()
             # remove all data validation
             row_idx = wb[sheetname].max_row
             for col in range(1, wb[sheetname].max_column):
@@ -1757,10 +1776,11 @@ def version_1_3_0_to_1_4_1(wb):
         wb['metadata-station']['C1'] = '1.4.1'
         wb.active = wb['metadata-station']
 
+
         # clean all worksheet
         for sheetname in wb.sheetnames:
             cleanWorksheet(wb[sheetname])
-
+        return wb
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
 
