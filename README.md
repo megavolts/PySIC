@@ -24,5 +24,6 @@ The functions in PySIC will be organized into the following categories:
 **Cite as:**
 > *Oggier, M* **SicPy: A Python Toolkit for Quantitative Analysis of Sea Ice Core**. Version 0.6, Retrieved from https://github.com/megavolts/pysic
 
-** References **
-> Oggier, M., et al., AGU 2020, Ice core studies of autumn-to-spring sea ice evolution at the MOSAiC floe 
+**References**
+> *Oggier, M., et al.*, AGU 2020, Ice core studies of autumn-to-spring sea ice evolution at the MOSAiC floe 
+> 
