@@ -9,6 +9,7 @@ import logging
 import os
 import openpyxl
 import numpy as np
+from copy import copy
 
 from openpyxl.styles import NamedStyle, Font, Alignment, PatternFill
 from openpyxl.styles.borders import Border, Side
@@ -20,7 +21,7 @@ from pysic.property import prop_associated_tab
 
 import pysic
 
-__all__ = ['ice_core_data']
+__all__ = ['ic_data']
 
 pysic_fp = pysic.__path__[0]
 
@@ -182,7 +183,7 @@ m_styles_list = ['m_title_style', 'm_title_c_style', 'm_header_style', 'm_header
                  'm_data_l_style', 'm_cdata_r_style', 'p_header_style', 'p_subheader_style', 'p_unit_style',
                  'p_data_r_style', 'p_data_l_style', 'm_bkg_style']
 
-def ice_core_data_path(ic_path, backup=True, user=user):
+def ic_data_from_path(ic_path, backup=True, user=user):
     """
     :param ic_path:
         path; Filepath to the data spreadsheet to update
@@ -194,23 +195,17 @@ def ice_core_data_path(ic_path, backup=True, user=user):
     logger = logging.getLogger(__name__)
 
     wb = openpyxl.load_workbook(filename=ic_path, keep_vba=False)  # load the xlsx spreadsheet
+
+    # Read ice core data version
     if 'metadata-coring' in wb.sheetnames:
         ws_summary = wb['metadata-coring']  # load the data from the summary sheet
     else:
         ws_summary = wb['metadata-station']  # load the data from the summary sheet
     version = ws_summary['C1'].value
-    version_int = version2int(version)
 
-    for style in m_styles_list:
-        if style not in wb.style_names:
-            wb.add_named_style(eval(style))
-
-    flag_update = False
-    if version_int[1] <= 4 and version_int[2] < 1:
-        logger.error('%s\t\tversion update from %s not supported' % (wb['metadata-core']['C1'].value, str(version)))
-
-    if not flag_update:
-        flag_update = True
+    if version == __CoreVersion__:
+        logger.debug('%s\t\talready at latest (%s) version' % (wb['metadata-core']['A1'].value, __CoreVersion__))
+    else:
         # Backup old version
         if backup:
             backup_dir = os.path.join(os.path.dirname(ic_path), 'bkp-ic_version_' + str(version))
@@ -221,60 +216,18 @@ def ice_core_data_path(ic_path, backup=True, user=user):
                 shutil.copy(ic_path, ic_bkp)
                 logger.info('%s\t\tsaving backup version to %s' % (wb['metadata-core']['C1'].value, backup_dir))
 
-        add_style(wb)
+        # udpate ice core data
+        ic_data(wb, user=user)
 
-        # Update from 1.2 to 1.3:
-        wb = version_1_2_x_to_1_3_0(wb)
-        wb = version_1_3_0_to_1_4_1(wb)
-        wb = version_1_4_1_to_1_4_2(wb)
-        wb = version_1_4_2_to_1_4_3(wb)
-        wb = version_1_4_3_to_1_4_4(wb)
-        wb = version_1_4_4_to_1_4_5(wb)
-        wb = version_1_4_5_to_1_4_6(wb)
-        wb = version_1_4_6_to_1_4_7(wb)
-        wb = version_1_4_7_to_1_4_8(wb)
-        wb = version_1_4_8_to_1_4_9(wb)
+        logger.info('%s\t\tsaving updated ice core to version %s' % (wb['metadata-core']['C1'].value, __CoreVersion__))
 
-        spreadsheet_style(wb)
-
-    if flag_update:
-        ### Add an update is the 'metadata-core'
-        sheetname = 'metadata-core'
-        # Find where 'VERSION' entries are located
-        row = 1
-        version_row = 0
-        while version_row == 0 and row <= wb[sheetname].max_row:
-            if wb[sheetname].cell(row, 1).value == 'VERSION' and wb[sheetname].cell(row + 1, 1).value == 'number':
-                version_row = row
-                break
-            row += 1
-
-        # Find line number with latest version entrie
-        row_idx = version_row + 2
-        while wb[sheetname].cell(row_idx, 1).value is not None or row_idx > wb[sheetname].max_row:
-            row_idx += 1
-
-        # Add new line afterwards
-        insert_row_with_merge(wb[sheetname], row_idx, 1)
-        wb[sheetname].cell(row_idx, 1).value = int(wb[sheetname].cell(row_idx-1, 1).value) + 1
-        wb[sheetname].cell(row_idx, 2).value = dt.date.today().isoformat()
-        wb[sheetname].cell(row_idx, 3).value = user
-        wb[sheetname].cell(row_idx, 5).value = 'Updated ice core data from ' + str(version) + ' to ' + __CoreVersion__
-
-        # formatting:
-        for col_idx in range(9, wb[sheetname].max_column+1):
-            wb[sheetname].cell(row_idx, col_idx).style = 'm_bkg_style'
-        logger.debug('%s\t\tupdate from from %s to %s' % (wb[sheetname]['A1'].value, version, __CoreVersion__))
-        wb['metadata-station']['C1'] = __CoreVersion__
-        logger.info('%s\t\tsaving updated ice core to version %s' % (wb[sheetname]['A1'].value, __CoreVersion__))
         wb.save(ic_path)
         wb.close()
-    else:
-        logger.debug('%s\t\talready at latest (%s) version' % (wb['metadata-core']['A1'].value, __CoreVersion__))
 
-def ice_core_data(wb, user=user):
+def ic_data(wb, user=user):
     """
     """
+    from datetime import date
     logger = logging.getLogger(__name__)
 
     if 'metadata-coring' in wb.sheetnames:
@@ -284,18 +237,20 @@ def ice_core_data(wb, user=user):
     version = ws_summary['C1'].value
     version_int = version2int(version)
 
-    flag_update = False
-    if version_int[1] < 3 and version_int[2] < 1:
+    if version_int[1] < 2 and version_int[2] < 1:
         logger.error('%s\t\tversion update from %s not supported' % (wb['metadata-core']['C1'].value, str(version)))
-
-    if not flag_update:
-        flag_update = True
-
+    elif version == __CoreVersion__:
+        logger.debug('%s\t\talready at latest (%s) version' % (wb['metadata-core']['A1'].value, __CoreVersion__))
+    else:
         # Add defined style
         add_style(wb)
 
         # Update from 1.2 to 1.3:
-        wb = version_1_2_x_to_1_3_0(wb)
+        if version_int[1] == 2 and version_int[2] == 22:
+            wb = version_1_2M_to_1_3_0(wb)
+        else:
+            wb = version_1_2_x_to_1_3_0(wb)
+
         wb = version_1_3_0_to_1_4_1(wb)
         wb = version_1_4_1_to_1_4_2(wb)
         wb = version_1_4_2_to_1_4_3(wb)
@@ -305,10 +260,9 @@ def ice_core_data(wb, user=user):
         wb = version_1_4_6_to_1_4_7(wb)
         wb = version_1_4_7_to_1_4_8(wb)
         wb = version_1_4_8_to_1_4_9(wb)
+        version_update = wb['metadata-station']['C1'].value
 
-        spreadsheet_style(wb)
-
-    if flag_update:
+        # update VERSION in metadata-core
         ### Add an update is the 'metadata-core'
         sheetname = 'metadata-core'
         # Find where 'VERSION' entries are located
@@ -328,21 +282,16 @@ def ice_core_data(wb, user=user):
         # Add new line afterwards
         insert_row_with_merge(wb[sheetname], row_idx, 1)
         wb[sheetname].cell(row_idx, 1).value = int(wb[sheetname].cell(row_idx-1, 1).value) + 1
-        wb[sheetname].cell(row_idx, 2).value = dt.date.today().isoformat()
+        wb[sheetname].cell(row_idx, 2).value = date.today().isoformat()
         wb[sheetname].cell(row_idx, 3).value = user
-        wb[sheetname].cell(row_idx, 5).value = 'Updated ice core data from ' + str(version) + ' to ' + __CoreVersion__
+        wb[sheetname].cell(row_idx, 5).value = 'Updated ice core data from ' + str(version) + ' to ' + version_update
 
-        # formatting:
-        for col_idx in range(9, wb[sheetname].max_column+1):
-            wb[sheetname].cell(row_idx, col_idx).style = 'm_bkg_style'
-        logger.debug('%s\t\tupdate from from %s to %s' % (wb[sheetname]['A1'].value, version, __CoreVersion__))
-        wb['metadata-station']['C1'] = __CoreVersion__
-        logger.info('%s\t\tsaving updated ice core to version %s' % (wb[sheetname]['A1'].value, __CoreVersion__))
-        wb.save(ic_path)
-        wb.close()
-    else:
-        logger.debug('%s\t\talready at latest (%s) version' % (wb['metadata-core']['A1'].value, __CoreVersion__))
+        # apply style and format
+        spreadsheet_style(wb)
 
+        logger.info('%s\t\tupdated from from %s to %s' % (wb[sheetname]['C1'].value, version, version_update))
+
+    return wb
 
 def add_style(wb):
     for style in m_styles_list:
@@ -350,6 +299,114 @@ def add_style(wb):
             wb.add_named_style(eval(style))
 
 ## Update scripts:
+def version_1_2M_to_1_3_0(wb):
+    logger = logging.getLogger(__name__)
+
+    try:
+        version = wb['metadata-station']['C1'].value
+    except KeyError:
+        version = wb['metadata-coring']['C1'].value
+    if version == '1.2M':
+        # METADATA-CORE
+        sheetname = 'metadata-core'
+        # find last non-empty cell in column A
+        for row_ii in range(1, wb[sheetname].max_row + 1):
+            if wb[sheetname].cell(row_ii, 1).value == 'DATA VERSION':
+                row_idx = 0
+                break
+            elif wb[sheetname].cell(row_ii, 1).value is not None:
+                row_idx = row_ii
+        if row_idx != 0:
+            row_idx = row_idx + 2
+            wb[sheetname].cell(row_idx , 1).value = 'DATA VERSION'
+            wb[sheetname].cell(row_idx + 1, 1).value = 1
+            wb[sheetname].cell(row_idx + 1, 2).value = None
+            wb[sheetname].cell(row_idx + 1, 3).value = 'initial data entry'
+
+        # METADATA-CORING
+        sheetname = 'metadata-coring'
+        wb[sheetname]['D28'].value = None
+
+        # SALINITY
+        sheetname = 'SALO18'
+        wb[sheetname]['D2'].value = 'Field Sample ID'
+        wb[sheetname]['D3'].value = None
+        wb[sheetname].merge_cells('I2:J2')
+        wb[sheetname].merge_cells('K2:L2')
+
+        # TEMPERATURE
+        sheetname = 'TEMP'
+        wb[sheetname].insert_cols(3, 1)
+        wb[sheetname]['A3'].value = 'value'
+        wb[sheetname]['B3'].value = 'value'
+        wb[sheetname]['C3'].value = '-'
+
+        # TEX
+        sheetname = 'TEX'
+        wb[sheetname].insert_rows(3, 1)
+        wb[sheetname]['A3'] = 'value'
+        wb[sheetname]['B3'] = 'value'
+        wb[sheetname]['C2'] = 'depth center'
+        wb[sheetname]['C3'] = 'value'
+        wb[sheetname]['D3'] = 'value'
+        wb[sheetname]['F3'] = '-'
+
+        # DENSITY-VOLUME
+        sheetname = 'Density-volume'
+        wb[sheetname].insert_rows(3)
+        wb[sheetname]['A3'] = 'value'
+        wb[sheetname]['B3'] = 'value'
+        wb[sheetname]['C2'] = 'field'
+        wb[sheetname]['C3'] = 'sample ID'
+        wb[sheetname]['D3'] = 'value'
+        wb[sheetname]['E2'] = 'thickness'
+        wb[sheetname]['E3'] = 'value1'
+        wb[sheetname]['F2'] = 'thickness'
+        wb[sheetname]['F3'] = 'value2'
+        wb[sheetname]['G2'] = 'thickness'
+        wb[sheetname]['G3'] = 'value3'
+        wb[sheetname]['H2'] = 'thickness'
+        wb[sheetname]['H3'] = 'value4'
+        wb[sheetname]['I2'] = 'thickness'
+        wb[sheetname]['I3'] = 'average'
+        wb[sheetname]['J3'] = 'value'
+        wb[sheetname]['K2'] = 'density'
+        wb[sheetname]['K3'] = 'value'
+        wb[sheetname]['L3'] = '-'
+    
+        # DENSITY-DENSIMETRY
+        sheetname = 'Density-densimetry'
+        wb[sheetname].insert_rows(3)
+        wb[sheetname]['A3'] = 'value'
+        wb[sheetname]['B3'] = 'value'
+        wb[sheetname]['C2'] = 'field'
+        wb[sheetname]['C3'] = 'sample ID'
+        wb[sheetname]['D3'] = 'value'
+        wb[sheetname]['E3'] = 'value'
+        wb[sheetname]['F3'] = 'value'
+        wb[sheetname]['G3'] = 'value'
+        wb[sheetname]['H3'] = '-'
+
+        # SNOW
+        sheetname = 'snow'
+        wb[sheetname].insert_rows(1, 1)
+        wb[sheetname]['A1'] = 'Reference'
+        wb[sheetname]['B1'] = 'zero vertical'
+        wb[sheetname]['C1'] = 'ice surface'
+        wb[sheetname]['C2'] = 'field'
+        wb[sheetname]['C3'] = 'sample ID'
+        wb[sheetname]['D1'] = 'direction'
+        wb[sheetname]['E1'] = 'up'
+
+        wb['metadata-coring']['C1'].value = '1.3.0'
+        wb = fix_merged_cells(wb)
+        logger.debug('\t %s updated from 1.2M to %s' %(wb['metadata-core']['C1'].value, wb['metadata-coring']['C1'].value))
+
+    else:
+        version_1_2_x_to_1_3_0(wb)
+    return wb
+
+
 def version_1_2_x_to_1_3_0(wb):
     logger = logging.getLogger(__name__)
 
@@ -359,111 +416,6 @@ def version_1_2_x_to_1_3_0(wb):
         version = version2int(wb['metadata-coring']['C1'].value)
     if not (version[0] < 2 and version[1] < 4 and version[2] < 1):
         logger.error('\t%s - not implemented yet' % (wb['metadata-core']['C1'].value))
-    # read version
-    #
-    # old_version = version
-    # ws_summary['C1'] = version
-    # version = '1.3'
-
-    #         old_version = version
-    #         version = '1.3'
-    #         ws_summary['C1'] = version
-    #
-    #         if "TEMP" in wb.sheetnames:
-    #             ws = wb["TEMP"]
-    #
-    #             # add reference row=4
-    #             ws.insert_rows(3)
-    #             ws['A3'] = 'value'
-    #             ws['B3'] = 'value'
-    #             ws['C3'] = '-'
-    #
-    #         if "Density-volume" in wb.sheetnames:
-    #             ws = wb["Density-volume"]
-    #
-    #             # add reference row=4
-    #             ws.insert_rows(3)
-    #             ws['A3'] = 'value'
-    #             ws['B3'] = 'value'
-    #             ws['C2'] = 'field'
-    #             ws['C3'] = 'sample ID'
-    #             ws['D3'] = 'value'
-    #             ws['E2'] = 'thickness'
-    #             ws['E3'] = 'value1'
-    #             ws['F2'] = 'thickness'
-    #             ws['F3'] = 'value2'
-    #             ws['G2'] = 'thickness'
-    #             ws['G3'] = 'value3'
-    #             ws['H2'] = 'thickness'
-    #             ws['H3'] = 'value4'
-    #             ws['I2'] = 'thickness'
-    #             ws['I3'] = 'average'
-    #             ws['J3'] = 'value'
-    #             ws['K2'] = 'density'
-    #             ws['K3'] = 'value'
-    #             ws['L3'] = '-'
-    #
-    #         if "Density-densimetry" in wb.sheetnames:
-    #             ws = wb["Density-densimetry"]
-    #
-    #             # add reference row=4
-    #             ws.insert_rows(3)
-    #             ws['A3'] = 'value'
-    #             ws['B3'] = 'value'
-    #             ws['C2'] = 'field'
-    #             ws['C3'] = 'sample ID'
-    #             ws['D3'] = 'value'
-    #             ws['E3'] = 'value'
-    #             ws['F3'] = 'value'
-    #             ws['G3'] = 'value'
-    #             ws['H3'] = '-'
-    #
-    #         if "TEX" in wb.sheetnames:
-    #             ws = wb["TEX"]
-    #
-    #             # add reference row=4
-    #             ws.insert_rows(3)
-    #             ws['A3'] = 'value'
-    #             ws['B3'] = 'value'
-    #             ws['C2'] = 'depth center'
-    #             ws['C3'] = 'value'
-    #             ws['D3'] = 'value'
-    #             ws['F3'] = '-'
-    #
-    #         if "snow" in wb.sheetnames:
-    #             ws = wb["snow"]
-    #
-    #             # add reference row=4
-    #             ws.insert_rows(1)
-    #             ws['A1'] = 'Reference'
-    #             ws['B1'] = 'zero vertical'
-    #             ws['C1'] = 'ice surface'
-    #             ws['C2'] = 'field'
-    #             ws['C3'] = 'sample ID'
-    #             ws['D1'] = 'direction'
-    #             ws['E1'] = 'up'
-    #
-    #         if "metadata-core" in wb.sheetnames:
-    #             ws = wb["metadata-core"]
-    #
-    #             max_row = ws.max_row
-    #             n_row = 1
-    #             while n_row <= max_row:
-    #                 if ws.cell(n_row, 1).value != 'DATA VERSION':
-    #                     n_row += 1
-    #                 else:
-    #                     break
-    #
-    #             if n_row-1 == max_row:
-    #                 n_row = 12
-    #                 while ws.cell(n_row, 1).value is not None:
-    #                     n_row += 1
-    #
-    #                 ws.cell(n_row+1, 1).value = 'DATA VERSION'
-    #                 ws.cell(n_row+2, 1).value = 1.0
-    #                 ws.cell(n_row+2, 2).value = ws_summary['C12'].value
-    #                 ws.cell(n_row+2, 3).value = 'initial data entry'
-    #
     # # TODO: update to version 1.3.1
     #
     # if version == '2.3':
@@ -471,27 +423,7 @@ def version_1_2_x_to_1_3_0(wb):
     #     print('Update to future version ' + new_version)
     #     ws_summary['C1'] = new_version
     #
-    #     if "metadata-core" in wb.sheetnames:
-    #         ws = wb["metadata-core"]
-    #
-    #         max_row = ws.max_row
-    #         n_row = 1
-    #         while n_row <= max_row:
-    #             if ws.cell(n_row, 1).value == 'DATA VERSION':
-    #                 n_row += 1
-    #             else:
-    #                 break
-    #
-    #         if n_row-1 == max_row:
-    #             n_row = 12
-    #             while ws.cell(n_row, 1).value is not None:
-    #                 n_row += 1
-    #
-    #             ws.cell(n_row+1, 1).value = 'DATA VERSION'
-    #             ws.cell(n_row+2, 1).value = 2.0
-    #             ws.cell(n_row+2, 2).value = datetime.date.today()
-    #             ws.cell(n_row+2, 3).value = 'Typo in data corrected. Updated spreadsheet to v. 1.3.1'
-    #
+
     #     if 'ECO' in wb.sheetnames:
     #         ws = wb["ECO"]
     #         if ws['F2'].value == 'Nutrient':
@@ -514,6 +446,8 @@ def version_1_2_x_to_1_3_0(wb):
     #         ws['P3'].value = 'value'
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-coring']['C1'].value))
+    wb = fix_merged_cells(wb)
+    return wb
 
 def version_1_3_0_to_1_4_1(wb):
     logger = logging.getLogger(__name__)
@@ -954,7 +888,7 @@ def version_1_3_0_to_1_4_1(wb):
 
         # -- SEAWATER
         sheetname = 'seawater'
-        data_sheet = {}
+        data_sheet[sheetname] = ['N/A', 'N/A']
         for row in range(1, 4):
             for col in range(1, wb[sheetname].max_column):
                 str_condition = isinstance(wb[sheetname].cell(row, col).value, str)
@@ -1177,7 +1111,6 @@ def version_1_3_0_to_1_4_1(wb):
                 merged_cells = merged_cells_list[0]
                 wb[sheetname].unmerge_cells(merged_cells.coord)
                 merged_cells_list.remove(merged_cells)
-
 
             # remove first line
             row_n = 1
@@ -1574,12 +1507,20 @@ def version_1_3_0_to_1_4_1(wb):
             row_idx = wb[sheetname].max_row
             for col in range(1, wb[sheetname].max_column):
                 removeExistingCellDataValidation(wb[sheetname], wb[sheetname].cell(row_idx, col))
+
             # remove first line
-            delete_row_with_merge(wb[sheetname], 1, 1)
+            row_n = 1
+            row_delete_idx = 1
+            delete_row_with_merge(wb[sheetname], row_delete_idx, row_n)
+
+            # insert a row for the subheader
+            row_n = 1
+            row_idx = 2
+            insert_row_with_merge(wb[sheetname], row_idx, row_n)
 
             # if column C is empty, use it for ID
-            col_idx = openpyxl.utils.column_index_from_string('C')
             flag_empty = True
+            col_idx = openpyxl.utils.column_index_from_string('C')
             for row_idx in range(4, wb[sheetname].max_row):
                 if wb[sheetname].cell(row_idx, col_idx).value not in [None, '']:
                     cell = openpyxl.utils.get_column_letter(col_idx) + str(row_idx)
@@ -1589,11 +1530,16 @@ def version_1_3_0_to_1_4_1(wb):
                     break
                 else:
                     pass
-            if flag_empty:
-                wb[sheetname]['C1'].value = 'salinity'
-                wb[sheetname]['D1'].value = None
-                wb[sheetname]['C2'].value = 'ID'
-                wb[sheetname]['D2'].value = 'value'
+            if not flag_empty:
+                col_idx = 4
+                col_n = 1
+                insert_col_with_merge(wb[sheetname], col_idx, col_n)
+
+            wb[sheetname].cell(1, col_idx).value = 'salinity'
+            wb[sheetname].cell(2, col_idx).value = 'ID'
+            wb[sheetname].cell(2, col_idx + 1).value = 'value'
+            wb[sheetname].cell(3, col_idx).value = '-'
+            wb[sheetname].cell(3, col_idx + 1).value = '-'
 
             # move temperature column (E) to before d18O (I)
             col_idx = openpyxl.utils.column_index_from_string('I')
@@ -1620,8 +1566,13 @@ def version_1_3_0_to_1_4_1(wb):
                 wb[sheetname].cell(3, col_idx).value = '[0-9]'
             wb[sheetname].merge_cells('C1:E1')
 
+            wb[sheetname]['F2'].value = 'value'
+            wb[sheetname]['H2'].value = 'value'
+            wb[sheetname]['I2'].value = 'value'
+
             wb[sheetname]['G1'].value = None
             wb[sheetname]['G2'].value = 'sample temp'
+            wb[sheetname]['G3'].value = '˚C'
             wb[sheetname].merge_cells('F1:G1')
 
             # insert ID and quality column for d18O, respectively before and after:
@@ -1631,6 +1582,7 @@ def version_1_3_0_to_1_4_1(wb):
             insert_col_with_merge(wb[sheetname], col_id_idx, col_n)
             wb[sheetname].cell(1, col_id_idx).value = 'd18O'
             wb[sheetname].cell(2, col_id_idx).value = 'ID'
+            wb[sheetname].cell(2, col_id_idx + 1 ).value = 'value'
             wb[sheetname].cell(3, col_id_idx).value = '-'
             col_qual_idx = col_id_idx + 2
             insert_col_with_merge(wb[sheetname], col_qual_idx, col_n)
@@ -1640,13 +1592,14 @@ def version_1_3_0_to_1_4_1(wb):
                           openpyxl.utils.get_column_letter(col_qual_idx) + str(1)
             wb[sheetname].merge_cells(merge_range)
 
-            # insert ID and quality column for d18O, respectively before and after:
+            # insert ID and quality column for dD, respectively before and after:
             col_n = 1
             col_id_idx = find_str_in_row(wb[sheetname], 'dD', 1)[0]
             col_border.append(col_id_idx)
             insert_col_with_merge(wb[sheetname], col_id_idx, col_n)
             wb[sheetname].cell(1, col_id_idx).value = 'dD'
             wb[sheetname].cell(2, col_id_idx).value = 'ID'
+            wb[sheetname].cell(2, col_id_idx + 1 ).value = 'value'
             wb[sheetname].cell(3, col_id_idx).value = '-'
             col_qual_idx = col_id_idx + 2
             insert_col_with_merge(wb[sheetname], col_qual_idx, col_n)
@@ -1861,9 +1814,11 @@ def version_1_3_0_to_1_4_1(wb):
         # clean all worksheet
         for sheetname in wb.sheetnames:
             cleanWorksheet(wb[sheetname])
-        return wb
+        logger.debug('\t %s updated from 1.3.0 to 1.4.1' %(wb['metadata-core']['C1'].value))
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+    wb = fix_merged_cells(wb)
+    return wb
 
 def version_1_4_1_to_1_4_2(wb):
     logger = logging.getLogger(__name__)
@@ -1891,9 +1846,10 @@ def version_1_4_1_to_1_4_2(wb):
         wb['metadata-station']['C1'].value = '1.4.2'
         wb.active = wb['metadata-station']
         logger.debug('\t %s updated from 1.4.1 to %s' %(wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
-        return wb
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+    wb = fix_merged_cells(wb)
+    return wb
 
 def version_1_4_2_to_1_4_3(wb):
     logger = logging.getLogger(__name__)
@@ -1942,6 +1898,7 @@ def version_1_4_2_to_1_4_3(wb):
         # clean all worksheet
         for sheetname in wb.sheetnames:
             cleanWorksheet(wb[sheetname])
+        wb = fix_merged_cells(wb)
         return wb
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
@@ -2141,6 +2098,7 @@ def version_1_4_3_to_1_4_4(wb):
         # clean all worksheet
         for sheetname in wb.sheetnames:
             cleanWorksheet(wb[sheetname])
+        wb = fix_merged_cells(wb)
         return wb
         logger.debug('\t %s updated from 1.4.3 to %s' % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
     else:
@@ -2472,6 +2430,7 @@ def version_1_4_5_to_1_4_6(wb):
         wb['metadata-station']['C1'].value = '1.4.6'
         wb.active = wb['metadata-station']
         logger.debug('\t %s updated from 1.4.5 to 1.4.6' %(wb['metadata-core']['C1'].value))
+        wb = fix_merged_cells(wb)
         return wb
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
@@ -2730,49 +2689,6 @@ def version_1_4_6_to_1_4_7(wb):
             wb.active = sheet_to_move_idx
             wb.move_sheet(wb.active, offset=after_sheet__idx - sheet_to_move_idx + 1)
 
-            stored_headers = ['d18O', 'dD']
-            property_range = {}
-            merged_cells = wb[sheetname].merged_cells.ranges.copy()
-            for merge_cell in merged_cells:
-                if merge_cell.start_cell.value in stored_headers:
-                    for prop in stored_headers:
-                        if merge_cell.start_cell.value == prop:
-                            property_range[prop] = merge_cell
-            # --unmerge header
-            unmergeHeaderRow(wb[sheetname])
-
-            # clean worksheet to remove empty row at the end
-            cleanWorksheet(wb[sheetname])
-
-            # Reorganize d18O, dD colums and add d_excess
-            max_row = wb[sheetname].max_row
-            # found column id for ID and qual of d18O and dD
-            sh_idx = {}
-            for prop in property_range:
-                if prop not in sh_idx:
-                    sh_idx[prop] = {}
-                merge_cell = property_range[prop]
-                col_start = merge_cell.left[0][1]
-                col_end = merge_cell.right[0][1]
-                for col_idx in range(col_start, col_end + 1):
-                    subheader = wb[sheetname].cell(2, col_idx).value
-                    sh_idx[prop][subheader] = col_idx
-
-            # Check if d18O_ID match dD_ID:
-            d18O_ID = [wb[sheetname].cell(row=ii, column=sh_idx['d18O']['ID']).value for ii in range(4, max_row)]
-            dD_ID = [wb[sheetname].cell(row=ii, column=sh_idx['dD']['ID']).value for ii in range(4, max_row)]
-            d18O_qual = [wb[sheetname].cell(row=ii, column=sh_idx['d18O']['quality']).value for ii in range(4, max_row)]
-            dD_qual = [wb[sheetname].cell(row=ii, column=sh_idx['dD']['quality']).value for ii in range(4, max_row)]
-
-            if dD_ID == d18O_ID:
-                # remove colum of dD_IDy
-                wb[sheetname].delete_cols(sh_idx['dD']['ID'], 1)
-                if d18O_qual != dD_qual:
-                    logging.error('NOT IMPLEMENTED: d18O_qual != dD_qual')
-                else:
-                    # remove colum for d18O_qual
-                    wb[sheetname].delete_cols(sh_idx['d18O']['quality'], 1)
-
             # TODO: fix seawater salinity column errors
             # Add eco property before TM, TM ligand, or comment
             flag_m = {'eco property': 0}
@@ -2908,6 +2824,7 @@ def version_1_4_6_to_1_4_7(wb):
         wb['metadata-station']['C1'].value = '1.4.7'
         wb.active = wb['metadata-station']
         logger.debug('\t %s updated from %s to %s' %(wb['metadata-core']['C1'].value, version, wb['metadata-station']['C1'].value))
+        wb = fix_merged_cells(wb)
         return wb
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
@@ -3139,11 +3056,70 @@ def version_1_4_7_to_1_4_8(wb):
         if depth1_val == depth2_val:
             delete_col_with_merge(wb[sheetname], 2, 1)
             wb[sheetname]['A1'] = 'depth'
+
         else:
             cell = openpyxl.utils.get_column_letter(col_idx) + str(row_idx)
             logging.error('\t\t-%s: cell %s is not empty impossible to delete column' % (worksheet.title, cell))
 
-        wb[sheetname]['B3'].value = '-'
+        # Merge d180 and dD, add d-excess
+        stored_headers = ['d18O', 'dD']
+        property_range = {}
+        merged_cells = wb[sheetname].merged_cells.ranges.copy()
+        for merge_cell in merged_cells:
+            if merge_cell.start_cell.value in stored_headers:
+                for prop in stored_headers:
+                    if merge_cell.start_cell.value == prop:
+                        property_range[prop] = merge_cell
+        # --unmerge header
+        try:
+            unmergeHeaderRow(wb[sheetname])
+        except KeyError:
+            wb.save('/tmp/temp.xlsx')
+            wb = openpyxl.load_workbook('/tmp/temp.xlsx')
+            unmergeHeaderRow(wb[sheetname])
+        else:
+            pass
+        # clean worksheet to remove empty row at the end
+        cleanWorksheet(wb[sheetname])
+
+        # Reorganize d18O, dD colums and add d_excess
+        max_row = wb[sheetname].max_row
+        # found column id for ID and qual of d18O and dD
+        sh_idx = {}
+        for prop in property_range:
+            if prop not in sh_idx:
+                sh_idx[prop] = {}
+            merge_cell = property_range[prop]
+            col_start = merge_cell.left[0][1]
+            col_end = merge_cell.right[0][1]
+            for col_idx in range(col_start, col_end + 1):
+                subheader = wb[sheetname].cell(2, col_idx).value
+                sh_idx[prop][subheader] = col_idx
+
+        # Check if d18O_ID match dD_ID:
+        d18O_ID = [wb[sheetname].cell(row=ii, column=sh_idx['d18O']['ID']).value for ii in range(4, max_row)]
+        dD_ID = [wb[sheetname].cell(row=ii, column=sh_idx['dD']['ID']).value for ii in range(4, max_row)]
+        d18O_qual = [wb[sheetname].cell(row=ii, column=sh_idx['d18O']['quality']).value for ii in range(4, max_row)]
+        dD_qual = [wb[sheetname].cell(row=ii, column=sh_idx['dD']['quality']).value for ii in range(4, max_row)]
+
+        if dD_ID == d18O_ID:
+            # remove colum of dD_IDy
+            wb[sheetname].delete_cols(sh_idx['dD']['ID'], 1)
+            if d18O_qual != dD_qual:
+                logging.error('NOT IMPLEMENTED: d18O_qual != dD_qual')
+            else:
+                # remove colum for d18O_qual
+                wb[sheetname].delete_cols(sh_idx['d18O']['quality'], 1)
+
+        # rename column header
+        wb[sheetname].cell(1, sh_idx['d18O']['ID']).value = None
+        wb[sheetname].cell(1, sh_idx['d18O']['ID'] + 1).value = 'd180'
+        wb[sheetname].cell(1, sh_idx['d18O']['ID'] + 2).value = 'dD'
+        wb[sheetname].cell(2, sh_idx['d18O']['ID'] + 1).value = 'value'
+        wb[sheetname].cell(2, sh_idx['d18O']['ID'] + 2).value = 'value'
+        wb[sheetname].cell(3, sh_idx['d18O']['ID'] + 1).value = '‰'
+        wb[sheetname].cell(3, sh_idx['d18O']['ID'] + 2).value = '‰'
+
         if len(find_str_in_row(wb[sheetname], 'd_excess', 1)) == 0:
             col_idx = find_str_in_row(wb[sheetname], 'dD', 1)[0] + 1
             insert_col_with_merge(wb[sheetname], col_idx, 1)
@@ -3192,6 +3168,7 @@ def version_1_4_7_to_1_4_8(wb):
         wb['metadata-station']['C1'].value = '1.4.8'
         wb.active = wb['metadata-station']
         logger.debug('\t %s updated from %s to %s' %(wb['metadata-core']['C1'].value, version, wb['metadata-station']['C1'].value))
+        wb = fix_merged_cells(wb)
         return wb
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
@@ -3229,7 +3206,7 @@ def version_1_4_8_to_1_4_9(wb):
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
 
-
+# Format
 def spreadsheet_style(wb, row_offset=1, col_offset=3):
     logger = logging.getLogger(__name__)
 
@@ -3387,7 +3364,7 @@ def spreadsheet_style(wb, row_offset=1, col_offset=3):
 
         # Remove background and border for all cells:
         for row_idx in range(1, lr_cell.row + 1):
-            for col_idx in range(1, lr_cell.column + 1 ):
+            for col_idx in range(1, lr_cell.column + 1):
                 wb[sheetname].cell(row_idx, col_idx).style = 'm_bkg_style'
                 wb[sheetname].cell(row_idx, col_idx).border = noBorder
 
@@ -3492,7 +3469,7 @@ def spreadsheet_style(wb, row_offset=1, col_offset=3):
         title_row = find_str_in_col(wb[sheetname], 'ICE GEOMETRY', 1)[0]
         wb[sheetname].cell(title_row, 1).style = 'm_title_style'
         row_start = title_row + 1
-        row_end = row_start + 7
+        row_end = find_str_in_col(wb[sheetname], 'ENVIRONMENTAL CONDITIONS', 1)[0]-2
         for row_idx in range(row_start, row_end + 1):
             # -- format
             wb[sheetname].cell(row_idx, 1).style = 'm_header_l_style'
@@ -3718,7 +3695,7 @@ def spreadsheet_style(wb, row_offset=1, col_offset=3):
                         wb[sheetname].cell(1, col_idx).alignment = Alignment(horizontal='center', wrapText=True,
                                                                              vertical='center')
 
-
+# Helper function
 def find_str_in_row(ws, header, row_idx=1):
     """
     find column index for a given header at a specific row
@@ -3839,11 +3816,6 @@ def hasData(ws):
     else:
         return True
 
-###############
-## Copy a sheet with style, format, layout, ect. from one Excel file to another Excel file
-## Please add the ..path\\+\\file..  and  ..sheet_name.. according to your desire.
-
-
 def insert_row_with_merge(worksheet, row_insert_idx, row_n=1):
     # move merged cells downwards below row_insert_idx row
     for merged_cell in worksheet.merged_cells.ranges:
@@ -3878,7 +3850,6 @@ def delete_col_with_merge(worksheet, col_delete_idx, col_n=1, check_empty=False,
                 if worksheet.cell(row_idx, col_idx).value not in [None, '']:
                     cell = openpyxl.utils.get_column_letter(col_idx) + str(row_idx)
                     logging.error('\t\t-%s: cell %s is not empty impossible to delete column' % (worksheet.title, cell))
-                    flag_empty = False
                     return False
                 else:
                     pass
@@ -3919,33 +3890,18 @@ def stylePainter(worksheet, col_comment_idx, max_col, max_row, styleDict={1:p_he
     for row in range(1, max_row):
         for col in range(1, col_comment_idx + 1):
             if row in styleDict.keys():
-                try:
-                    worksheet.cell(row, col).style = styleDict[row]
-                except ValueError:
-                    worksheet.cell(row, col).style = styleDict[row].name
+                worksheet.cell(row, col).style = styleDict[row].name
             else:
                 # TODO add other text entry
                 if worksheet.cell(1, col).value in ['comment'] or worksheet.cell(2, col).value in ['comment']:
-                    try:
-                        worksheet.cell(row, col).style = p_data_l_style
-                    except ValueError:
-                        worksheet.cell(row, col).style = 'p_data_l_style'
+                    worksheet.cell(row, col).style = 'p_data_l_style'
                 else:
-                    try:
-                        worksheet.cell(row, col).style = p_data_r_style
-                    except ValueError:
-                        worksheet.cell(row, col).style = 'p_data_r_style'
+                    worksheet.cell(row, col).style = 'p_data_r_style'
         for col in range(col_comment_idx + 1, max_col + 1):
-            try:
-                worksheet.cell(row, col).style = 'm_bkg_style'
-            except ValueError:
-                worksheet.cell(row, col).style = 'm_bkg_style'
+            worksheet.cell(row, col).style = 'm_bkg_style'
 
     for col in range(1, max_col + 1):
-        try:
-            worksheet.cell(max_row, col).style = 'm_bkg_style'
-        except ValueError:
-            worksheet.cell(max_row, col).style = 'm_bkg_style'
+        worksheet.cell(max_row, col).style = 'm_bkg_style'
 
     # set row height
     worksheet.row_dimensions[1].height = worksheet.row_dimensions[2].height
@@ -3956,10 +3912,7 @@ def styleHeaderPainter(ws, start_col, end_col, start_row=1, styleDict={1:p_heade
     start_row -= 1
     for row in styleDict.keys():
         for col in range(start_col, end_col + 1):
-            try:
-                ws.cell(start_row+row, col).style = styleDict[row]
-            except ValueError:
-                ws.cell(start_row+row, col).style = styleDict[row].name
+            ws.cell(start_row+row, col).style = styleDict[row].name
 
 def styleDataPainter(ws, start_col, end_col, data_row=4, max_row=None):
     if max_row is None:
@@ -3984,7 +3937,6 @@ def styleDataPainter(ws, start_col, end_col, data_row=4, max_row=None):
                 except ValueError:
                     ws.cell(row_idx, col_idx).style = 'p_data_r_style'
 
-
 def styleBottomPainter(ws, start_col, end_col, row_idx=None):
     if row_idx is None:
         row_idx = ws.max_row
@@ -3993,7 +3945,6 @@ def styleBottomPainter(ws, start_col, end_col, row_idx=None):
             ws.cell(row_idx, col_idx).style = 'm_bkg_style'
         except ValueError:
             ws.cell(row_idx, col_idx).style = 'm_bkg_style'
-
 
 def cleanDataWorksheet(worksheet, col_comment_idx, max_col, max_row):
     logger = logging.getLogger(__name__)
@@ -4035,8 +3986,8 @@ def cleanWorksheet(ws):
             if max_col < 26:
                 max_col = 26
         elif ws.title in ['metadata-station', 'metadata-coring']:
-            if max_row < 49:
-                max_row = 49
+            if max_row < 50:
+                max_row = 50
             if max_col < 26:
                 max_col = 26
         elif ws.title == 'snow':
@@ -4056,7 +4007,7 @@ def cleanWorksheet(ws):
             if len(find_str_in_row(ws, 'comment', 2)) > col_idx:
                 col_idx = find_str_in_row(ws, 'comment', 2)[0]
             if len(find_str_in_row(ws, 'comment', 3)) > col_idx:
-                ccol_idx = find_str_in_row(ws, 'comment', 3)[0]
+                col_idx = find_str_in_row(ws, 'comment', 3)[0]
             if max_col < col_idx + 3:
                 max_col = col_idx + 3
         else:
@@ -4090,8 +4041,12 @@ def findLowerRightCell(ws, col_offset=3, row_offset=1, start_row=1, max_row=None
             if max_col < 26:
                 max_col = 26
         elif ws.title in ['metadata-station', 'metadata-coring']:
-            if max_row < 49:
-                max_row = 49
+            if max_row < 50:
+                max_row = 50
+            if max_col < 26:
+                max_col = 26
+            else:
+                max_col = max_col + 1
         elif ws.title == 'snow':
             if max_row < 3 + data_row_n + row_offset:
                 max_row = 3 + data_row_n + row_offset
@@ -4156,9 +4111,6 @@ def worksheetDataFormatting(worksheet, max_row, l_border_col=[], styleDict={1:p_
     # clear empty cell out of data
     cleanDataWorksheet(worksheet, col_comment_idx, max_col, max_row)
 
-
-from copy import copy
-
 def removeExistingCellDataValidation(worksheet, cell):
     toRemove = []
 
@@ -4170,6 +4122,10 @@ def removeExistingCellDataValidation(worksheet, cell):
     # Process all data validation rules set for removal.
     for rmValidation in toRemove:
         worksheet.data_validations.dataValidation.remove(rmValidation)
+
+###############
+## Copy a sheet with style, format, layout, ect. from one Excel file to another Excel file
+## Please add the ..path\\+\\file..  and  ..sheet_name.. according to your desire.
 
 def copy_sheet(source_sheet, target_sheet):
     """
@@ -4233,3 +4189,20 @@ def copy_cells(source_sheet, target_sheet):
 
             if not isinstance(source_cell, openpyxl.cell.ReadOnlyCell) and source_cell.comment:
                 target_cell.comment = copy(source_cell.comment)
+
+
+def fix_merged_cells(wb):
+    # check health
+    for sheetname in wb.sheetnames:
+        merged_cells_list = sorted(list(wb[sheetname].merged_cells.ranges))
+        for merged_cells in merged_cells_list:
+            cr = merged_cells
+            cells = cr.cells
+            next(cells)  # skip first cell
+            for row, col in cells:
+                # check if the cell is of type MergedCell, if not
+                if (row, col) not in wb[sheetname]._cells:
+                    wb[sheetname].merge_cells(cr.coord)
+                elif not isinstance(wb[sheetname]._cells[(row, col)], openpyxl.cell.cell.MergedCell):
+                    wb[sheetname].merge_cells(cr.coord)
+    return wb

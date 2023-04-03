@@ -1,5 +1,7 @@
 def version2int(version):
     version = str(version)
+    if version == '1.2M':
+        version = '1.2.22'
     version_int = [int(v) for v in version.split('.')]
     if len(version_int) < 3:
         version_int.append(0)
