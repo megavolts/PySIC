@@ -214,12 +214,16 @@ def ic_data_from_path(ic_path, backup=True, user=user):
                 os.makedirs(backup_dir)
             if not os.path.exists(ic_bkp):
                 shutil.copy(ic_path, ic_bkp)
-                logger.info('%s\t\tsaving backup version to %s' % (wb['metadata-core']['C1'].value, backup_dir))
+                logger.info('\t%s\t\tbackup file (version %s) already exist at %s' \
+                            % (wb['metadata-core']['C1'].value, version, backup_dir))
+            else:
+                logger.info('\t%s\t\tsaving backup file (version %s) to %s' \
+                            % (wb['metadata-core']['C1'].value, version, backup_dir))
 
         # udpate ice core data
         ic_data(wb, user=user)
 
-        logger.info('%s\t\tsaving updated ice core to version %s' % (wb['metadata-core']['C1'].value, __CoreVersion__))
+        logger.info('%s\t\tsaving updated file (version %s) to %s' % (wb['metadata-core']['C1'].value, __CoreVersion__, ic_path))
 
         wb.save(ic_path)
         wb.close()
@@ -306,6 +310,7 @@ def version_1_2M_to_1_3_0(wb):
         version = wb['metadata-station']['C1'].value
     except KeyError:
         version = wb['metadata-coring']['C1'].value
+
     if version == '1.2M':
         # METADATA-CORE
         sheetname = 'metadata-core'
@@ -403,9 +408,8 @@ def version_1_2M_to_1_3_0(wb):
         logger.debug('\t %s updated from 1.2M to %s' %(wb['metadata-core']['C1'].value, wb['metadata-coring']['C1'].value))
 
     else:
-        version_1_2_x_to_1_3_0(wb)
+        wb = version_1_2_x_to_1_3_0(wb)
     return wb
-
 
 def version_1_2_x_to_1_3_0(wb):
     logger = logging.getLogger(__name__)
@@ -414,7 +418,7 @@ def version_1_2_x_to_1_3_0(wb):
         version = version2int(wb['metadata-station']['C1'].value)
     except KeyError:
         version = version2int(wb['metadata-coring']['C1'].value)
-    if not (version[0] < 2 and version[1] < 4 and version[2] < 1):
+    if not (version[0] < 1 and version[1] < 3 and version[2] < 4):
         logger.error('\t%s - not implemented yet' % (wb['metadata-core']['C1'].value))
     # # TODO: update to version 1.3.1
     #
@@ -1898,10 +1902,11 @@ def version_1_4_2_to_1_4_3(wb):
         # clean all worksheet
         for sheetname in wb.sheetnames:
             cleanWorksheet(wb[sheetname])
-        wb = fix_merged_cells(wb)
-        return wb
+
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+    wb = fix_merged_cells(wb)
+    return wb
 
 def version_1_4_3_to_1_4_4(wb):
     logger = logging.getLogger(__name__)
@@ -2098,11 +2103,11 @@ def version_1_4_3_to_1_4_4(wb):
         # clean all worksheet
         for sheetname in wb.sheetnames:
             cleanWorksheet(wb[sheetname])
-        wb = fix_merged_cells(wb)
-        return wb
         logger.debug('\t %s updated from 1.4.3 to %s' % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+    wb = fix_merged_cells(wb)
+    return wb
 
 def version_1_4_4_to_1_4_5(wb):
     logger = logging.getLogger(__name__)
@@ -2430,10 +2435,11 @@ def version_1_4_5_to_1_4_6(wb):
         wb['metadata-station']['C1'].value = '1.4.6'
         wb.active = wb['metadata-station']
         logger.debug('\t %s updated from 1.4.5 to 1.4.6' %(wb['metadata-core']['C1'].value))
-        wb = fix_merged_cells(wb)
-        return wb
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+
+    wb = fix_merged_cells(wb)
+    return wb
 
 def version_1_4_6_to_1_4_7(wb):
     logger = logging.getLogger(__name__)
@@ -2824,10 +2830,12 @@ def version_1_4_6_to_1_4_7(wb):
         wb['metadata-station']['C1'].value = '1.4.7'
         wb.active = wb['metadata-station']
         logger.debug('\t %s updated from %s to %s' %(wb['metadata-core']['C1'].value, version, wb['metadata-station']['C1'].value))
-        wb = fix_merged_cells(wb)
-        return wb
+
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+
+    wb = fix_merged_cells(wb)
+    return wb
 
 def version_1_4_7_to_1_4_8(wb):
     logger = logging.getLogger(__name__)
@@ -3168,10 +3176,11 @@ def version_1_4_7_to_1_4_8(wb):
         wb['metadata-station']['C1'].value = '1.4.8'
         wb.active = wb['metadata-station']
         logger.debug('\t %s updated from %s to %s' %(wb['metadata-core']['C1'].value, version, wb['metadata-station']['C1'].value))
-        wb = fix_merged_cells(wb)
-        return wb
     else:
         logger.info("\t%s: already update to version %s " % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+
+    wb = fix_merged_cells(wb)
+    return wb
 
 def version_1_4_8_to_1_4_9(wb):
     logger = logging.getLogger(__name__)
