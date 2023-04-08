@@ -26,7 +26,7 @@ __all__ = ['ic_data', 'ic_data_from_path']
 pysic_fp = pysic.__path__[0]
 
 data_row_n = 42
-user = 'Marc Oggier'
+username = 'Marc Oggier'
 
 # Border style
 # top and bottom border
@@ -197,7 +197,7 @@ m_styles_list = ['m_title_style', 'm_title_c_style', 'm_header_style', 'm_header
                  'p_data_r_style', 'p_data_l_style', 'm_bkg_style']
 
 
-def ic_data_from_path(ic_path, backup=True, user=user):
+def ic_data_from_path(ic_path, backup=True, username=username):
     """
     :param ic_path:
         path; Filepath to the data spreadsheet to update
@@ -208,13 +208,7 @@ def ic_data_from_path(ic_path, backup=True, user=user):
     logger = logging.getLogger(__name__)
 
     wb = openpyxl.load_workbook(filename=ic_path, keep_vba=False)  # load the xlsx spreadsheet
-
-    # Read ice core data version
-    if 'metadata-coring' in wb.sheetnames:
-        ws_summary = wb['metadata-coring']  # load the data from the summary sheet
-    else:
-        ws_summary = wb['metadata-station']  # load the data from the summary sheet
-    version = ws_summary['C1'].value
+    version = get_version(wb)
 
     if version == __CoreVersion__:
         logger.debug('%s\t\talready at latest (%s) version' % (wb['metadata-core']['A1'].value, __CoreVersion__))
@@ -234,7 +228,7 @@ def ic_data_from_path(ic_path, backup=True, user=user):
                             % (wb['metadata-core']['C1'].value, version, backup_dir))
 
         # udpate ice core data
-        wb = ic_data(wb, user=user)
+        wb = ic_data(wb, username=username)
 
         logger.info('%s\t\tsaving updated file (version %s) to %s' % (
             wb['metadata-core']['C1'].value, __CoreVersion__, ic_path))
@@ -243,17 +237,12 @@ def ic_data_from_path(ic_path, backup=True, user=user):
         wb.close()
 
 
-def ic_data(wb, user=user):
+def ic_data(wb, username=username):
     """
     """
     from datetime import date
     logger = logging.getLogger(__name__)
-
-    if 'metadata-coring' in wb.sheetnames:
-        ws_summary = wb['metadata-coring']  # load the data from the summary sheet
-    else:
-        ws_summary = wb['metadata-station']  # load the data from the summary sheet
-    version = ws_summary['C1'].value
+    version = get_version(wb)
     version_int = version2int(version)
 
     if version_int[1] < 2 and version_int[2] < 1:
@@ -263,6 +252,9 @@ def ic_data(wb, user=user):
     else:
         # Add defined style
         wb = add_style(wb)
+
+        # Evaluate summmation formula:
+        wb = evaluate_formula(wb)
 
         # Update from 1.2 to 1.3:
         wb = version_1_2_x_to_1_3_0(wb)
@@ -278,7 +270,7 @@ def ic_data(wb, user=user):
 
         # Add an update is the 'metadata-core'
         sheetname = 'metadata-core'
-        version_update = wb['metadata-station']['C1'].value
+        version_update = get_version(wb)
 
         # Find where 'VERSION' entries are located
         row = 1
@@ -298,8 +290,8 @@ def ic_data(wb, user=user):
         insert_row_with_merge(wb[sheetname], row_idx, 1)
         wb[sheetname].cell(row_idx, 1).value = int(wb[sheetname].cell(row_idx - 1, 1).value) + 1
         wb[sheetname].cell(row_idx, 2).value = date.today().isoformat()
-        wb[sheetname].cell(row_idx, 3).value = user
-        wb[sheetname].cell(row_idx, 5).value = 'Updated ice core data from ' + str(version) + ' to ' + version_update
+        wb[sheetname].cell(row_idx, 3).value = username
+        wb[sheetname].cell(row_idx, 5).value = 'Update ice core version data from ' + str(version) + ' to ' + version_update
 
         # apply style and format
         wb = spreadsheet_style(wb)
@@ -307,9 +299,38 @@ def ic_data(wb, user=user):
         # remove all external links
         wb = remove_external_link(wb)
 
-        logger.info('%s\t\tupdated from from %s to %s' % (wb[sheetname]['C1'].value, version, version_update))
+        logger.info('%s\t\tupdate from from %s to %s' % (wb[sheetname]['C1'].value, version, version_update))
     return wb
 
+
+def metadata_version(wb, username, text):
+    from datetime import date
+
+    # Add an update is the 'metadata-core'
+    sheetname = 'metadata-core'
+    version_update = get_version(wb)
+
+    # Find where 'VERSION' entries are located
+    row = 1
+    version_row = 0
+    while version_row == 0 and row <= wb[sheetname].max_row:
+        if wb[sheetname].cell(row, 1).value == 'VERSION' and wb[sheetname].cell(row + 1, 1).value == 'number':
+            version_row = row
+            break
+        row += 1
+
+    # Find line number with the latest version entry
+    row_idx = version_row + 2
+    while wb[sheetname].cell(row_idx, 1).value is not None or row_idx > wb[sheetname].max_row:
+        row_idx += 1
+
+    # Add new line afterwards
+    insert_row_with_merge(wb[sheetname], row_idx, 1)
+    wb[sheetname].cell(row_idx, 1).value = int(wb[sheetname].cell(row_idx - 1, 1).value) + 1
+    wb[sheetname].cell(row_idx, 2).value = date.today().isoformat()
+    wb[sheetname].cell(row_idx, 3).value = username
+    wb[sheetname].cell(row_idx, 5).value = text
+    return wb
 
 def remove_external_link(wb):
     external_links = wb._external_links
@@ -326,11 +347,7 @@ def add_style(wb):
 def version_1_2_x_to_1_3_0(wb):
     logger = logging.getLogger(__name__)
 
-    try:
-        version = version2int(wb['metadata-station']['C1'].value)
-    except KeyError:
-        version = version2int(wb['metadata-coring']['C1'].value)
-
+    version = version2int(get_version(wb))
     if version[0] == 1 and version[1] == 2 and version[2] == 22:
         wb = version_1_2m_to_1_3_0(wb)
     elif version[0] == 1 and version[1] < 3:
@@ -365,7 +382,7 @@ def version_1_2_x_to_1_3_0(wb):
     #         ws['P3'].value = 'value'
     else:
         logger.info("\t%s: already update to version %s " % (
-            wb['metadata-core']['C1'].value, wb['metadata-coring']['C1'].value))
+            wb['metadata-core']['C1'].value, get_version(wb)))
     wb = fix_merged_cells(wb)
     return wb
 
@@ -373,10 +390,7 @@ def version_1_2_x_to_1_3_0(wb):
 def version_1_2m_to_1_3_0(wb):
     logger = logging.getLogger(__name__)
 
-    try:
-        version = wb['metadata-station']['C1'].value
-    except KeyError:
-        version = wb['metadata-coring']['C1'].value
+    version = get_version(wb)
 
     if version == '1.2M':
         # METADATA-CORE
@@ -408,7 +422,7 @@ def version_1_2m_to_1_3_0(wb):
 
         # TEMPERATURE
         sheetname = 'TEMP'
-        wb[sheetname].insert_cols(3, 1)
+        wb[sheetname].insert_rows(3, 1)
         wb[sheetname]['A3'].value = 'value'
         wb[sheetname]['B3'].value = 'value'
         wb[sheetname]['C3'].value = '-'
@@ -471,19 +485,15 @@ def version_1_2m_to_1_3_0(wb):
         wb[sheetname]['E1'] = 'up'
 
         wb['metadata-coring']['C1'].value = '1.3.0'
-        wb = fix_merged_cells(wb)
         logger.debug(
             '\t %s updated from 1.2M to %s' % (wb['metadata-core']['C1'].value, wb['metadata-coring']['C1'].value))
+    wb = fix_merged_cells(wb)
     return wb
 
 
 def version_1_3_0_to_1_4_1(wb):
     logger = logging.getLogger(__name__)
-    try:
-        version = version2int(wb['metadata-station']['C1'].value)
-    except KeyError:
-        version = version2int(wb['metadata-coring']['C1'].value)
-
+    version =version2int(get_version(wb))
     if version[0] < 2 and version[1] < 4 and version[2] < 1:
         # Update from 1.3 to 1.4.1
         # - METADATA-CORE
@@ -833,116 +843,82 @@ def version_1_3_0_to_1_4_1(wb):
         # find sheetname with data
         data_sheet = {}
         for sheetname in data_sheetnames:
-            for row in range(1, 4):
-                for col in range(1, wb[sheetname].max_column):
-                    str_condition = isinstance(wb[sheetname].cell(row, col).value, str)
-                    # For column with potential depth entry
-                    if str_condition and 'depth' in wb[sheetname].cell(row, col).value:
-                        for row_idx in range(row, wb[sheetname].max_row):
-                            if isinstance(wb[sheetname].cell(row_idx, col).value, (int, float)):
-                                start_row = row_idx
-                                depth_data = []
-                                for row_idx in range(start_row, wb[sheetname].max_row):
-                                    depth_data.append(wb[sheetname].cell(row_idx, col).value)
-                                depth_data = np.array(depth_data).astype(float)
-                                depth_data = depth_data[np.where(~np.isnan(depth_data))]
-                                if len(depth_data) > 0:
-                                    # read vertical reference if existing
-                                    if sheetname.lower() == 'salo18':
-                                        data_sheet[sheetname] = [wb[sheetname]['C1'].value, wb[sheetname]['F1'].value]
-                                    else:
-                                        data_sheet[sheetname] = [wb[sheetname]['C1'].value, wb[sheetname]['E1'].value]
-                                    break
-                            if sheetname in data_sheet:
-                                break
-                    if sheetname in data_sheet:
-                        break
+            if has_data(wb[sheetname]):
+                if sheetname.lower() == 'salo18':
+                    data_sheet[sheetname] = [wb[sheetname]['C1'].value, wb[sheetname]['F1'].value]
+                else:
+                    data_sheet[sheetname] = [wb[sheetname]['C1'].value, wb[sheetname]['E1'].value]
         # check orientation consistency:
-        for ii, sheet in enumerate(data_sheet.keys()):
-            if data_sheet[sheet][0] is None:
-                logger.warning('%s - %s vertical reference is None' % (wb['metadata-core']['C1'].value, sheet))
-            if data_sheet[sheet][1] is None:
-                logger.warning('%s - %s vertical direction is None' % (wb['metadata-core']['C1'].value, sheet))
-
-            if ii == 0 or vert_ref is None:
-                vert_ref = data_sheet[sheet][0]
-            if ii == 0 or vert_dir is None:
-                vert_dir = data_sheet[sheet][1]
+        vert_ref = None
+        vert_dir = None
+        for ii, sheetname in enumerate(data_sheet.keys()):
+            if ii == 0:
+                vert_ref = data_sheet[sheetname][0]
+            elif data_sheet[sheetname][0] is None:
+                logger.warning('%s - %s vertical reference is None' % (wb['metadata-core']['C1'].value, sheetname))
+            elif data_sheet[sheetname][0] != vert_ref:
+                logger.error('%s - vertical references are not consistant' % (wb['metadata-core']['C1'].value,
+                                                                              vert_ref, data_sheet[sheetname][0]))
             else:
-                if data_sheet[sheet][0] is not None and data_sheet[sheet][0] != vert_ref:
-                    logger.error('%s - vertical references are not consistant' % wb['metadata-core']['C1'].value)
-                if data_sheet[sheet][1] is not None and data_sheet[sheet][1] != vert_dir:
-                    logger.error('%s - vertical direction are not consistant' % wb['metadata-core']['C1'].value)
-        # update ice direction in metadata-core
-        if vert_ref in vert_ref_list.formula1:
-            wb['metadata-core']['D13'] = vert_ref
-        if vert_dir in vert_dir_list.formula1:
-            wb['metadata-core']['D14'] = vert_dir
+                vert_ref == data_sheet[sheetname][0]
+            if ii == 0:
+                vert_dir = data_sheet[sheetname][1]
+            elif data_sheet[sheetname][1] is None:
+                logger.warning('%s - %s vertical direction is None' % (wb['metadata-core']['C1'].value, sheetname))
+            elif data_sheet[sheetname][1] != vert_dir:
+                logger.error('%s - vertical direction are not consistant (%s, %s)' % (wb['metadata-core']['C1'].value,
+                                                                                      vert_dir, data_sheet[sheetname][1]))
+            else:
+                vert_dir == data_sheet[sheetname][1]
+        if len(data_sheet) > 0:
+            # update ice direction in metadata-core
+            if vert_ref in vert_ref_list.formula1:
+                wb['metadata-core']['D13'] = vert_ref
+            else:
+                wb['metadata-core']['D13'] = 'N/A'
+            if vert_dir in vert_dir_list.formula1:
+                wb['metadata-core']['D14'] = vert_dir
+            else:
+                wb['metadata-core']['D13'] = 'N/A'
+        else:
+            wb['metadata-core']['D15'].value = None
+            wb['metadata-core']['D16'].value = None
 
         # -- SNOW
         sheetname = 'snow'
-        data_sheet = {}
-        for row in range(1, 4):
-            for col in range(1, wb[sheetname].max_column):
-                str_condition = isinstance(wb[sheetname].cell(row, col).value, str)
-                # For column with potential depth entry
-                if str_condition and 'depth' in wb[sheetname].cell(row, col).value:
-                    for row_idx in range(row, wb[sheetname].max_row):
-                        if isinstance(wb[sheetname].cell(row_idx, col).value, (int, float)):
-                            start_row = row_idx
-                            depth_data = []
-                            for row_idx in range(start_row, wb[sheetname].max_row):
-                                depth_data.append(wb[sheetname].cell(row_idx, col).value)
-                            depth_data = np.array(depth_data).astype(float)
-                            depth_data = depth_data[np.where(~np.isnan(depth_data))]
-                            if len(depth_data) > 0:
-                                # read vertical reference if existing
-                                data_sheet[sheetname] = [wb[sheetname]['C1'].value, wb[sheetname]['E1'].value]
-                            break
-                        if sheetname in data_sheet:
-                            break
-                if sheetname in data_sheet:
-                    break
-        if len(data_sheet.keys()) > 1:
-            # update ice direction in metadata-core
+        if has_data(wb[sheetname]):
+            vert_ref = wb[sheetname]['C1'].value
+            vert_dir = wb[sheetname]['E1'].value
+
             if vert_ref in vert_ref_list.formula1:
-                wb['metadata-core']['D15'] = vert_ref
+                wb['metadata-core']['D15'].value = vert_ref
+            else:
+                wb['metadata-core']['D15'].value = 'N/A'
             if vert_dir in vert_dir_list.formula1:
-                wb['metadata-core']['D16'] = vert_dir
+                wb['metadata-core']['D16'].value = vert_dir
+            else:
+                wb['metadata-core']['D16'].value = 'N/A'
         else:
-            wb['metadata-core']['D15'] = 'N/A'
-            wb['metadata-core']['D16'] = 'N/A'
+            wb['metadata-core']['D15'].value = None
+            wb['metadata-core']['D16'].value = None
 
         # -- SEAWATER
         sheetname = 'seawater'
-        data_sheet[sheetname] = ['N/A', 'N/A']
-        for row in range(1, 4):
-            for col in range(1, wb[sheetname].max_column):
-                str_condition = isinstance(wb[sheetname].cell(row, col).value, str)
-                # For column with potential depth entry
-                if str_condition and 'depth' in wb[sheetname].cell(row, col).value:
-                    for row_idx in range(row, wb[sheetname].max_row):
-                        if isinstance(wb[sheetname].cell(row_idx, col).value, (int, float)):
-                            start_row = row_idx
-                            depth_data = []
-                            for row_idx in range(start_row, wb[sheetname].max_row):
-                                depth_data.append(wb[sheetname].cell(row_idx, col).value)
-                            depth_data = np.array(depth_data).astype(float)
-                            depth_data = depth_data[np.where(~np.isnan(depth_data))]
-                            if len(depth_data) > 0:
-                                # read vertical reference if existing
-                                data_sheet[sheetname] = [wb[sheetname]['C1'].value, wb[sheetname]['E1'].value]
-                            break
-                        if sheetname in data_sheet:
-                            break
-                if sheetname in data_sheet:
-                    break
-        if len(data_sheet.keys()) > 1:
-            # update ice direction in metadata-core
+        if has_data(wb[sheetname]):
+            vert_ref = wb[sheetname]['C1'].value
+            vert_dir = wb[sheetname]['E1'].value
+
             if vert_ref in vert_ref_list.formula1:
-                wb['metadata-core']['D17'] = vert_ref
+                wb['metadata-core']['D17'].value = vert_ref
+            else:
+                wb['metadata-core']['D17'].value = 'N/A'
             if vert_dir in vert_dir_list.formula1:
-                wb['metadata-core']['D18'] = vert_dir
+                wb['metadata-core']['D18'].value = vert_dir
+            else:
+                wb['metadata-core']['D18'].value = 'N/A'
+        else:
+            wb['metadata-core']['D17'].value = None
+            wb['metadata-core']['D18'].value = None
 
         # DATA UPDATE
         # - LISTS
@@ -1085,6 +1061,18 @@ def version_1_3_0_to_1_4_1(wb):
             # remove column C to move texture column to the left
             col_n = 1
             col_insert_idx = openpyxl.utils.column_index_from_string('C')
+            # collapse by row depth center value into depth1 if depth1 is empty
+            col_depth1 = find_str_in_col(wb[sheetname], 'depth', 1)[0]
+            for row_idx in range(4, wb[sheetname].max_row):
+                if wb[sheetname].cell(row_idx, 3).value is not None:
+                    if wb[sheetname].cell(row_idx, col_depth1).value is None:
+                        wb[sheetname].cell(row_idx, col_depth1).value = wb[sheetname].cell(row_idx, 3).value
+                        wb[sheetname].cell(row_idx, col_depth1 + 1).value = wb[sheetname].cell(row_idx, 3).value
+                        wb[sheetname].cell(row_idx, 3).value = None
+                    else:
+                        cell_coord_d1 = 'A' + str(row_idx)
+                        cell_coord_dc = 'C' + str(row_idx)
+                        logging.error('\t\t-%s: cell %s is not empty. Unable to copy value from ' %(sheetname, cell_coord_d1, cell_coord_dc))
             delete_col_with_merge(wb[sheetname], col_insert_idx, col_n, True, 4)
 
             # insert column to move comment column to the right
@@ -1876,14 +1864,14 @@ def version_1_3_0_to_1_4_1(wb):
         logger.debug('\t %s updated from 1.3.0 to 1.4.1' % wb['metadata-core']['C1'].value)
     else:
         logger.info("\t%s: already update to version %s "
-                    % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+                    % (wb['metadata-core']['C1'].value, get_version(wb)))
     wb = fix_merged_cells(wb)
     return wb
 
 
 def version_1_4_1_to_1_4_2(wb):
     logger = logging.getLogger(__name__)
-    version = version2int(wb['metadata-station']['C1'].value)
+    version = version2int(version = get_version(wb))
     if version[0] < 2 and version[1] < 5 and version[2] < 2:
         # TEX
         sheetname = 'tex'
@@ -1907,17 +1895,17 @@ def version_1_4_1_to_1_4_2(wb):
         wb['metadata-station']['C1'].value = '1.4.2'
         wb.active = wb['metadata-station']
         logger.debug('\t %s updated from 1.4.1 to %s'
-                     % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+                     % (wb['metadata-core']['C1'].value, get_version(wb)))
     else:
         logger.info("\t%s: already update to version %s "
-                    % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+                    % (wb['metadata-core']['C1'].value, get_version(wb)))
     wb = fix_merged_cells(wb)
     return wb
 
 
 def version_1_4_2_to_1_4_3(wb):
     logger = logging.getLogger(__name__)
-    version = version2int(wb['metadata-station']['C1'].value)
+    version = version2int(get_version(wb))
     if version[0] < 2 and version[1] < 5 and version[2] < 3:
         # - METADATA-STATION
         sheetname = 'metadata-station'
@@ -1961,13 +1949,13 @@ def version_1_4_2_to_1_4_3(wb):
         wb['metadata-station']['C1'].value = '1.4.3'
         wb.active = wb['metadata-station']
         logger.debug('\t %s updated from 1.4.2 to %s'
-                     % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+                     % (wb['metadata-core']['C1'].value, get_version(wb)))
         # clean all worksheet
         for sheetname in wb.sheetnames:
             clean_worksheet(wb[sheetname])
     else:
         logger.info("\t%s: already update to version %s "
-                    % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+                    % (wb['metadata-core']['C1'].value, get_version(wb)))
     wb = fix_merged_cells(wb)
     return wb
 
@@ -1975,7 +1963,7 @@ def version_1_4_2_to_1_4_3(wb):
 def version_1_4_3_to_1_4_4(wb):
     global cell
     logger = logging.getLogger(__name__)
-    version = version2int(wb['metadata-station']['C1'].value)
+    version = version2int(get_version(wb))
     if version[0] < 2 and version[1] < 5 and version[2] < 4:
         # - TM
         TM_sheet_idx = wb.worksheets.index(wb['snow'])
@@ -2170,17 +2158,17 @@ def version_1_4_3_to_1_4_4(wb):
         for sheetname in wb.sheetnames:
             clean_worksheet(wb[sheetname])
         logger.debug(
-            '\t %s updated from 1.4.3 to %s' % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+            '\t %s updated from 1.4.3 to %s' % (wb['metadata-core']['C1'].value, get_version(wb)))
     else:
         logger.info("\t%s: already update to version %s " % (
-            wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+            wb['metadata-core']['C1'].value, get_version(wb)))
     wb = fix_merged_cells(wb)
     return wb
 
 
 def version_1_4_4_to_1_4_5(wb):
     logger = logging.getLogger(__name__)
-    version = version2int(wb['metadata-station']['C1'].value)
+    version = version2int(get_version(wb))
     if version[0] < 2 and version[1] < 5 and version[2] < 5:
         # TODO :remove
         for style in m_styles_list:
@@ -2237,16 +2225,16 @@ def version_1_4_4_to_1_4_5(wb):
         wb['metadata-station']['C1'].value = '1.4.5'
         wb.active = wb['metadata-station']
         logger.debug('\t%s: updated from 1.4.4 to %s'
-                     % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
-        return wb
+                     % (wb['metadata-core']['C1'].value, get_version(wb)))
     else:
         logger.info('\t%s: already update to version %s'
-                    % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
-
+                    % (wb['metadata-core']['C1'].value, get_version(wb)))
+    wb = fix_merged_cells(wb)
+    return wb
 
 def version_1_4_5_to_1_4_6(wb):
     logger = logging.getLogger(__name__)
-    version = version2int(wb['metadata-station']['C1'].value)
+    version = version2int(get_version(wb))
     if version[0] < 2 and version[1] < 5 and version[2] < 6:
         # - METADATA-CORE
         # Clean metadata-core
@@ -2511,7 +2499,7 @@ def version_1_4_5_to_1_4_6(wb):
         logger.debug('\t %s updated from 1.4.5 to 1.4.6' % (wb['metadata-core']['C1'].value))
     else:
         logger.info("\t%s: already update to version %s " % (
-            wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+            wb['metadata-core']['C1'].value, get_version(wb)))
 
     wb = fix_merged_cells(wb)
     return wb
@@ -2519,7 +2507,7 @@ def version_1_4_5_to_1_4_6(wb):
 
 def version_1_4_6_to_1_4_7(wb):
     logger = logging.getLogger(__name__)
-    version = version2int(wb['metadata-station']['C1'].value)
+    version = version2int(get_version(wb))
     if version[0] < 2 and version[1] < 5 and version[2] < 7:
         # - SALO18
         sheetname = 'salo18'
@@ -2910,11 +2898,11 @@ def version_1_4_6_to_1_4_7(wb):
         wb['metadata-station']['C1'].value = '1.4.7'
         wb.active = wb['metadata-station']
         logger.debug('\t %s updated from %s to %s' % (
-            wb['metadata-core']['C1'].value, version, wb['metadata-station']['C1'].value))
+            wb['metadata-core']['C1'].value, version, get_version(wb)))
 
     else:
         logger.info("\t%s: already update to version %s " % (
-            wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+            wb['metadata-core']['C1'].value, get_version(wb)))
 
     wb = fix_merged_cells(wb)
     return wb
@@ -2922,7 +2910,7 @@ def version_1_4_6_to_1_4_7(wb):
 
 def version_1_4_7_to_1_4_8(wb):
     logger = logging.getLogger(__name__)
-    version = version2int(wb['metadata-station']['C1'].value)
+    version = version2int(get_version(wb))
     if version[0] < 2 and version[1] < 5 and version[2] < 8:
         # - METADATA-CORE
         sheetname = 'metadata-core'
@@ -2940,6 +2928,13 @@ def version_1_4_7_to_1_4_8(wb):
             wb[sheetname].unmerge_cells(find_merged_cell(wb[sheetname], 4, 3).coord)
         wb[sheetname].merge_cells('C4:H4')
 
+        # -- THICKNESS
+        row_start = find_str_in_col(wb[sheetname], 'THICKNESS', 1)[0] + 1
+        for row_idx in range(row_start, row_start + 4):
+            for col_idx in range(1, 6):
+                wb[sheetname].cell(row_idx, 1).border = b_border
+
+        # -- INSTRUMENTS
         row_idx = find_str_in_col(wb[sheetname], 'INSTRUMENTS', 1)[0]
         wb[sheetname].cell(row_idx, 1).value = 'INSTRUMENTS'
         wb[sheetname].cell(row_idx, 3).value = 'brand, specification (type, diameter, accuracy…)'
@@ -3260,10 +3255,10 @@ def version_1_4_7_to_1_4_8(wb):
         wb['metadata-station']['C1'].value = '1.4.8'
         wb.active = wb['metadata-station']
         logger.debug('\t %s updated from %s to %s' % (
-            wb['metadata-core']['C1'].value, version, wb['metadata-station']['C1'].value))
+            wb['metadata-core']['C1'].value, version, get_version(wb)))
     else:
         logger.info("\t%s: already update to version %s "
-                    % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+                    % (wb['metadata-core']['C1'].value, get_version(wb)))
     wb = set_datavalidation(wb)
     wb = fix_merged_cells(wb)
     return wb
@@ -3271,7 +3266,7 @@ def version_1_4_7_to_1_4_8(wb):
 
 def version_1_4_8_to_1_4_9(wb):
     logger = logging.getLogger(__name__)
-    version = version2int(wb['metadata-station']['C1'].value)
+    version = version2int(get_version(wb))
     if version[0] < 2 and version[1] < 5 and version[2] < 9:
         # - METADATA-STATION
         sheetname = 'metadata-station'
@@ -3300,11 +3295,28 @@ def version_1_4_8_to_1_4_9(wb):
         logger.debug('\t %s updated from 1.4.8 to 1.4.9' % (wb['metadata-core']['C1'].value))
     else:
         logger.info("\t%s: already update to version %s "
-                    % (wb['metadata-core']['C1'].value, wb['metadata-station']['C1'].value))
+                    % (wb['metadata-core']['C1'].value, get_version(wb)))
 
     wb = set_datavalidation(wb)
     wb = fix_merged_cells(wb)
     return wb
+
+
+
+
+def version_1_4_9_to_1_5_0(wb):
+
+
+    # METADATA-STATION
+    sheetname = 'metadata-station'
+    row_idx = find_str_in_col(wb[sheetname], 'Computed from core data of the events')[0]
+    wb[sheetname].cell(row_idx, 4).value = 'computed from core data of the event'
+    wb[sheetname].cell(row_idx + 1, 4).value = 'computed from core data of the event'
+
+    wb = spreadsheet_style(wb)
+
+    return wb
+
 
 # Format
 def spreadsheet_style(wb, row_offset=1, col_offset=3):
@@ -3581,12 +3593,14 @@ def spreadsheet_style(wb, row_offset=1, col_offset=3):
             if row_idx == row_start:
                 for col_idx in range(4, 9):
                     wb[sheetname].cell(row_idx, col_idx).style = 'm_data_r_style'
+            else:
+                wb[sheetname].cell(row_idx, 4).style = 'm_comment_style'
             # -- border
             if row_idx < row_end:
                 for col_idx in range(1, 4):
                     wb[sheetname].cell(row_idx, col_idx).border = b_border
 
-        # ICE TEMPERATURE
+        # ENVIRONMENTAL CONDITIONS
         title_row = find_str_in_col(wb[sheetname], 'ENVIRONMENTAL CONDITIONS', 1)[0]
         wb[sheetname].cell(title_row, 1).style = 'm_title_style'
         row_start = title_row + 1
@@ -4009,6 +4023,55 @@ def has_data(ws):
         return True
 
 
+def evaluate_formula(wb):
+    import numpy as np
+    logger = logging.getLogger(__name__)
+    for sheetname in wb.sheetnames:
+        for row_idx in range(1, wb[sheetname].max_row):
+            for col_idx in range(1, wb[sheetname].max_column):
+                if wb[sheetname].cell(row_idx, col_idx).value and isinstance(wb[sheetname].cell(row_idx, col_idx).value, str):
+                    if wb[sheetname].cell(row_idx, col_idx).value.startswith('='):
+                        formula = wb[sheetname].cell(row_idx, col_idx).value
+                        formula = list(filter(None, formula.split('=')))[0]
+                        if len(formula.split('+')) == 2:
+                            terms = []
+                            for element in formula.split('+'):
+                                if isfloat(element):
+                                    terms.append(float(element))
+                                elif isinstance(element, str):
+                                    if wb[sheetname][element] is None:
+                                        logger.error('Cell %s is emtpy ' % element)
+                                    elif isinstance(wb[sheetname][element].value, (int,float)):
+                                        terms.append(wb[sheetname][element].value)
+                                    else:
+                                        logger.error('Cell %s is not a number: %s' % (element, wb[sheetname][element].value))
+                                else:
+                                    logger.error('Element (%s) is neither a float or a string' % formula)
+                            wb[sheetname].cell(row_idx, col_idx).value = np.sum(terms)
+                        else:
+                            if isfloat(formula):
+                                wb[sheetname].cell(row_idx, col_idx).value = float(formula)
+                            elif isinstance(formula, str):
+                                if wb[sheetname][formula] is None:
+                                    logger.error('Cell %s is emtpy ' % formula)
+                                elif isinstance(wb[sheetname][formula].value, (int,float)):
+                                    wb[sheetname].cell(row_idx, col_idx).value = wb[sheetname][formula].value
+                                else:
+                                    logger.error('Cell %s is not a number: %s' % (formula, wb[sheetname][formula].value))
+                            else:
+                                logger.error('Element (%s) is neither a float or a string' % formula)
+                        coord = openpyxl.utils.get_column_letter(col_idx) + str(row_idx)
+                        core_name = wb['metadata-core']['C1'].value
+                        logger.debug('\t%s: evaluate %s cell formula in %s to % s' %(core_name, coord, sheetname, wb[sheetname].cell(row_idx, col_idx).value))
+    return wb
+
+def isfloat(num):
+    try:
+        float(num)
+        return True
+    except ValueError:
+        return False
+
 def insert_row_with_merge(worksheet, row_insert_idx, row_n=1):
     # move merged cells downwards below row_insert_idx row
     for cr in worksheet.merged_cells.ranges:
@@ -4419,3 +4482,12 @@ def fix_merged_cells(wb):
                 elif not isinstance(wb[sheetname]._cells[(row, col)], openpyxl.cell.cell.MergedCell):
                     wb[sheetname].merge_cells(cr.coord)
     return wb
+
+
+def get_version(wb):
+    if 'metadata-coring' in wb.sheetnames:
+        ws_summary = wb['metadata-coring']  # load the data from the summary sheet
+    else:
+        ws_summary = wb['metadata-station']  # load the data from the summary sheet
+    version = ws_summary['C1'].value
+    return version
