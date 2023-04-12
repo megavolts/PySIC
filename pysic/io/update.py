@@ -4081,17 +4081,17 @@ def insert_row_with_merge(worksheet, row_insert_idx, row_n=1):
     worksheet.insert_rows(row_insert_idx, row_n)
 
 
-def delete_row_with_merge(worksheet, row_insert_idx, row_n=1):
+def delete_row_with_merge(ws, row_insert_idx, row_n=1):
     # move merged cells downwards below row_insert_idx row
-    for cr in worksheet.merged_cells.ranges:
+    for cr in ws.merged_cells.ranges:
         if cr.right[0][0] > row_insert_idx:
             cr.shift(0, -row_n)
     # remove data validation
     for row_idx in range(row_insert_idx, row_insert_idx + row_n):
-        for col_idx in range(1, worksheet.max_column):
-            removeExistingCellDataValidation(worksheet, worksheet.cell(row_idx, col_idx))
+        for col_idx in range(1, ws.max_column):
+            removeExistingCellDataValidation(ws, ws.cell(row_idx, col_idx))
     # insert row_n rows starting at row_insert_idx row
-    worksheet.delete_rows(row_idx, row_n)
+    ws.delete_rows(row_idx, row_n)
 
 
 def insert_col_with_merge(worksheet, col_insert_idx, col_n=1):
@@ -4121,30 +4121,29 @@ def delete_col_with_merge(worksheet, col_delete_idx, col_n=1, check_empty=False,
         worksheet.delete_cols(col_delete_idx, col_n)
 
 
-def correctDataRowNumber(worksheet, max_row):
+def correctDataRowNumber(ws, max_row):
     """
     Add or remove rows  for data entry to match the target number. Only remove row if empty
     """
 
     # add or remove extra data row as needed
-    row_n = max_row - worksheet.max_row
+    row_n = max_row - ws.max_row
     if row_n > 0:
-        row_insert_idx = worksheet.max_row
-        insert_row_with_merge(worksheet, row_insert_idx, row_n)
+        row_insert_idx = ws.max_row
+        insert_row_with_merge(ws, row_insert_idx, row_n)
     elif row_n < 0:
         row_n = -row_n
         row_insert_idx = max_row
         flag_empty = True
         # only if no data are present:
         for row_idx in range(row_insert_idx, row_insert_idx + row_n):
-            for col_idx in range(1, worksheet.max_column):
-                if worksheet.cell(row_idx, col_idx).value not in [None, '']:
-                    print(openpyxl.utils.get_column_letter(col_idx) + str(row_idx))
+            for col_idx in range(1, ws.max_column):
+                if ws.cell(row_idx, col_idx).value not in [None, '']:
                     flag_empty = False
                 else:
                     pass
         if flag_empty:
-            delete_row_with_merge(worksheet, row_insert_idx, row_n)
+            delete_row_with_merge(ws, row_insert_idx, row_n)
 
 
 def stylePainter(worksheet, col_comment_idx, max_col, max_row, style_d=None):
@@ -4349,33 +4348,33 @@ def findLowerRightCell(ws, col_offset=3, row_offset=1, start_row=1, max_row=None
     return ws.cell(max_row, max_col)
 
 
-def worksheetDataFormatting(worksheet, max_row, l_border_col=[],
+def worksheetDataFormatting(ws, max_row, l_border_col=[],
                             style_d={1: p_header_style, 2: p_subheader_style, 3: p_unit_style}):
     # find last column with header
-    for col in list(range(1, worksheet.max_column))[::-1]:
-        if worksheet.cell(1, col).value not in [None, '']:
+    for col in list(range(1, ws.max_column))[::-1]:
+        if ws.cell(1, col).value not in [None, '']:
             col_comment_idx = col
-            cell = worksheet.cell(1, col)
-            for mergedCell in worksheet.merged_cells.ranges:
+            cell = ws.cell(1, col)
+            for mergedCell in ws.merged_cells.ranges:
                 if cell.coordinate in mergedCell:
                     col_comment_idx = mergedCell.max_col
             break
     max_col = int(np.ceil(col_comment_idx / 26)) * 26
 
     # add or remove extra data row as needed
-    correctDataRowNumber(worksheet, max_row)
+    correctDataRowNumber(ws, max_row)
 
     # style and fill
-    stylePainter(worksheet, col_comment_idx, max_col, max_row, style_d=style_d)
+    stylePainter(ws, col_comment_idx, max_col, max_row, style_d=style_d)
 
     # border
     for row_idx in range(1, max_row):
         for col in l_border_col:
             col_idx = openpyxl.utils.column_index_from_string(col)
-            worksheet.cell(row_idx, col_idx).border = l_border
+            ws.cell(row_idx, col_idx).border = l_border
 
     # clear empty cell out of data
-    clean_data_worksheet(worksheet, col_comment_idx, max_col, max_row)
+    clean_data_worksheet(ws, col_comment_idx, max_col, max_row)
 
 
 def removeExistingCellDataValidation(worksheet, cell):
