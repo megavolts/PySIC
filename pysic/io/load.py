@@ -13,8 +13,9 @@ import os
 import pysic
 from pysic.io import subvariable_dict, property2sheet
 from pysic.io import update
-from pysic.tools import inverse_dict, parse_datetimetz, parse_coordinate
+from pysic.tools import inverse_dict, parse_datetimetz, parse_coordinate, isfloat
 from pysic.core.core import __CoreVersion__
+from pysic.io import find_str_in_col, find_str_in_row
 
 MAX_ROW = 200
 MAX_COL = 200
@@ -70,7 +71,7 @@ def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True)
     """
     :param ic_path:
         string: path to the ice core data. Ice core data should be stored in defined spreadsheet
-    :param ic_property:
+    :param ic_properties:
         list of string: properties to import. If not specified all properties are imported.
     :param drop_empty:
         boolean: True drop empty profile
@@ -93,39 +94,52 @@ def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True)
         if version != __CoreVersion__:
             logger.warning("%s: ice core data is updated from %s to %s" % (name, version, __CoreVersion__))
             # TODO: update function pysic.core.update_data_spreadsheet
-            update.ice_core_data(ic_path)
-            ic_from_path(ic_path, ic_property, drop_empty=drop_empty, fill_missing=fill_missing)
+            wb = update.ic_data(wb, 'N/A')
     else:
         logger.error("(%s) ice core spreadsheet version not unavailable" % name)
         wb.close()
 
     comments = []
 
-    logger.info("importing data for %s" % ic_path)
-
+    logger.info("Importing data for %s" % ic_path)
     # Import datetime with tz
     datetime = parse_datetimetz(ws_metadata_core['C2'].value, ws_metadata_core['C3'].value, ws_metadata_core['D3'].value)
 
     # project
-    campaign = ws_summary['C3'].value
-    site = ws_summary['C4'].value
+    row_idx = find_str_in_col(ws_summary, 'expedition', 1)[0]
+    expedition = ws_summary.cell(row_idx, 3).value
+    site = ws_summary.cell(row_idx + 1, 3).value
 
     # Location
-    lat_start_deg = parse_coordinate(ws_summary['C9'].value, ws_summary['D9'].value, ws_summary['E9'].value)
-    lon_start_deg = parse_coordinate(ws_summary['C10'].value, ws_summary['D10'].value, ws_summary['E10'].value)
-    lat_end_deg = parse_coordinate(ws_summary['F9'].value, ws_summary['G9'].value, ws_summary['H9'].value)
-    lon_end_deg = parse_coordinate(ws_summary['F10'].value, ws_summary['G10'].value, ws_summary['H10'].value)
+    row_idx = find_str_in_col(ws_summary, 'latitude', 1)[0]
+    lat_start_deg = parse_coordinate(ws_summary.cell(row_idx, 3).value,
+                                     ws_summary.cell(row_idx, 4).value,
+                                     ws_summary.cell(row_idx, 5).value)
+    lon_start_deg = parse_coordinate(ws_summary.cell(row_idx + 1, 3).value,
+                                     ws_summary.cell(row_idx + 1, 4).value,
+                                     ws_summary.cell(row_idx + 1, 5).value)
+    lat_end_deg = parse_coordinate(ws_summary.cell(row_idx, 6).value,
+                                     ws_summary.cell(row_idx, 7).value,
+                                     ws_summary.cell(row_idx, 8).value)
+    lon_end_deg = parse_coordinate(ws_summary.cell(row_idx + 1, 6).value,
+                                     ws_summary.cell(row_idx + 1, 7).value,
+                                     ws_summary.cell(row_idx + 1, 8).value)
 
     # Station time
-    station_date_start = parse_datetimetz(ws_summary['C14'].value, ws_summary['C15'].value, ws_summary['C16'].value)
-    station_date_end = parse_datetimetz(ws_summary['D14'].value, ws_summary['D15'].value, ws_summary['D16'].value)
+    row_idx = find_str_in_col(ws_summary, 'date', 1)[0]
+    station_date_start = parse_datetimetz(ws_summary.cell(row_idx, 3).value,
+                                          ws_summary.cell(row_idx + 1, 3).value,
+                                          ws_summary.cell(row_idx + 2, 3).value)
+    station_date_end = parse_datetimetz(ws_summary.cell(row_idx, 4).value,
+                                        ws_summary.cell(row_idx + 1, 4).value,
+                                        ws_summary.cell(row_idx + 2, 4).value)
 
     # Snow Depth
     n_snow = 1
-    row_snow = 19
+    row_idx = find_str_in_col(ws_summary, 'snow depth', 1)[0]
     snow_depth = []
-    while ws_summary.cell(row=row_snow, column=3+n_snow).value is not None:
-        snow_depth.append(ws_summary.cell(row=row_snow, column=3+n_snow).value)
+    while ws_summary.cell(row=row_idx, column=3+n_snow).value is not None:
+        snow_depth.append(ws_summary.cell(row=row_idx, column=3+n_snow).value)
         n_snow += 1
     snow_depth = np.array(snow_depth)
     if any(snow_depth) > 1:  # check for metric unit
@@ -140,8 +154,8 @@ def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True)
             snow_depth = pd.to_numeric(snow_depth, errors='coerce')
 
     # Snow average
-    if isinstance(ws_summary.cell(row=row_snow, column=3).value, (float, int)):
-        snow_depth_avg = ws_summary.cell(row=row_snow, column=3).value
+    if isinstance(ws_summary.cell(row=row_idx, column=3).value, (float, int)):
+        snow_depth_avg = ws_summary.cell(row=row_idx, column=3).value
     elif not np.isnan(snow_depth).all():
         snow_depth_avg = np.nanmean(snow_depth)
     else:
@@ -149,323 +163,136 @@ def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True)
     if len(snow_depth) == 0:
         snow_depth = snow_depth_avg
 
-    # Ice Thickness
-    try:
-        h_i = ws_metadata_core['D7'].value
-    except ValueError:
-        logger.info('(%s) no ice thickness information ' % name)
-        h_i = np.nan
-    else:
-        if h_i == 'n/a':
-            comments.append('ice thickness not available')
-            logger.info('(%s) ice thickness is not available (n/a)' % name)
-            h_i = np.nan
-        elif not isinstance(h_i, (int, float)):
-            logger.info('%s ice thickness is not a number' % name)
-            comments.append('ice thickness not available')
-            h_i = np.nan
-    if h_i > 10:  # check for metric unit
+    # Ice thickness
+    h_i = read_metadata_variable_as_float(ws_metadata_core, 'ice thickness')
+    if np.isnan(h_i):
+        logger.info('%s ice thickness is not a number' % name)
+    elif h_i > 10:  # check for metric unit
         logger.warning('%s: check if ice thickness is reported in cm rather than m' % name)
 
-    # Ice Draft
-    try:
-        h_d = ws_metadata_core['D8'].value
-    except ValueError:
-        logger.info('(%s) no ice draft information ' % name)
-        h_d = np.nan
-    else:
-        if h_d == 'n/a':
-            comments.append('ice draft not available')
-            logger.info('(%s) ice draft is not available (n/a)' % name)
-            h_d = np.nan
-        elif not isinstance(h_d, (int, float)):
-            logger.info('%s ice draft is not a number' % name)
-            comments.append('ice draft not available')
-            h_d = np.nan
-    if h_d > 10:  # check for metric unit
-        logger.warning('%s: check if ice draft is reported in cm rather than m' % name)
+    # Ice draft
+    h_d = read_metadata_variable_as_float(ws_metadata_core, 'draft')
+    if np.isnan(h_d):
+        logger.info('%s draft is not a number' % name)
+    elif h_d > 10:  # check for metric unit
+        logger.warning('%s: check if draft is reported in cm rather than m' % name)
 
     # Ice freeboard
-    if not (np.isnan(h_d) and np.isnan(h_i)):
+    h_f = read_metadata_variable_as_float(ws_metadata_core, 'freeboard')
+    if np.isnan(h_f):
+        logger.info('%s freeboard is not a number' % name)
+    elif h_f > 10:  # check for metric unit
+        logger.warning('%s: check if freeboard is reported in cm rather than m' % name)
+
+    if np.isnan(h_f) and (not (np.isnan(h_d) and np.isnan(h_i))):
         h_f = h_i - h_d
-    else:
-        try:
-            h_f = ws_metadata_core['D9'].value
-        except ValueError:
-            logger.info('(%s) no ice draft information ' % name)
-            h_f = np.nan
-        else:
-            if h_f == 'n/a':
-                comments.append('ice draft not available')
-                logger.info('(%s) ice draft is not available (n/a)' % name)
-                h_f = np.nan
-            elif not isinstance(h_f, (int, float)):
-                logger.info('%s ice draft is not a number' % name)
-                comments.append('ice draft not available')
-                h_f = np.nan
-    if h_f > 10:  # check for metric unit
-        logger.warning('%s: check if ice freeboard is reported in cm rather than m' % name)
+        logger.info('%s compute ice freeboard as ice thickness minus ice draft' % name)
+    elif np.isnan(h_d) and (not (np.isnan(h_f) and np.isnan(h_i))):
+        h_d = h_i - h_f
+        logger.info('%s compute ice draft as ice thickness minus ice freeboard' % name)
 
-    # Core Length l_c (measured in with ruler)
-    try:
-        l_c = ws_metadata_core['D10'].value
-    except ValueError:
-        logger.info('(%s) no ice core length' % name)
-        l_c = np.nan
-    else:
-        if l_c == 'n/a':
-            comments.append('ice core length not available')
-            logger.info('(%s) ice core length is not available (n/a)' % name)
-            l_c = np.nan
-        elif not isinstance(l_c, (int, float)):
-            logger.info('%s ice core length is not a number' % name)
-            comments.append('ice core length not available')
-            l_c = np.nan
-    if l_c > 10:  # check for metric unit
-        logger.warning('%s: check if ice freeboard is reported in cm rather than m' % name)
+    # Core length l_c (measured in with ruler)
+    l_c = read_metadata_variable_as_float(ws_metadata_core, 'core length')
+    if np.isnan(l_c):
+        logger.info('%s core length is not a number' % name)
+    elif l_c > 10:  # check for metric unit
+        logger.warning('%s: check if core length is reported in cm rather than m' % name)
 
-    core = Core(name, datetime, campaign, lat_start_deg, lon_start_deg, l_c, h_i, h_f, snow_depth)
+    core = Core(name, datetime, expedition, lat_start_deg, lon_start_deg, l_c, h_i, h_f, snow_depth)
 
     # Temperature values
-    if ws_summary['C29'].value:
-        core.t_air = ws_summary['C29'].value
-    if ws_summary['C30'].value:
-        core.t_snow_surface = ws_summary['C30'].value
-    if ws_summary['C31'].value:
-        core.t_ice_surface = ws_summary['C31'].value
-    if ws_summary['C32'].value:
-        core.t_water = ws_summary['C32'].value
-    if ws_summary['C33'].value:
-        core.s_water = ws_summary['C33'].value
+    core.t_air = read_metadata_variable_as_float(ws_summary, 'air temperature')
+    core.t_snow_surface = read_metadata_variable_as_float(ws_summary, 'snow surface temperature')
+    core.t_ice_surface = read_metadata_variable_as_float(ws_summary, 'snow/ice temperature')
+    core.t_water = read_metadata_variable_as_float(ws_summary, 'seawater temperature')
+    core.s_water = read_metadata_variable_as_float(ws_summary, 'seawater salinity')
 
     # Sampling event
-    if ws_summary['C36'].value:
-        core.station = ws_summary['C36'].value
-
-    # Sampling protocol
-    if ws_summary.cell(3, 39).value:
-        core.protocol = ws_summary.cell(3, 39).value
-    else:
-        core.protocol = 'N/A'
+    core.station = read_metadata_variable_as_str(ws_summary, 'sampling station')
+    core.protocol = read_metadata_variable_as_str(ws_summary, 'procedure')
+    m_col = 3
+    row_idx = find_str_in_col(ws_summary, 'associated cores (1 by cell)')[0]
+    while ws_summary.cell(row_idx, m_col).value:
+        core.add_to_collection(ws_summary.cell(row_idx, m_col).value)
+        m_col += 1
 
     # Sampling instrument
     instrument_d = {}
-    row_instrument = 21
-    while ws_metadata_core.cell(row_instrument, 1).value is not None:
-        instrument_d[ws_metadata_core.cell(row_instrument, 1).value] = ws_metadata_core.cell(row_instrument, 3).value
-        row_instrument += 1
+    row_idx = find_str_in_col(ws_metadata_core, 'INSTRUMENTS')[0] + 1
+    while ws_metadata_core.cell(row_idx, 1).value is not None:
+        instrument_d[ws_metadata_core.cell(row_idx, 1).value] = ws_metadata_core.cell(row_idx, 3).value
+        row_idx += 1
     core.instrument = instrument_d
 
     # Core collection
     m_col = 3
-    row_collection = 37
+    row_collection = find_str_in_col(ws_summary, 'associated cores (1 by cell)')[0] + 1
     while ws_summary.cell(row_collection, m_col).value:
         core.add_to_collection(ws_summary.cell(row_collection, m_col).value)
         m_col += 1
 
     # comment
-    if ws_summary['A49'].value is not None:
-        comments.append(ws_summary['A42'].value)
-    core.add_comment('; '.join(comments))
+    comments.append(read_metadata_variable_as_str(ws_summary, 'GENERAL COMMENTS', row_offset=1))
+    core.add_comment('; '.join(list(filter(lambda c: c not in ['N/A', None], comments))))
 
     # weather
     # TODO: read weather information
 
     # References
     reference_d = {}
-    if ws_metadata_core['D13'].value is not None:
-        if ws_metadata_core['D14'].value is not None:
-            reference_d['ice'] = [ws_metadata_core['D13'].value, ws_metadata_core['D14'].value]
+    row_idx = find_str_in_col(ws_metadata_core, 'ICE')[0]
+    if ws_metadata_core.cell(row_idx, 4).value is not None:
+        if ws_metadata_core.cell(row_idx + 1, 4).value is not None:
+            reference_d['ice'] = [ws_metadata_core.cell(row_idx, 4).value, ws_metadata_core.cell(row_idx + 1, 4).value]
         else:
-            reference_d['ice'] = [ws_metadata_core['D13'].value, 'up']
-    if ws_metadata_core['D15'].value is not None:
-        if ws_metadata_core['D16'].value is not None:
-            reference_d['snow'] = [ws_metadata_core['D15'].value, ws_metadata_core['D16'].value]
+            reference_d['ice'] = [ws_metadata_core.cell(row_idx, 4).value, 'down']
+    else:
+        reference_d['ice'] = [None, None]
+        logger.info('Vertical reference for ice not defined')
+    if ws_metadata_core.cell(row_idx + 2, 4).value is not None:
+        if ws_metadata_core.cell(row_idx + 3, 4).value is not None:
+            reference_d['snow'] = [ws_metadata_core.cell(row_idx + 2, 4).value, ws_metadata_core.cell(row_idx + 3, 4).value]
         else:
-            reference_d['snow'] = [ws_metadata_core['D15'].value, 'up']
-    if ws_metadata_core['D17'].value is not None:
-        if ws_metadata_core['D18'].value is not None:
-            reference_d['seawater'] = [ws_metadata_core['D17'].value, ws_metadata_core['D18'].value]
+            reference_d['snow'] = [ws_metadata_core.cell(row_idx + 2, 4).value, 'up']
+    else:
+        reference_d['snow'] = [None, None]
+        logger.info('Vertical reference for snow not defined')
+    if ws_metadata_core.cell(row_idx + 4, 4).value is not None:
+        if ws_metadata_core.cell(row_idx + 5, 4).value is not None:
+            reference_d['seawater'] = [ws_metadata_core.cell(row_idx + 4, 4).value, ws_metadata_core.cell(row_idx + 5, 4).value]
         else:
-            reference_d['seawater'] = [ws_metadata_core['D18'].value, 'up']
+            reference_d['seawater'] = [ws_metadata_core.cell(row_idx + 4, 4).value, 'down']
+    else:
+        reference_d['seawater'] = [None, None]
+        logger.info('Vertical reference for seawater not defined')
     core.reference.update(reference_d)
 
     # PAR
-    if isinstance(ws_summary['C45'].value, (float, int)):
-        core.par_incoming = ws_summary['C45'].value
-        # read units
-        par_unit = ws_summary['B45'].value
-        core.unit.update({'par': par_unit})
-    if isinstance(ws_summary['C46'].value, (float, int)):
-        core.par_transmitted = ws_summary['C46'].value
-        par_unit = ws_summary['B45'].value
-        if 'par' in core.unit and par_unit != core.unit['par']:
-            logger.error('%s\t\tPar unit do not match between incoming and transmitted. Par conversion not implemented')
-        else:
-            core.unit.update({'par': par_unit})
+    core.par_incoming = read_metadata_variable_as_float(ws_summary, 'PAR readings')
+    par_unit = read_metadata_variable_as_str(ws_summary, 'PAR readings', col_variable_idx=2)
+    core.unit.update({'par': par_unit})
+    core.par_transmitted = read_metadata_variable_as_float(ws_summary, 'PAR readings', row_offset=1)
+    par_unit = read_metadata_variable_as_str(ws_summary, 'PAR readings', col_variable_idx=2, row_offset=1)
+    if par_unit != core.unit['par']:
+        logger.error('PAR unit not consistent')
 
     # import property profile
-    sheets = wb.sheetnames
     if ic_property is None:
-        # TODO: special import for TEX, snow
-        sheets = [sheet for sheet in sheets if (sheet not in ['tex', 'TM',  'summary', 'abreviation', 'locations',
+        worksheets = [sheet for sheet in wb.sheetnames if (sheet not in ['tex', 'TM',  'summary', 'abbreviation', 'locations',
                                                               'lists', 'Vf_oil_calculation', 'metadata-core',
                                                               'metadata-station', 'density-volume', 'sediment',
                                                               'ct']) and
                   (sheet.lower().find('fig') == -1)]
         # Always import 'salo18' then 'temperature' before the other
-        if 'temp' in sheets:
-            sheets.remove('temp')
-            sheets = ['temp'] + sheets
-        if 'salo18' in sheets:
-            sheets.remove('salo18')
-            sheets = ['salo18'] + sheets
+        if 'temp' in worksheets:
+            worksheets.remove('temp')
+            worksheets = ['temp'] + worksheets
+        if 'salo18' in worksheets:
+            worksheets.remove('salo18')
+            worksheets = ['salo18'] + worksheets
 
-        # 2022 09 29 Temporary fix to import temperautre
-        if 'temp' in sheets:
-            sheets = ['temp']
-        else:
-            sheets = []
-
-        for sheet in sheets:
-            ws_property = wb[sheet]
-            if sheet == 'snow':
-                profile = read_snow_profile(ws_property, ic_property=None, reference_d=reference_d)
-                matter = 'snow'
-            elif sheet == 'seawater':
-                profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d, core_length=core.length, fill_missing=fill_missing)
-                matter = 'seawater'
-            elif sheet == 'sackhole' or sheet == 'brine':
-                profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d, core_length=core.length, fill_missing=fill_missing)
-                matter = 'brine'
-            else:
-                matter = 'ice'
-                profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d, core_length=core.length, fill_missing=fill_missing)
-
-            if not profile.empty:
-                profile['matter'] = matter
-                # TODO def add_sw_salinity(profile):
-                # add sea water salinity at the correct
-                if matter == 'ice' and 'salinity' in profile.get_property() and not np.isnan(core.s_water):
-                    # TODO: def profile.get_vref():
-                    v_ref_loc = profile.v_ref_loc.unique()
-                    if len(v_ref_loc) != 1:
-                        logger.error('%s\t\tvertical reference location not unique')
-                    else:
-                        v_ref_loc = v_ref_loc[0]
-                        v_ref_dir = profile.v_ref_dir.unique()
-                        if len(v_ref_dir) != 1:
-                            logger.error('%s\t\tvertical reference direction not unique')
-                        else:
-                            v_ref_dir = v_ref_dir[0]
-                            v_ref_h = profile.v_ref_h.unique()
-                            if len(v_ref_h) != 1:
-                                logger.error('%s\t\tvertical reference height not unique')
-                            else:
-                                v_ref_h = v_ref_h[0]
-                #    headers = ['y_low', 'y_sup', 'salinity_ID', 'salinity_value', 'salinity_quality', 'v_ref_loc', 'v_ref_dir', 'v_ref_h', 'matter']
-                # if v_ref_loc == 'ice bottom':
-                #     # y_low =
-                #     # y_sup =
-                #     data = [y_low, y_sup, 's_sw', core.s_water, 0, v_ref_loc, v_ref_dir, v_ref_h, 'seawater']
-                # elif v_ref_loc == 'ice surface':
-                #     # y_low =
-                #     # y_sup =
-                #     data = [y_low, y_sup, 's_sw', core.s_water, 0, v_ref_loc, v_ref_dir, v_ref_h, 'seawater']
-                # else:
-                #     logger.error('%s\t\tTODO: implement v_ref_loc %s for profile%' %(core.name, v_ref_loc))
-
-                # add snow, ice surface, and sea water temperature in temperature profile
-                if matter == 'ice' and 'temperature' in profile.get_property():
-                    headers = ['y_mid', 'temperature_value', 'temperature_quality', 'comment', 'matter', 'property', 'v_ref_loc',
-                               'v_ref_h', 'v_ref_dir']
-
-                    v_ref_loc = profile.v_ref_loc.unique()
-                    v_ref_h = profile.v_ref_h.unique()
-                    v_ref_dir = profile.v_ref_dir.unique()
-
-                    if len(v_ref_loc) == 1 and len(v_ref_h) == 1 and len(v_ref_dir) == 1:
-                        v_ref_loc = v_ref_loc[0]
-                        v_ref_h = v_ref_h[0]
-                        v_ref_dir = v_ref_dir[0]
-                        if v_ref_dir == 'positive':
-                            coef_dir = 1
-                        else:
-                            coef_dir = -1
-
-                        if v_ref_h != 0:
-                            logger.error('%s - %s: v_ref_h is not 0 ' % (core.name, sheet))
-                        elif v_ref_loc == 'ice surface':
-                            if not -1 in profile.y_mid.values:
-                                # air temperature 1 m above snow surface
-                                if isinstance(core.t_air, (float, int)) and not np.isnan(core.t_air):
-                                    data_surface = [coef_dir*-1, core.t_air, 1, 'Air temperature', 'air', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
-                                    profile = profile.append(pd.DataFrame([data_surface], columns=headers))
-                            if not 0 in profile.y_mid.values:
-                                # ice surface
-                                if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
-                                    data_surface = [0, core.t_ice_surface, 1, 'Ice surface temperature', 'ice', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
-                                    profile = profile.append(pd.DataFrame([data_surface], columns=headers))
-                                # snow surface
-                                if isinstance(core.t_snow_surface, (float, int)) and not np.isnan(core.t_snow_surface) and isinstance(core.snow_depth, (float, int)) and not np.isnan(core.snow_depth):
-                                    data_snow = [coef_dir*core.snow_depth, core.t_air, 1, 'Snow surface temperature', 'snow', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
-                                    profile = profile.append(pd.DataFrame([data_snow], columns=headers))
-                            if core.length - profile.y_mid.max() > TOL:
-                                # ice bottom / seawater
-                                if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
-                                    data_bottom = [coef_dir*core.length, core.t_water, 1, 'Seawater temperature', 'ice', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
-                                    profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
-                        elif v_ref_loc == 'ice bottom':
-                            if not 0 in profile.y_mid.values:
-                                # ice bottom
-                                if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
-                                    data_bottom = [0, core.t_water, 1, 'Seawater temperature', 'ice', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
-                                    profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
-                            # TODO: which one to choose core.length or profile.y_mid.max():
-                            # select max(y_mid) if max(y_mid) > core.lenght
-                            if np.abs(core.length - profile.y_mid.max()) < TOL:
-                                # ice surface
-                                if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
-                                    data_surface = [coef_dir*core.length, core.t_ice_surface, 1, 'Ice surface temperature', 'ice', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
-                                    profile = profile.append(pd.DataFrame([data_surface], columns=headers))
-                                # snow surface
-                                if isinstance(core.t_snow_surface, (float, int)) and not np.isnan(core.t_snow_surface) and isinstance(core.snow_depth, (float, int)) and not np.isnan(core.snow_depth):
-                                    data_snow = [coef_dir*core.snow_depth+coef_dir*core.length, core.t_air, 1, 'Snow surface temperature', 'snow', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
-                                    profile = profile.append(pd.DataFrame([data_snow], columns=headers))
-                                # air temperature
-                                if isinstance(core.t_air, (float, int)) and not np.isnan(core.t_air):
-                                    data_surface = [coef_dir*1+coef_dir*core.length, core.t_air, 1, 'Air temperature', 'air', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
-                                    profile = profile.append(pd.DataFrame([data_surface], columns=headers))
-                            else:
-                                # ice surface
-                                if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
-                                    data_surface = [coef_dir*profile.y_mid.max(), core.t_ice_surface, 1, 'Ice surface temperature', 'ice', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
-                                    profile = profile.append(pd.DataFrame([data_surface], columns=headers))
-                                # snow surface
-                                if isinstance(core.t_snow_surface, (float, int)) and not np.isnan(core.t_snow_surface) and isinstance(core.snow_depth, (float, int)) and not np.isnan(core.snow_depth):
-                                    data_snow = [coef_dir * core.snow_depth + coef_dir * profile.y_mid.max(), core.t_air, 1,
-                                                 'Snow surface temperature', 'snow', 'temperature', v_ref_loc,
-                                                 v_ref_h, v_ref_dir]
-                                    profile = profile.append(pd.DataFrame([data_snow], columns=headers))
-                                # air temperature
-                                if isinstance(core.t_air, (float, int)) and not np.isnan(core.t_air):
-                                    data_surface = [coef_dir*1+coef_dir*profile.y_mid.max(), core.t_air, 1, 'Air temperature', 'air', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
-                                    profile = profile.append(pd.DataFrame([data_surface], columns=headers))
-                    else:
-                        logger.error('%s - %s: vertical references mixed up ' %(core.name, sheet))
-                    profile = profile.sort_values(by='y_mid')
-                    profile = profile.reset_index(drop=True)
-                profile['name'] = name
-                if drop_empty:
-                    profile.drop_empty_property()
-
-                profile = pysic.Profile(profile)
-                if not profile.empty:
-                    core.add_profile(profile)
-                    logger.info('(%s) data imported with success: %s' % (core.name, ", ".join(profile.get_property())))
-                else:
-                    logger.info('(%s) no data to import from %s ' % (core.name, sheet))
     else:
+        worksheets = []
         if not isinstance(ic_property, list):
             if ic_property.lower().find('state variable')+1:
                 ic_property = ['temperature', 'salinity']
@@ -474,26 +301,176 @@ def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True)
 
         _imported_variables = []
         for ic_prop in ic_property:
-            if property2sheet[ic_prop] in sheets and ic_prop not in _imported_variables:
-                sheet = property2sheet[ic_prop]
-                ws_property = wb[sheet]
-                property2import = [p for p in ic_property if p in inverse_dict(property2sheet)[sheet]]
-                if sheet == 'snow':
-                    profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d)
-                    matter = 'snow'
-                elif sheet == 'seawater':
-                    matter = 'seawater'
-                    profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d, fill_missing=True)
-                elif sheet == 'sackhole' or sheet == 'brine':
-                    matter = 'brine'
-                    profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d, fill_missing=True)
-                else:
-                    matter = 'ice'
-                    profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d, fill_missing=True)
+            if property2sheet[ic_prop] in wb.sheetnames and ic_prop not in _imported_variables:
+                worksheets.append(property2sheet[ic_prop])
 
-                if not profile.empty:
-                    profile['matter'] = matter
-            core.profile = Profile(pd.concat([core.profile, profile]))
+    for sheet in worksheets:
+        ws_property = wb[sheet]
+        if sheet == 'snow':
+            profile = read_snow_profile(ws_property, ic_property=None, reference_d=reference_d)
+            matter = 'snow'
+        elif sheet == 'seawater':
+            profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d, core_length=core.length, fill_missing=fill_missing)
+            matter = 'seawater'
+        elif sheet == 'sackhole' or sheet == 'brine':
+            profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d, core_length=core.length, fill_missing=fill_missing)
+            matter = 'brine'
+        else:
+            matter = 'ice'
+            profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d, core_length=core.length, fill_missing=fill_missing)
+
+        if not profile.empty:
+            profile['matter'] = matter
+            # TODO def add_sw_salinity(profile):
+            # add sea water salinity at the correct
+            if matter == 'ice' and 'salinity' in profile.get_property() and not np.isnan(core.s_water):
+                # TODO: def profile.get_vref():
+                v_ref_loc = profile.v_ref_loc.unique()
+                if len(v_ref_loc) != 1:
+                    logger.error('%s\t\tvertical reference location not unique')
+                else:
+                    v_ref_loc = v_ref_loc[0]
+                    v_ref_dir = profile.v_ref_dir.unique()
+                    if len(v_ref_dir) != 1:
+                        logger.error('%s\t\tvertical reference direction not unique')
+                    else:
+                        v_ref_dir = v_ref_dir[0]
+                        v_ref_h = profile.v_ref_h.unique()
+                        if len(v_ref_h) != 1:
+                            logger.error('%s\t\tvertical reference height not unique')
+                        else:
+                            v_ref_h = v_ref_h[0]
+            #    headers = ['y_low', 'y_sup', 'salinity_ID', 'salinity_value', 'salinity_quality', 'v_ref_loc', 'v_ref_dir', 'v_ref_h', 'matter']
+            # if v_ref_loc == 'ice bottom':
+            #     # y_low =
+            #     # y_sup =
+            #     data = [y_low, y_sup, 's_sw', core.s_water, 0, v_ref_loc, v_ref_dir, v_ref_h, 'seawater']
+            # elif v_ref_loc == 'ice surface':
+            #     # y_low =
+            #     # y_sup =
+            #     data = [y_low, y_sup, 's_sw', core.s_water, 0, v_ref_loc, v_ref_dir, v_ref_h, 'seawater']
+            # else:
+            #     logger.error('%s\t\tTODO: implement v_ref_loc %s for profile%' %(core.name, v_ref_loc))
+
+            # add snow, ice surface, and sea water temperature in temperature profile
+            if matter == 'ice' and 'temperature' in profile.get_property():
+                headers = ['y_mid', 'temperature_value', 'temperature_quality', 'comment', 'matter', 'property', 'v_ref_loc',
+                           'v_ref_h', 'v_ref_dir']
+
+                v_ref_loc = profile.v_ref_loc.unique()
+                v_ref_h = profile.v_ref_h.unique()
+                v_ref_dir = profile.v_ref_dir.unique()
+
+                if len(v_ref_loc) == 1 and len(v_ref_h) == 1 and len(v_ref_dir) == 1:
+                    v_ref_loc = v_ref_loc[0]
+                    v_ref_h = v_ref_h[0]
+                    v_ref_dir = v_ref_dir[0]
+                    if v_ref_dir == 'positive':
+                        coef_dir = 1
+                    else:
+                        coef_dir = -1
+
+                    if v_ref_h != 0:
+                        logger.error('%s - %s: v_ref_h is not 0 ' % (core.name, sheet))
+                    elif v_ref_loc == 'ice surface':
+                        if not -1 in profile.y_mid.values:
+                            # air temperature 1 m above snow surface
+                            if isinstance(core.t_air, (float, int)) and not np.isnan(core.t_air):
+                                data_surface = [coef_dir*-1, core.t_air, 1, 'Air temperature', 'air', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
+                                profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                        if not 0 in profile.y_mid.values:
+                            # ice surface
+                            if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
+                                data_surface = [0, core.t_ice_surface, 1, 'Ice surface temperature', 'ice', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
+                                profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                            # snow surface
+                            if isinstance(core.t_snow_surface, (float, int)) and not np.isnan(core.t_snow_surface) and isinstance(core.snow_depth, (float, int)) and not np.isnan(core.snow_depth):
+                                data_snow = [coef_dir*core.snow_depth, core.t_air, 1, 'Snow surface temperature', 'snow', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
+                                profile = profile.append(pd.DataFrame([data_snow], columns=headers))
+                        if core.length - profile.y_mid.max() > TOL:
+                            # ice bottom / seawater
+                            if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
+                                data_bottom = [coef_dir*core.length, core.t_water, 1, 'Seawater temperature', 'ice', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
+                                profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
+                    elif v_ref_loc == 'ice bottom':
+                        if not 0 in profile.y_mid.values:
+                            # ice bottom
+                            if isinstance(core.t_water, (float, int)) and not np.isnan(core.t_water):
+                                data_bottom = [0, core.t_water, 1, 'Seawater temperature', 'ice', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
+                                profile = profile.append(pd.DataFrame([data_bottom], columns=headers))
+                        # TODO: which one to choose core.length or profile.y_mid.max():
+                        # select max(y_mid) if max(y_mid) > core.lenght
+                        if np.abs(core.length - profile.y_mid.max()) < TOL:
+                            # ice surface
+                            if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
+                                data_surface = [coef_dir*core.length, core.t_ice_surface, 1, 'Ice surface temperature', 'ice', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
+                                profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                            # snow surface
+                            if isinstance(core.t_snow_surface, (float, int)) and not np.isnan(core.t_snow_surface) and isinstance(core.snow_depth, (float, int)) and not np.isnan(core.snow_depth):
+                                data_snow = [coef_dir*core.snow_depth+coef_dir*core.length, core.t_air, 1, 'Snow surface temperature', 'snow', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
+                                profile = profile.append(pd.DataFrame([data_snow], columns=headers))
+                            # air temperature
+                            if isinstance(core.t_air, (float, int)) and not np.isnan(core.t_air):
+                                data_surface = [coef_dir*1+coef_dir*core.length, core.t_air, 1, 'Air temperature', 'air', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
+                                profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                        else:
+                            # ice surface
+                            if isinstance(core.t_ice_surface, (float, int)) and not np.isnan(core.t_ice_surface):
+                                data_surface = [coef_dir*profile.y_mid.max(), core.t_ice_surface, 1, 'Ice surface temperature', 'ice', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
+                                profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                            # snow surface
+                            if isinstance(core.t_snow_surface, (float, int)) and not np.isnan(core.t_snow_surface) and isinstance(core.snow_depth, (float, int)) and not np.isnan(core.snow_depth):
+                                data_snow = [coef_dir * core.snow_depth + coef_dir * profile.y_mid.max(), core.t_air, 1,
+                                             'Snow surface temperature', 'snow', 'temperature', v_ref_loc,
+                                             v_ref_h, v_ref_dir]
+                                profile = profile.append(pd.DataFrame([data_snow], columns=headers))
+                            # air temperature
+                            if isinstance(core.t_air, (float, int)) and not np.isnan(core.t_air):
+                                data_surface = [coef_dir*1+coef_dir*profile.y_mid.max(), core.t_air, 1, 'Air temperature', 'air', 'temperature', v_ref_loc, v_ref_h, v_ref_dir]
+                                profile = profile.append(pd.DataFrame([data_surface], columns=headers))
+                else:
+                    logger.error('%s - %s: vertical references mixed up ' %(core.name, sheet))
+                profile = profile.sort_values(by='y_mid')
+                profile = profile.reset_index(drop=True)
+            profile['name'] = name
+            if drop_empty:
+                profile.drop_empty_property()
+
+            profile = pysic.Profile(profile)
+            if not profile.empty:
+                core.add_profile(profile)
+                logger.info('(%s) data imported with success: %s' % (core.name, ", ".join(profile.get_property())))
+            else:
+                logger.info('(%s) no data to import from %s ' % (core.name, sheet))
+    # else:
+    #     if not isinstance(ic_property, list):
+    #         if ic_property.lower().find('state variable')+1:
+    #             ic_property = ['temperature', 'salinity']
+    #         else:
+    #             ic_property = [ic_property]
+    #
+    #     _imported_variables = []
+    #     for ic_prop in ic_property:
+    #         if property2sheet[ic_prop] in sheets and ic_prop not in _imported_variables:
+    #             sheet = property2sheet[ic_prop]
+    #             ws_property = wb[sheet]
+    #             property2import = [p for p in ic_property if p in inverse_dict(property2sheet)[sheet]]
+    #             if sheet == 'snow':
+    #                 profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d)
+    #                 matter = 'snow'
+    #             elif sheet == 'seawater':
+    #                 matter = 'seawater'
+    #                 profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d, fill_missing=True)
+    #             elif sheet == 'sackhole' or sheet == 'brine':
+    #                 matter = 'brine'
+    #                 profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d, fill_missing=True)
+    #             else:
+    #                 matter = 'ice'
+    #                 profile = read_generic_profile(ws_property, ic_property=None, reference_d=reference_d, fill_missing=True)
+    #
+    #             if not profile.empty:
+    #                 profile['matter'] = matter
+    #         core.profile = Profile(pd.concat([core.profile, profile]))
 
     # Add air, snow surface, ice surface, seawater temperature to temperature profile if exist
 
@@ -725,8 +702,11 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
 
     # Read center depth for continuous profile and step profile (if available)
     if 'depth center' in header_d:
-        loc3 = header_d['depth center']['value']
-        header_d['y_mid'] = header_d.pop('depth center')
+        logger.error('header not define')
+
+    if 'depth' in header_d:
+        loc3 = header_d['depth']['value']
+        header_d['y_mid'] = header_d.pop('depth')
 
         # look for 1st numerical value
         for ii_row in range(min_row, max_row):
@@ -790,11 +770,11 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
                 logger.info('\t\t%s: y_mid are mid points of y_low and y_sup. Do nothing' % ws_property.title)
         elif np.isnan(y_mid).any():
             y_mid = (y_low + y_sup) / 2
-            logger.warning('\t\t%s: y_mid do not exit. Computing y_mid = (y_low+y_sup)/2'
+            logger.info('\t\t%s: y_mid do not exit. Computing y_mid = (y_low+y_sup)/2'
                         % ws_property.title)
         elif min_row_3 != min_row_12:
             y_mid = (y_low + y_sup) / 2
-            logger.warning('\t\t%s: not all y_mid exit. Computing y_mid = (y_low+y_sup)/2'
+            logger.info('\t\t%s: not all y_mid exit. Computing y_mid = (y_low+y_sup)/2'
                            % ws_property.title)
         else:
             y_mid = (y_low + y_sup) / 2
@@ -882,7 +862,7 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
     elif not np.isnan(min_row_3):
         row_min = min_row_3
     else:
-        logger.warning('\t\t%s: no data' % (ws_property.title))
+        logger.info('\t\t%s: no data' % (ws_property.title))
         return Profile()
 
     row_max = row_min + len(y_mid) - 1
@@ -938,23 +918,25 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
     if 'comment' not in profile.columns:
         profile['comment'] = None
 
-    # Fill row with np.nan/None for missing section
-    if fill_missing:
-        for ii_row in np.where(profile.y_sup.values[:-1] - profile.y_low.values[1:] < -TOL)[0]:
-            y_low = profile.loc[profile.index == ii_row, 'y_sup'].values
-            y_sup = profile.loc[profile.index == ii_row + 1, 'y_low'].values
-            empty_row = pd.DataFrame([[np.nan] * len(profile.columns)], columns=profile.columns)
-            empty_row['y_low'] = y_low
-            empty_row['y_sup'] = y_sup
-            empty_row['y_mid'] = (y_low + y_sup) / 2
-            profile = pd.concat([profile, empty_row]).reset_index(drop=True)
-            logger.info('\t\t%s: filling missing section (%.3f - %.3f) with nan/none values'
-                        % (ws_property.title, y_low, y_sup))
-        if any(np.isnan(profile.y_mid)):
-            profile = profile.drop('y_mid', axis=1)
-            profile = profile.sort_values('y_low').reset_index(drop=True)
-        else:
-            profile = profile.sort_values('y_mid').reset_index(drop=True)
+    # # Fill row with np.nan/None for missing section
+    # if fill_missing:
+    #     for ii_row in np.where(profile.y_sup.values[:-1] - profile.y_low.values[1:] < -TOL)[0]:
+    #         y_low = profile.loc[profile.index == ii_row, 'y_sup'].values
+    #         y_sup = profile.loc[profile.index == ii_row + 1, 'y_low'].values
+    #         ID_columns = [c for c in profile.columns if '_ID' in c]
+    #         na_columns = [c for c in profile.columns if 'ID' not in c]
+    #         empty_row = pd.DataFrame([[np.nan] * len(na_columns) + ['nan_ID'] * len(ID_columns)], columns=na_columns + ID_columns)
+    #         empty_row['y_low'] = y_low
+    #         empty_row['y_sup'] = y_sup
+    #         empty_row['y_mid'] = (y_low + y_sup) / 2
+    #         profile = pd.concat([profile, empty_row]).reset_index(drop=True)
+    #         logger.info('\t\t%s: filling missing section (%.3f - %.3f) with nan/none values'
+    #                     % (ws_property.title, y_low, y_sup))
+    #     if any(np.isnan(profile.y_mid)):
+    #         profile = profile.drop('y_mid', axis=1)
+    #         profile = profile.sort_values('y_low').reset_index(drop=True)
+    #     else:
+    #         profile = profile.sort_values('y_mid').reset_index(drop=True)
 
     # Drop Empty headers
     if None in profile.columns:
@@ -983,10 +965,10 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
                     if header in ic_property:
                         ic_property.remove(header)
 
-    # remove empty line if all element of depth are nan:
-    if not fill_missing:
-        subset = [col for col in ['y_low', 'y_sup', 'y_mid'] if col in profile.columns]
-        profile = profile.dropna(axis=0, subset=subset, how='all')
+    # # remove empty line if all element of depth are nan:
+    # if not fill_missing:
+    #     subset = [col for col in ['y_low', 'y_sup', 'y_mid'] if col in profile.columns]
+    #     profile = profile.dropna(axis=0, subset=subset, how='all')
 
     # set property by row
     def add_property(x, ic_prop):
@@ -1000,22 +982,15 @@ def read_generic_profile(ws_property, ic_property=None, reference_d={'ice': ['ic
     # TODO: add property to profile even if na (override)
     for ic_prop in ic_property:
         # For property with associated property e.g. salinity with conductivty and specific conductance, consider only
-        flag_associated_prop = False
-        for _props in prop_associated:
-            if ic_prop in prop_associated[_props] or ic_prop == _props:
-                flag_associated_prop = True
-        if flag_associated_prop:
-            profile_index = profile[profile[ic_prop + '_value'].notna()].index
-        else:
+        try:
+            profile_index = profile[(profile[ic_prop + '_ID'].notna() | profile[ic_prop + '_value'].notna())].index
+        except KeyError:
             try:
-                profile_index = profile[(profile[ic_prop + '_ID'].notna() | profile[ic_prop + '_value'].notna())].index
+                profile_index = profile[(profile[ic_prop + '_ID'].notna())].index
             except KeyError:
-                try:
-                    profile_index = profile[(profile[ic_prop + '_ID'].notna())].index
-                except KeyError:
-                    profile_index = profile[(profile[ic_prop + '_value'].notna())].index
-            else:
-                pass
+                profile_index = profile[(profile[ic_prop + '_value'].notna())].index
+        else:
+            pass
         profile.loc[profile_index, 'property'] = profile.loc[profile_index, 'property'].apply(lambda x: add_property(x, ic_prop))
 
     # set location, direction and depth of the vertical referential system
@@ -1648,3 +1623,18 @@ def read_snow_profile(ws_property, ic_property=None, reference_d={'ice': ['ice s
     else:
         profile = Profile()
     return profile
+
+
+def read_metadata_variable_as_str(ws, variable, col_header_idx=1, col_variable_idx=3, row_offset=0):
+    row_idx = find_str_in_col(ws, variable, col_header_idx)[0] + row_offset
+    if ws.cell(row_idx, col_variable_idx).value is not None:
+        return ws.cell(row_idx, col_variable_idx).value
+    else:
+        return 'N/A'
+def read_metadata_variable_as_float(ws, variable, col_header_idx=1, col_variable_idx=3, row_offset=0):
+    row_idx = find_str_in_col(ws, variable, col_header_idx)[0] + row_offset
+    variable_value = ws.cell(row_idx, col_variable_idx).value
+    if isfloat(variable_value):
+        return float(variable_value)
+    else:
+        return np.nan

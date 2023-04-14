@@ -17,6 +17,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.utils import quote_sheetname
 
 from pysic.tools import version2int
+from pysic.tools import isfloat
 from pysic.property import prop_associated_tab
 
 import pysic
@@ -254,7 +255,7 @@ def ic_data(wb, username=username):
         wb = add_style(wb)
 
         # Evaluate summmation formula:
-        wb = evaluate_formula(wb)
+        wb = evaluate_formula_in_wb(wb)
 
         # Update from 1.2 to 1.3:
         wb = version_1_2_x_to_1_3_0(wb)
@@ -956,7 +957,8 @@ def version_1_3_0_to_1_4_1(wb):
             wb[sheetname]['C1'].value = 'salinity'
             wb[sheetname]['D1'].value = None
             wb[sheetname]['C2'].value = 'ID'
-            wb[sheetname]['G2'].value = 'temperature'
+            wb[sheetname]['F2'].value = 'sample temperature'
+            wb[sheetname]['G2'].value = 'value'
 
             # insert quality column for salinity,
             col_n = 1
@@ -1610,7 +1612,7 @@ def version_1_3_0_to_1_4_1(wb):
             wb[sheetname]['H2'].value = 'value'
 
             wb[sheetname]['G1'].value = None
-            wb[sheetname]['G2'].value = 'sample temp'
+            wb[sheetname]['G2'].value = 'sample temperature'
             wb[sheetname]['G3'].value = '˚C'
             wb[sheetname].merge_cells('F1:G1')
 
@@ -2282,11 +2284,24 @@ def version_1_4_5_to_1_4_6(wb):
                             elif header == 'dD':
                                 dd_qual_idx = col_idx
         # -- Reorganize d18O, dD columns and add d_excess, if d18o_id match dd_id
-        max_row = wb[sheetname].max_row
+        max_row = wb[sheetname].max_row + 1
         d18o_id = [wb[sheetname].cell(row=ii, column=d18o_id_idx).value for ii in range(4, max_row)]
         dd_id = [wb[sheetname].cell(row=ii, column=dd_id_idx).value for ii in range(4, max_row)]
         d18o_qual = [wb[sheetname].cell(row=ii, column=d18o_qual_idx).value for ii in range(4, max_row)]
         dd_qual = [wb[sheetname].cell(row=ii, column=dd_qual_idx).value for ii in range(4, max_row)]
+        dd_value = [wb[sheetname].cell(row=ii, column=dd_value_idx).value for ii in range(4, max_row)]
+        d18o_value = [wb[sheetname].cell(row=ii, column=d18O_value_idx).value for ii in range(4, max_row)]
+
+        # check if dD id are not stored in dD value
+        if dd_value == d18o_id and not all(elem is None for elem in d18o_id):
+            logging.debug(
+                '\t%s - %s: moving dD_ID from value column to ID column' % (wb['metadata-core']['C1'].value, sheetname))
+            for row_idx in range(4, max_row):
+                temp = wb[sheetname].cell(row=row_idx, column=dd_id_idx).value
+                wb[sheetname].cell(row=row_idx, column=dd_id_idx).value = wb[sheetname].cell(row=row_idx, column=dd_value_idx).value
+                wb[sheetname].cell(row=row_idx, column=dd_value_idx).value = temp
+            dd_id = [wb[sheetname].cell(row=ii, column=dd_id_idx).value for ii in range(4, max_row)]
+            dd_value = [wb[sheetname].cell(row=ii, column=dd_value_idx).value for ii in range(4, max_row)]
 
         if dd_id == d18o_id:
             # Insert d_excess column after dD:
@@ -2318,6 +2333,7 @@ def version_1_4_5_to_1_4_6(wb):
                 for col in [d18o_id_idx, comment_col_idx]:
                     for row in range(1, wb[sheetname].max_row):
                         wb[sheetname].cell(row, col).border = l_border
+
         else:
             logger.info('\t%s - %s d18O ID different from dD ID: merging not possible' % (
                 wb['metadata-core']['C1'].value, sheetname))
@@ -4023,54 +4039,39 @@ def has_data(ws):
         return True
 
 
-def evaluate_formula(wb):
+def evaluate_formula_in_wb(wb):
     import numpy as np
     logger = logging.getLogger(__name__)
     for sheetname in wb.sheetnames:
-        for row_idx in range(1, wb[sheetname].max_row):
-            for col_idx in range(1, wb[sheetname].max_column):
-                if wb[sheetname].cell(row_idx, col_idx).value and isinstance(wb[sheetname].cell(row_idx, col_idx).value, str):
-                    if wb[sheetname].cell(row_idx, col_idx).value.startswith('='):
-                        formula = wb[sheetname].cell(row_idx, col_idx).value
-                        formula = list(filter(None, formula.split('=')))[0]
-                        if len(formula.split('+')) == 2:
-                            terms = []
-                            for element in formula.split('+'):
-                                if isfloat(element):
-                                    terms.append(float(element))
-                                elif isinstance(element, str):
-                                    if wb[sheetname][element] is None:
-                                        logger.error('Cell %s is emtpy ' % element)
-                                    elif isinstance(wb[sheetname][element].value, (int,float)):
-                                        terms.append(wb[sheetname][element].value)
-                                    else:
-                                        logger.error('Cell %s is not a number: %s' % (element, wb[sheetname][element].value))
-                                else:
-                                    logger.error('Element (%s) is neither a float or a string' % formula)
-                            wb[sheetname].cell(row_idx, col_idx).value = np.sum(terms)
-                        else:
-                            if isfloat(formula):
-                                wb[sheetname].cell(row_idx, col_idx).value = float(formula)
-                            elif isinstance(formula, str):
-                                if wb[sheetname][formula] is None:
-                                    logger.error('Cell %s is emtpy ' % formula)
-                                elif isinstance(wb[sheetname][formula].value, (int,float)):
-                                    wb[sheetname].cell(row_idx, col_idx).value = wb[sheetname][formula].value
-                                else:
-                                    logger.error('Cell %s is not a number: %s' % (formula, wb[sheetname][formula].value))
-                            else:
-                                logger.error('Element (%s) is neither a float or a string' % formula)
-                        coord = openpyxl.utils.get_column_letter(col_idx) + str(row_idx)
-                        core_name = wb['metadata-core']['C1'].value
-                        logger.debug('\t%s: evaluate %s cell formula in %s to % s' %(core_name, coord, sheetname, wb[sheetname].cell(row_idx, col_idx).value))
+        for row_idx in range(1, wb[sheetname].max_row + 1):
+            for col_idx in range(1, wb[sheetname].max_column + 1):
+                if wb[sheetname].cell(row_idx, col_idx).value is None:
+                    continue
+                elif isfloat(wb[sheetname].cell(row_idx, col_idx).value):
+                    wb[sheetname].cell(row_idx, col_idx).value = float(wb[sheetname].cell(row_idx, col_idx).value)
+                    continue
+                elif wb[sheetname].cell(row_idx, col_idx).value.startswith('='):
+                    formula = wb[sheetname].cell(row_idx, col_idx).value
+                    wb[sheetname].cell(row_idx, col_idx).value = evaluate_formula(wb, sheetname, formula)
     return wb
 
-def isfloat(num):
-    try:
-        float(num)
-        return True
-    except ValueError:
+def evaluate_formula(wb, sheetname, formula):
+    formula = formula[1:]
+    terms = []
+    if '+' in formula:
+        for element in formula.split('+'):
+            if isfloat(element):
+                terms.append(float(element))
+            else:
+                terms.append(evaluate_formula(wb, sheetname, '='+element))
+    elif isfloat(wb[sheetname][formula].value):
+        terms.append(float(wb[sheetname][formula].value))
+    elif wb[sheetname][formula].value.startswith('='):
+        terms.append(evaluate_formula(wb, sheetname, wb[sheetname][formula].value))
+    else:
         return False
+    return np.sum(terms)
+
 
 def insert_row_with_merge(worksheet, row_insert_idx, row_n=1):
     # move merged cells downwards below row_insert_idx row

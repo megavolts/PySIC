@@ -118,12 +118,12 @@ def parse_coordinate(v_cell_deg, v_cell_min, v_cell_sec):
     """
     import numpy as np
 
-    if isinstance(v_cell_deg, (float, int)):
-        degree = v_cell_deg
-        if isinstance(v_cell_min, (float, int)):
-            minute = v_cell_min
-            if isinstance(v_cell_sec, (float, int)):
-                second = v_cell_sec
+    if isfloat(v_cell_deg):
+        degree = float(v_cell_deg)
+        if isfloat(v_cell_min):
+            minute = float(v_cell_min)
+            if isfloat(v_cell_sec):
+                second = float(v_cell_sec)
             else:
                 second = 0
         else:
@@ -132,6 +132,15 @@ def parse_coordinate(v_cell_deg, v_cell_min, v_cell_sec):
         coordinate = degree + minute / 60 + second / 3600
     else:
         coordinate = np.nan
-
-    # Add control for
     return coordinate
+
+
+def isfloat(num):
+    try:
+        float(num)
+        return True
+    except ValueError:
+        return False
+    except TypeError:
+        return False
+
