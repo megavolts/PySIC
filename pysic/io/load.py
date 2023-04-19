@@ -323,7 +323,7 @@ def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True)
             profile['matter'] = matter
             # TODO def add_sw_salinity(profile):
             # add sea water salinity at the correct
-            if matter == 'ice' and 'salinity' in profile.get_property() and not np.isnan(core.s_water):
+            if matter == 'ice' and 'salinity' in profile.variable and not np.isnan(core.s_water):
                 # TODO: def profile.get_vref():
                 v_ref_loc = profile.v_ref_loc.unique()
                 if len(v_ref_loc) != 1:
@@ -353,7 +353,7 @@ def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True)
             #     logger.error('%s\t\tTODO: implement v_ref_loc %s for profile%' %(core.name, v_ref_loc))
 
             # add snow, ice surface, and sea water temperature in temperature profile
-            if matter == 'ice' and 'temperature' in profile.get_property():
+            if matter == 'ice' and 'temperature' in profile.variable:
                 headers = ['y_mid', 'temperature_value', 'temperature_quality', 'comment', 'matter', 'property', 'v_ref_loc',
                            'v_ref_h', 'v_ref_dir']
 
@@ -439,7 +439,7 @@ def ic_from_path(ic_path, ic_property=None, drop_empty=False, fill_missing=True)
             profile = pysic.Profile(profile)
             if not profile.empty:
                 core.add_profile(profile)
-                logger.info('(%s) data imported with success: %s' % (core.name, ", ".join(profile.get_property())))
+                logger.info('(%s) data imported with success: %s' % (core.name, ", ".join(profile.variable)))
             else:
                 logger.info('(%s) no data to import from %s ' % (core.name, sheet))
     # else:

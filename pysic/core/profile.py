@@ -19,27 +19,38 @@ class Profile(pd.DataFrame):
         super(Profile, self).__init__(*args, **kwargs)
         self.logger = logging.getLogger(__name__)
 
-    def get_property(self, string_rtn=False):
+    @property
+    def variable(self, string=False):
         """
         Return properties stored in the profiles
         :return: str or array
             List of property or None if there is no property stored in the profile
         """
 
-        if 'property' not in self.keys():
-            self.logger.error('\t\t No property in profile')
-            return None
+        if 'property' not in self.columns:
+            self.logger.error('\t\t No variable in profile')
+            if string:
+                return ''
+            else:
+                return [None]
         else:
-            property = []
+            _variable = []
             for prop_grp in self.property.unique():
                 if prop_grp is not None:
-                    if ', ' in property:
-                        property += list(filter(None, prop_grp.split(', ')))
-                    property += [prop_grp]
-        if string_rtn:
-            return ', '.join(property)
+                    if ',' in prop_grp:
+                        _variable += list(filter(None, prop_grp.split(', ')))
+                    else:
+                        _variable += [prop_grp]
+        if string:
+            return ', '.join(_variable)
         else:
-            return list(set(property))
+            return list(set(_variable))
+
+
+    @variable.deleter
+    def variable(self, variable2del, string=False):
+        self.logger.error('\t\t @variable.deleter not implemented yet')
+        return self
 
     def get_name(self):
         """
@@ -57,6 +68,14 @@ class Profile(pd.DataFrame):
                 self.name.unique()
             else:
                 return self.name.unique()[0]
+
+
+
+
+
+
+
+
 
     #
     #

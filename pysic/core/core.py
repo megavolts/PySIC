@@ -153,16 +153,6 @@ class Core:
             elif comment not in self.comment.split('; '):
                 self.comment += '; ' + comment
 
-    # def variables(self):
-    #     variables = []
-    #     if 'variable' in self.profile:
-    #         for group in self.profile.variable.unique():
-    #             for variable in group.split(', '):
-    #                 if variable not in variables:
-    #                     variables += [variable]
-    #         return variables
-    #     else:
-    #         return []
     #
     # def del_variable(self, variable):
     #     """
@@ -256,7 +246,11 @@ class Core:
         else:
             self.profile = self.profile.add(profile)
 
-    # def get_property(self):
+    @property
+    def variable(self):
+        return self.profile.variable
+
+    # def variables(self):
     #     return self.profile.get_property()
 
 
