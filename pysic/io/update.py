@@ -4040,6 +4040,7 @@ def has_data(ws):
 
 
 def evaluate_formula_in_wb(wb):
+    from datetime import datetime, time, date
     import numpy as np
     logger = logging.getLogger(__name__)
     for sheetname in wb.sheetnames:
@@ -4049,6 +4050,10 @@ def evaluate_formula_in_wb(wb):
                     continue
                 elif isfloat(wb[sheetname].cell(row_idx, col_idx).value):
                     wb[sheetname].cell(row_idx, col_idx).value = float(wb[sheetname].cell(row_idx, col_idx).value)
+                    continue
+                elif isinstance(wb[sheetname].cell(row_idx, col_idx).value, datetime) or \
+                     isinstance(wb[sheetname].cell(row_idx, col_idx).value, date) or \
+                     isinstance(wb[sheetname].cell(row_idx, col_idx).value, time):
                     continue
                 elif wb[sheetname].cell(row_idx, col_idx).value.startswith('='):
                     formula = wb[sheetname].cell(row_idx, col_idx).value

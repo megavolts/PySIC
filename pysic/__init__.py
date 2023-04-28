@@ -21,6 +21,8 @@ import pysic.io
 import pysic.io.load
 import pysic.io.update
 import pysic.io.clean
+import pysic.tools
+import pysic.tools.plot
 from .__version__ import __version__
 from pysic.core.event import Event
 from pysic.core.core import Core

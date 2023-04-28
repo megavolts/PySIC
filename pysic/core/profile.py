@@ -46,7 +46,6 @@ class Profile(pd.DataFrame):
         else:
             return list(set(_variable))
 
-
     @variable.deleter
     def variable(self, variable2del, string=False):
         self.logger.error('\t\t @variable.deleter not implemented yet')
@@ -124,6 +123,31 @@ class Profile(pd.DataFrame):
         else:
             self.logger = logging.getLogger(__name__)
             self.logger.warning('Try to add profile from %s to %s profile: profile name does not match' % (profile.get_name(), self.get_name()))
+
+    def select_variable(self, variable):
+        from pysic.property import prop_associated
+        _profile = Profile()
+        if variable in self.variable:
+            vg_group = [group for group in self.property.unique() if variable in group]
+
+            var_columns = [col for col in self.columns if variable in col]
+            loc_columns = ['y_low', 'y_mid', 'y_sup']
+            ref_columns = ['v_ref_loc', 'v_ref_h', 'v_ref_dir']
+            columns = loc_columns + var_columns + ref_columns
+            if 'name' in self.columns:
+                columns += ['name']
+
+            _profile = self[self.property.isin(vg_group)][columns]
+            _profile['property'] = [variable] * len(_profile)
+
+        return Profile(_profile)
+    #
+    # def plot(self, variable=None):
+    #     for
+
+
+
+
     #
     # def delete_property(self, property):
     #     """
