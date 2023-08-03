@@ -26,7 +26,7 @@ class Core:
         """
         :param name:
             string, name of the ice core
-        :param date:
+        :param s:
             datetime.datetime, date of coring YYYY-mm-dd hh:mm
         :param origin:
             string, location name of the sampling

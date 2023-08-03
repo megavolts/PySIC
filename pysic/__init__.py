@@ -23,6 +23,13 @@ import pysic.io.update
 import pysic.io.clean
 import pysic.tools
 import pysic.tools.plot
+import pysic.property
+import pysic.property.si
+import pysic.property.sw
+import pysic.property.brine
+import pysic.property.brine_nacl
+import pysic.property.ice
+
 from .__version__ import __version__
 from pysic.core.event import Event
 from pysic.core.core import Core

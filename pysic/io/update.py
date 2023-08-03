@@ -1074,7 +1074,8 @@ def version_1_3_0_to_1_4_1(wb):
                     else:
                         cell_coord_d1 = 'A' + str(row_idx)
                         cell_coord_dc = 'C' + str(row_idx)
-                        logging.error('\t\t-%s: cell %s is not empty. Unable to copy value from ' %(sheetname, cell_coord_d1, cell_coord_dc))
+                        print(sheetname, cell_coord_d1, cell_coord_dc)
+                        logging.error('\t\t-%s: cell %s is not empty. Unable to copy value from %s' %(sheetname, cell_coord_d1, cell_coord_dc))
             delete_col_with_merge(wb[sheetname], col_insert_idx, col_n, True, 4)
 
             # insert column to move comment column to the right
@@ -4057,7 +4058,22 @@ def evaluate_formula_in_wb(wb):
                     continue
                 elif wb[sheetname].cell(row_idx, col_idx).value.startswith('='):
                     formula = wb[sheetname].cell(row_idx, col_idx).value
-                    wb[sheetname].cell(row_idx, col_idx).value = evaluate_formula(wb, sheetname, formula)
+                    if isfloat(formula[1:]):
+                        wb[sheetname].cell(row_idx, col_idx).value = float(formula[1:])
+                    elif '*' in formula[1:] and all(isfloat(factor) for factor in formula[1:].split('*')):
+                        factors = [float(factor) for factor in formula[1:].split('*')]
+                        wb[sheetname].cell(row_idx, col_idx).value = np.prod(factors)
+                    elif '-' in formula[1:] and all(isfloat(factor) for factor in formula[1:].split('-')) and\
+                            len(formula[1:].split('-')) < 3:
+                        total = float(formula[1:].split('-')[0]) - float(formula[1:].split('-')[1])
+                        wb[sheetname].cell(row_idx, col_idx).value = total
+                    elif '/' in formula[1:] and all(isfloat(factor) for factor in formula[1:].split('/')) and\
+                            len(formula[1:].split('/')) < 3:
+                        total = float(formula[1:].split('/')[0]) / float(formula[1:].split('/')[1])
+                        wb[sheetname].cell(row_idx, col_idx).value = total
+
+                    else:
+                        wb[sheetname].cell(row_idx, col_idx).value = evaluate_formula(wb, sheetname, formula)
     return wb
 
 def evaluate_formula(wb, sheetname, formula):
