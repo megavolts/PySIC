@@ -405,7 +405,7 @@ class Profile(pd.DataFrame):
     #
 
 
-def set_v_ref_at_bottom(profile)
+#def set_v_ref_at_bottom(profile)
 
 
 def discretize_profile(profile, y_bins=None, y_mids=y_mids, display_figure=False, fill_gap=fill_gap,
