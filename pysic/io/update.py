@@ -4045,6 +4045,7 @@ def evaluate_formula_in_wb(wb):
     import numpy as np
     logger = logging.getLogger(__name__)
     for sheetname in wb.sheetnames:
+        print('%s' % sheetname)
         for row_idx in range(1, wb[sheetname].max_row + 1):
             for col_idx in range(1, wb[sheetname].max_column + 1):
                 if wb[sheetname].cell(row_idx, col_idx).value is None:
@@ -4086,6 +4087,7 @@ def evaluate_formula(wb, sheetname, formula):
             else:
                 terms.append(evaluate_formula(wb, sheetname, '='+element))
     elif isfloat(wb[sheetname][formula].value):
+        print('%s' % sheetname)
         terms.append(float(wb[sheetname][formula].value))
     elif wb[sheetname][formula].value.startswith('='):
         terms.append(evaluate_formula(wb, sheetname, wb[sheetname][formula].value))
